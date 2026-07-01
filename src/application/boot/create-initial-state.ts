@@ -283,6 +283,7 @@ function createKingdom(
     adjective: blueprint.adjective,
     isPlayer: blueprint.isPlayer,
     capitalRegionId,
+    heirs: [], // Inicialmente sem herdeiros - serão gerados quando o monarca for definido
     economy: createBaseEconomy(),
     population: createBasePopulation(populationTotal),
     technology: {
@@ -527,7 +528,8 @@ function createWorldState(
   return {
     mapId: staticData.mapId,
     regions,
-    religions: dynamicReligions
+    religions: dynamicReligions,
+    eventChains: {}
   };
 }
 
@@ -573,7 +575,7 @@ function createKingdoms(ownerByRegionId: Record<string, string>, capitalByOwner:
     const ownedRegions = byOwner.get(blueprint.id) ?? [];
     const capitalRegionId = capitalByOwner[blueprint.id] ?? blueprint.preferredCapitalRegionId;
     const capitalZone = definitionsById[capitalRegionId]?.zone ?? "europe";
-    const chosenFaith = staticData.religions["catholicism"] ? "catholicism" : religionByZone(capitalZone, staticData);
+    const chosenFaith = religionByZone(capitalZone, staticData);
     kingdoms[blueprint.id] = createKingdom(blueprint, capitalRegionId, ownedRegions.length, chosenFaith);
   }
 

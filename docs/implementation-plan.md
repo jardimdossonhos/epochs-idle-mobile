@@ -1,34 +1,45 @@
+# Plano de Implementacao Ativo
 
-## Stage 2 - Runtime baseline
+Este documento substitui o plano antigo por um recorte tatico do que realmente deve acontecer a seguir.
 
-- Wire Vite + TypeScript + Pixi shell map
-- Create `GameSession` loop with pause/resume/speed
-- Implement `ClockService` and `TickPipeline`
-- Build local repositories with IndexedDB
-- Implement save slots and autosave rotation
-- Build minimal HUD with resource strip + event list
+**Atualizado em 2026-05-04**
 
-## Stage 3 - Core systems
+## Estado de Partida
 
-- [x] Economy/resource production and upkeep formulas
-- [x] Religion cohesion, conversion pressure, custom beliefs and border osmosis
-- Diplomacy matrix, treaties, coalition pressure
-- [x] War resolution loop with supply and logistic distance modifiers
-- [x] NPC AI heuristic layer (personality + context + memory + fog of truth)
-- [x] Automation policies (manual/assisted/almost-auto)
+- Fase 4 esta funcional.
+- Fase 4.5 segue em estabilizacao, nao em encerramento real.
+- Fase 5 continua bloqueada por debito tecnico e risco de regressao.
 
-## Stage 4 - Playable UI
-- Start screen and campaign setup
-- Main map + kingdom dashboard
-- Panels: economy, military, diplomacy, religion, tech, administration
-- Message feed with templated narrative events
-- Save manager screen with summaries and restore
-- [x] Risk indicators, tooltips, and advisor hints (Context-Aware Council)
+## Prioridades Imediatas
 
-## Stage 5 - Refinement
+1. **Continuar a extracao da UI**
+   - Reduzir responsabilidades residuais de `src/main.ts`.
+   - Mover mais abas e listeners para `src/ui/controllers/`.
+   - Isolar renderizacao textual/DOM em helpers ou views puras quando fizer sentido.
 
-- Initial balancing pass for progression and victory pacing
-- [x] Offline progression simulation on reopen
-- Save recovery hardening and corruption handling
-- Performance profiling and tick budget control
-- Explicit sync serialization contracts for future multiplayer mode
+2. **Reduzir o bundle principal**
+   - Atacar code splitting de telas e modulos pesados.
+   - Rever imports compartilhados que impedem chunking real.
+   - Manter `npm run build` como gate obrigatorio a cada iteracao relevante.
+
+3. **Fortalecer smoke automation local**
+   - Manter `window.render_game_to_text()` e `window.advanceTime(ms)` como contratos estaveis.
+   - Criar um wrapper local para Playwright, evitando dependencia do script externo em `~/.codex`.
+
+4. **Expandir regressao automatizada**
+   - Cobrir melhor interacao ECS/UI.
+   - Cobrir feed de eventos e `eventChains`.
+   - Cobrir fluxos de save/load com estados avancados de campanha.
+
+## Gate Antes da Fase 5
+
+Nao iniciar `Vida Microscopica e Tatica em Tempo Real` antes de:
+
+- reduzir risco de regressao em save/load;
+- ter smoke test confiavel para bootstrap + mapa + worker sync;
+- diminuir o tamanho do bundle principal;
+- retirar mais logica de interface de `src/main.ts`.
+
+## Registro Historico
+
+O plano antigo por "Stage 2/3/4/5" fica implicitamente arquivado: a maior parte dele ja foi absorvida por `roadmap.md`, `developer-logs.md` e pelo estado real do codigo.

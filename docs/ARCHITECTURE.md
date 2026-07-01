@@ -563,14 +563,18 @@ Para enriquecer o *Late-game* e prover picos de euforia na progressão, o jogo e
 
 ### 6.15. Débito Técnico: O "God Object" e a Refatoração da UI
 
-**Problema Identificado:** Durante a prototipagem inicial das mecânicas complexas, o arquivo `src/main.ts` assumiu o antipadrão de *God Object* (Objeto Deus), violando a Responsabilidade Única (SRP). Atualmente, ele orquestra dependências, desenha o DOM (views), escuta cliques (controllers) e faz ponte IPC com o Worker.
+**Estado atual em 2026-05-04:** o problema estrutural continua existindo, mas a base já saiu do ponto zero. `src/ui/controllers/` foi introduzido e hoje abriga controladores para `progressao`, `mapa`, `governo` e `tecnologia`, coordenados por `TabControllerManager`. Mesmo assim, `src/main.ts` ainda concentra splash screen, bootstrap, renderer, save/load, debug panel, boa parte do binding de eventos e renderizacao legada.
 
-**Estratégia de Refatoração (MVC/MVP):** Antes da implementação do *Dual Engine* (Batalhas Táticas) ou Multiplayer, a camada superficial do jogo passará por uma componentização estrita:
-1.  **Isolamento de Estado:** A comunicação IPC com o Worker será extraída para uma classe de infraestrutura `SimulationClient`.
-2.  **Controladores Modulares:** Criação de `src/ui/controllers/` (ex: `CouncilController`, `ReligionController`) para ouvir eventos da tela e acionar a `GameSession`.
-3.  **Views Puras:** Criação de `src/ui/views/` encarregadas exclusivamente de injetar strings literais na DOM com base nos dados do estado.
+**Observabilidade adicionada:** para reduzir a cegueira de smoke tests e automacao local, a UI agora expõe dois contratos explicitos:
+1. `window.render_game_to_text()` para extrair um snapshot textual conciso do estado jogavel.
+2. `window.advanceTime(ms)` para avancar a simulacao manualmente, inclusive com a sessao pausada.
 
-Isso reduzirá o `main.ts` a um mero inicializador de rotas com ~200 linhas, garantindo escalabilidade infinita para a adição de novas abas analíticas.
+**Estratégia de Refatoração (MVC/MVP):** antes da implementação do *Dual Engine* (Batalhas Táticas) ou Multiplayer, a camada superficial do jogo ainda precisa avançar em três frentes:
+1.  **Isolamento de Estado:** reduzir o acoplamento direto entre `main.ts`, worker, renderer e `GameSession`.
+2.  **Controladores Modulares:** extrair o restante das abas e listeners para `src/ui/controllers/`.
+3.  **Views / View-models puros:** mover serialização e montagem de DOM para helpers previsiveis e testáveis.
+
+**Gate real:** a Fase 5 só deve começar quando essa refatoração sair do estado "parcialmente iniciada" e quando o bundle principal deixar de representar um risco constante de regressão de interface.
 ## 7. Problemas Anteriores (Resolvidos)
 
 Esta seção documenta problemas que foram identificados e corrigidos em fases anteriores do desenvolvimento, servindo como um registro histórico.

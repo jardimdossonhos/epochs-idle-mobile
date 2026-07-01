@@ -152,10 +152,52 @@ class InMemoryEventBus implements EventBus {
   }
 }
 
+function getPlayerOwnedRegionId(state: GameState): string {
+  const player = state.kingdoms.k_player;
+  const region = Object.values(state.world.regions).find((item) => item.ownerId === player.id);
+
+  if (!region) {
+    throw new Error("Expected at least one region owned by the player.");
+  }
+
+  return region.regionId;
+}
+
+function getNpcTargetId(state: GameState): string {
+  const rival = Object.values(state.kingdoms).find((kingdom) => !kingdom.isPlayer && kingdom.id !== "k_nature");
+
+  if (!rival) {
+    throw new Error("Expected at least one NPC kingdom in the initial state.");
+  }
+
+  return rival.id;
+}
+
+function seedPlayerResources(state: GameState): void {
+  if (!state.ecs) {
+    throw new Error("Expected ECS state to be initialized.");
+  }
+
+  for (let index = 0; index < WORLD_DEFINITIONS_V1.length; index += 1) {
+    const regionId = WORLD_DEFINITIONS_V1[index].id;
+    if (state.world.regions[regionId]?.ownerId !== "k_player") {
+      continue;
+    }
+
+    state.ecs.gold[index] = 250;
+    state.ecs.food[index] = 500;
+    state.ecs.wood[index] = 250;
+    state.ecs.iron[index] = 120;
+    state.ecs.faith[index] = 120;
+    state.ecs.legitimacy[index] = 60;
+  }
+}
+
 describe("GameSession player actions", () => {
   it("applies regional action and decreases unrest", async () => {
     const staticData = createStaticWorldData();
     const initial = createInitialState(staticData, undefined, WORLD_DEFINITIONS_V1);
+    seedPlayerResources(initial);
 
     const session = new GameSession({
       gameStateRepository: new InMemoryGameStateRepository(),
@@ -170,9 +212,10 @@ describe("GameSession player actions", () => {
 
     await session.bootstrap(initial);
 
-    const before = session.getState().world.regions.r_iberia_north.unrest;
-    const result = session.executeRegionAction("r_iberia_north", "pacify");
-    const after = session.getState().world.regions.r_iberia_north.unrest;
+    const regionId = getPlayerOwnedRegionId(session.getState());
+    const before = session.getState().world.regions[regionId].unrest;
+    const result = session.executeRegionAction(regionId, "pacify");
+    const after = session.getState().world.regions[regionId].unrest;
 
     expect(result.ok).toBe(true);
     expect(after).toBeLessThan(before);
@@ -181,6 +224,7 @@ describe("GameSession player actions", () => {
   it("applies diplomacy cooldown on repeated action", async () => {
     const staticData = createStaticWorldData();
     const initial = createInitialState(staticData, undefined, WORLD_DEFINITIONS_V1);
+    seedPlayerResources(initial);
 
     const session = new GameSession({
       gameStateRepository: new InMemoryGameStateRepository(),
@@ -195,8 +239,9 @@ describe("GameSession player actions", () => {
 
     await session.bootstrap(initial);
 
-    const first = session.executeDiplomaticAction("k_rival_north", "embargo");
-    const second = session.executeDiplomaticAction("k_rival_north", "embargo");
+    const targetId = getNpcTargetId(session.getState());
+    const first = session.executeDiplomaticAction(targetId, "embargo");
+    const second = session.executeDiplomaticAction(targetId, "embargo");
 
     expect(first.cooldownUntil).toBeDefined();
     expect(second.ok).toBe(false);

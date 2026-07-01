@@ -1,14 +1,24 @@
-﻿﻿﻿﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createInitialState } from "../src/application/boot/create-initial-state";
-import { RuleBasedNpcDecisionService } from "../src/infrastructure/npc/rule-based-npc-decision-service";
 import { WORLD_DEFINITIONS_V1 } from "../src/application/boot/generated/world-definitions-v1";
+import { RuleBasedNpcDecisionService } from "../src/infrastructure/npc/rule-based-npc-decision-service";
+
+function getNpcActor(state: ReturnType<typeof createInitialState>) {
+  const actor = Object.values(state.kingdoms).find((kingdom) => !kingdom.isPlayer && kingdom.id !== "k_nature");
+
+  if (!actor) {
+    throw new Error("Expected at least one NPC kingdom in the initial state.");
+  }
+
+  return actor;
+}
 
 describe("RuleBasedNpcDecisionService", () => {
   it("proposes war when expansionist NPC has strong advantage", () => {
     const state = createInitialState(undefined, undefined, WORLD_DEFINITIONS_V1);
     const service = new RuleBasedNpcDecisionService();
 
-    const actor = state.kingdoms.k_rival_north;
+    const actor = getNpcActor(state);
     const player = state.kingdoms.k_player;
     const relation = actor.diplomacy.relations[player.id];
 
@@ -16,9 +26,9 @@ describe("RuleBasedNpcDecisionService", () => {
     relation.score.trust = 0.18;
     relation.grievance = 0.76;
 
-    actor.military.armies[0].manpower = 42000;
+    actor.military.armies[0].manpower = 42_000;
     actor.military.armies[0].quality = 0.7;
-    player.military.armies[0].manpower = 16000;
+    player.military.armies[0].manpower = 16_000;
     player.military.armies[0].quality = 0.45;
 
     const decisions = service.decide(state, actor.id);
@@ -30,10 +40,13 @@ describe("RuleBasedNpcDecisionService", () => {
     const state = createInitialState(undefined, undefined, WORLD_DEFINITIONS_V1);
     const service = new RuleBasedNpcDecisionService();
 
-    const actor = state.kingdoms.k_rival_north;
+    const actor = getNpcActor(state);
     const player = state.kingdoms.k_player;
 
     actor.diplomacy.warExhaustion = 0.84;
+    actor.stability = 34;
+    player.military.armies[0].manpower = 32_000;
+    player.military.armies[0].quality = 0.82;
     state.wars.war_live = {
       id: "war_live",
       attackers: [actor.id],
@@ -43,7 +56,7 @@ describe("RuleBasedNpcDecisionService", () => {
       startedAt: state.meta.lastUpdatedAt,
       fronts: [
         {
-          regionId: "r_gallia_west",
+          regionId: player.capitalRegionId,
           pressureAttackers: 50,
           pressureDefenders: 50
         }

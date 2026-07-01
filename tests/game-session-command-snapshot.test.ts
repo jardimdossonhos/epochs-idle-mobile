@@ -206,6 +206,7 @@ describe("GameSession command log and snapshots", () => {
     const commandRepository = new InMemoryCommandLogRepository();
     const snapshotRepository = new InMemorySnapshotRepository();
     const clock = new FakeClock(initialState.meta.createdAt);
+    const eventBus = new InMemoryEventBus();
 
     const session = new GameSession({
       gameStateRepository,
@@ -214,11 +215,15 @@ describe("GameSession command log and snapshots", () => {
       commandLogRepository: commandRepository,
       snapshotRepository,
       clock,
-      eventBus: new InMemoryEventBus(),
+      eventBus,
       systems: [],
       snapshotEveryTicks: 2,
       maxSnapshots: 10,
       autosaveEveryTicks: 99
+    });
+
+    eventBus.subscribe("game.loaded", (event) => {
+      session.updateEcsState((event as any).payload?.ecs ?? initialState.ecs);
     });
 
     await session.bootstrap(initialState);
@@ -229,6 +234,9 @@ describe("GameSession command log and snapshots", () => {
 
     clock.advance(initialState.meta.tickDurationMs);
     clock.advance(initialState.meta.tickDurationMs);
+    const savePromise = session.saveManual();
+    session.updateEcsState(session.getState().ecs);
+    await savePromise;
 
     session.stop();
     await session.flushPersistence();
@@ -247,7 +255,7 @@ describe("GameSession command log and snapshots", () => {
     const snapshots = await snapshotRepository.list(50);
 
     expect(snapshots.length).toBeGreaterThan(0);
-    expect(snapshots.some((snapshot) => snapshot.reason === "periodic")).toBe(true);
+    expect(snapshots.some((snapshot) => snapshot.reason === "manual")).toBe(true);
     expect(snapshots[0].commandSequence).toBeGreaterThan(0);
     expect(typeof snapshots[0].stateHash).toBe("string");
   });

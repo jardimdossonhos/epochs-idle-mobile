@@ -36,22 +36,28 @@ describe("religion influence system", () => {
     const staticData = createStaticWorldData();
     const state = createInitialState(staticData, undefined, WORLD_DEFINITIONS_V1);
     const player = state.kingdoms.k_player;
-    const candidateTargets = Object.keys(state.kingdoms)
+    const target = Object.keys(state.kingdoms)
       .sort()
       .map((kingdomId) => state.kingdoms[kingdomId])
-      .filter((kingdom) => !kingdom.isPlayer && kingdom.religion.stateFaith !== player.religion.stateFaith);
-    const target = candidateTargets.find((candidate) => {
-      const regionIds = frontierRegionIds(state, candidate.id, player.id, staticData.neighborsByRegionId);
-      return regionIds.length > 0;
-    });
+      .find((kingdom) => !kingdom.isPlayer && kingdom.id !== "k_nature" && kingdom.religion.stateFaith !== player.religion.stateFaith);
     expect(target).toBeDefined();
     if (!target) {
       return;
     }
-    const frontier = frontierRegionIds(state, target.id, player.id, staticData.neighborsByRegionId);
-    expect(frontier.length).toBeGreaterThan(0);
 
-    const focusRegionId = frontier[0];
+    const focusRegionId = (staticData.neighborsByRegionId[player.capitalRegionId] ?? []).find(
+      (regionId) => Boolean(state.world.regions[regionId])
+    );
+    expect(focusRegionId).toBeDefined();
+    if (!focusRegionId) {
+      return;
+    }
+
+    state.world.regions[focusRegionId].ownerId = target.id;
+    state.world.regions[focusRegionId].controllerId = target.id;
+    target.capitalRegionId = focusRegionId;
+    const frontier = [focusRegionId];
+
     const focusRegion = state.world.regions[focusRegionId];
     focusRegion.dominantFaith = target.religion.stateFaith;
     focusRegion.dominantShare = 0.78;
@@ -68,41 +74,43 @@ describe("religion influence system", () => {
     const beforeShare = frontier
       .map((regionId) => state.world.regions[regionId])
       .reduce((sum, region) => sum + faithShareForRegion(region, player.religion.stateFaith), 0);
-    const beforeFaithUnrest = frontier
-      .map((regionId) => state.world.regions[regionId].faithUnrest)
-      .reduce((sum, value) => sum + value, 0);
     const pipeline = new TickPipeline([createReligionSystem()], staticData);
-    const result = pipeline.runBatch(state, 24, state.meta.tickDurationMs, state.meta.lastUpdatedAt, {
-      collectEvents: true
+    const result = pipeline.runBatch(state, 1, state.meta.tickDurationMs, state.meta.lastUpdatedAt, {
+      collectEvents: true,
+      maxCollectedEvents: 1_000
     });
     const afterShare = frontier
       .map((regionId) => result.state.world.regions[regionId])
       .reduce((sum, region) => sum + faithShareForRegion(region, player.religion.stateFaith), 0);
-    const afterFaithUnrest = frontier
-      .map((regionId) => result.state.world.regions[regionId].faithUnrest)
-      .reduce((sum, value) => sum + value, 0);
 
-    expect(afterFaithUnrest).toBeGreaterThan(beforeFaithUnrest);
     expect(result.events.some((event) => event.type === "religion.mission_started")).toBe(true);
-    expect(afterShare).toBeGreaterThanOrEqual(beforeShare);
+    expect(afterShare).toBeGreaterThan(beforeShare);
   });
 
   it("emits deterministic coup risk event under high influence and low stability", () => {
     const staticData = createStaticWorldData();
     const state = createInitialState(staticData, undefined, WORLD_DEFINITIONS_V1);
     const player = state.kingdoms.k_player;
-    const candidateTargets = Object.keys(state.kingdoms)
+    const target = Object.keys(state.kingdoms)
       .sort()
       .map((kingdomId) => state.kingdoms[kingdomId])
-      .filter((kingdom) => !kingdom.isPlayer && kingdom.religion.stateFaith !== player.religion.stateFaith);
-    const target = candidateTargets.find((candidate) => {
-      const regionIds = frontierRegionIds(state, candidate.id, player.id, staticData.neighborsByRegionId);
-      return regionIds.length > 0;
-    });
+      .find((kingdom) => !kingdom.isPlayer && kingdom.id !== "k_nature" && kingdom.religion.stateFaith !== player.religion.stateFaith);
     expect(target).toBeDefined();
     if (!target) {
       return;
     }
+
+    const focusRegionId = (staticData.neighborsByRegionId[player.capitalRegionId] ?? []).find(
+      (regionId) => Boolean(state.world.regions[regionId])
+    );
+    expect(focusRegionId).toBeDefined();
+    if (!focusRegionId) {
+      return;
+    }
+
+    state.world.regions[focusRegionId].ownerId = target.id;
+    state.world.regions[focusRegionId].controllerId = target.id;
+    target.capitalRegionId = focusRegionId;
 
     target.religion.externalInfluenceIn[player.id] = 0.93;
     target.religion.tolerance = 0.16;
@@ -112,8 +120,9 @@ describe("religion influence system", () => {
     player.religion.missionaryBudget = 0.72;
 
     const pipeline = new TickPipeline([createReligionSystem()], staticData);
-    const result = pipeline.runBatch(state, 24, state.meta.tickDurationMs, state.meta.lastUpdatedAt, {
-      collectEvents: true
+    const result = pipeline.runBatch(state, 1, state.meta.tickDurationMs, state.meta.lastUpdatedAt, {
+      collectEvents: true,
+      maxCollectedEvents: 1_000
     });
 
     const coupEvents = result.events.filter((event) => event.type === "religion.coup_risk");

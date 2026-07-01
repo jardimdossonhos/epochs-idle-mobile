@@ -23,8 +23,8 @@ import { buildStateHash } from "../core/utils/state-fingerprint";
 import { hashDeterministic } from "../core/utils/stable-hash";
 import { TickPipeline, type SimulationSystem } from "../core/simulation/tick-pipeline";
 import { generateRoutineAdvice } from "../core/simulation/systems/council-system";
-import { WORLD_DEFINITIONS_V1 } from "./boot/generated/world-definitions-v1";
 import { AUTOSAVE_SLOT_ID, MANUAL_SLOT_ID } from "../infrastructure/persistence/save-slots";
+import { WORLD_DEFINITIONS_V1 } from "./boot/generated/world-definitions-v1";
 
 export interface GameSessionDeps {
   gameStateRepository: GameStateRepository;
@@ -76,9 +76,6 @@ export interface RuntimeMetrics {
 
 // Cache de Indexação Global: Transforma buscas O(N) em O(1)
 const REGION_INDEX_MAP = new Map<string, number>();
-for (let i = 0; i < WORLD_DEFINITIONS_V1.length; i++) {
-  REGION_INDEX_MAP.set(WORLD_DEFINITIONS_V1[i].id, i);
-}
 
 export class GameSession {
   private readonly pipeline: TickPipeline;
@@ -93,7 +90,7 @@ export class GameSession {
   private commandHeadHash = "genesis";
   private tickSamples: number[] = [];
   private isWorkerReady = false; // Bloqueio de segurança (Handshake)
-  private pendingManualSaveResolver: (() => void) | null = null;
+  private pendingManualSave: { resolve: () => void, slotId: SaveSlotId } | null = null;
   private pendingAutosave = false;
   private runtimeMetrics: RuntimeMetrics = {
     tickMsLast: 0,
@@ -103,7 +100,35 @@ export class GameSession {
   };
 
   constructor(private readonly deps: GameSessionDeps) {
+    if (REGION_INDEX_MAP.size === 0) {
+      for (let i = 0; i < WORLD_DEFINITIONS_V1.length; i++) {
+        REGION_INDEX_MAP.set(WORLD_DEFINITIONS_V1[i].id, i);
+      }
+    }
     this.pipeline = new TickPipeline(deps.systems, deps.staticWorldData);
+  }
+
+  public resumeFromBackground(): void {
+    if (!this.currentState) return;
+    
+    // Calcula o progresso offline simulando ticks acumulados (Limitado a no max 1 semana para evitar Spiral of Death)
+    const now = Date.now();
+    const offlineMs = now - this.currentState.meta.lastUpdatedAt;
+    
+    // Só processar offline se ficou mais de 30 segundos fora
+    if (offlineMs > 30 * 1000) {
+      const maxOfflineMs = 7 * 24 * 60 * 60 * 1000;
+      const effectiveOfflineMs = Math.min(offlineMs, maxOfflineMs);
+      
+      const tickRate = 1000;
+      const offlineTicks = Math.floor(effectiveOfflineMs / tickRate);
+      
+      this.runtimeMetrics.offlineCatchUpMs = effectiveOfflineMs;
+      this.runtimeMetrics.offlineTicks = offlineTicks;
+      
+      // Acumula os ms para que o runLoop processe os ticks em batch rapidamente
+      this.accumulatedMs += effectiveOfflineMs;
+    }
   }
 
   private migrateLegacyState(state: GameState): void {
@@ -213,6 +238,10 @@ export class GameSession {
     this.deps.clock.start((deltaMs, now) => {
       this.onClockTick(deltaMs, now);
     });
+  }
+
+  public advanceTimeForTesting(deltaMs: number, now = this.deps.clock.now()): void {
+    this.processClockTick(deltaMs, now, true, 1, false);
   }
 
   stop(sync = false): void {
@@ -652,6 +681,29 @@ export class GameSession {
     this.emitState();
   }
 
+  applyGovernmentPolicy(params: { taxPolicy: TaxPolicy; budgetPriority: BudgetPriority }): PlayerActionResult {
+    const state = this.requireState();
+    const player = this.getPlayerKingdom(state);
+
+    player.economy.taxPolicy = {
+      ...player.economy.taxPolicy,
+      ...params.taxPolicy
+    };
+    player.economy.budgetPriority = {
+      ...params.budgetPriority
+    };
+
+    this.appendActionLog("Políticas governamentais aplicadas", "As políticas fiscais e de orçamento do reino foram atualizadas.", "info");
+    this.recordPlayerCommand("government.apply_policy", {
+      taxPolicy: player.economy.taxPolicy,
+      budgetPriority: player.economy.budgetPriority
+    });
+    this.persistCurrent();
+    this.emitState();
+
+    return { ok: true, message: "Políticas aplicadas com sucesso." };
+  }
+
   setResearchFocus(focus: TechnologyDomain): void {
     const state = this.requireState();
     const player = this.getPlayerKingdom(state);
@@ -1077,7 +1129,7 @@ export class GameSession {
     };
   }
 
-  async saveManual(): Promise<void> {
+  async saveManual(slotId: SaveSlotId = MANUAL_SLOT_ID): Promise<void> {
     if (!this.currentState) {
       return Promise.resolve();
     }
@@ -1085,14 +1137,14 @@ export class GameSession {
     return new Promise<void>((resolve) => {
       // Sincronização Passiva: Levanta a bandeira de salvar. 
       // O save será feito com dados perfeitamente frescos na exata fração de segundo em que o próximo TICK do Worker chegar.
-      this.pendingManualSaveResolver = resolve;
+      this.pendingManualSave = { resolve, slotId };
       
       // Proteção de UI (Anti-Ghost Button): Se nada ocorrer em 3s, força o destrave para não congelar o jogo.
       setTimeout(() => {
-        if (this.pendingManualSaveResolver === resolve) {
+        if (this.pendingManualSave?.resolve === resolve) {
           console.warn("[GameSession] Timeout aguardando Worker. Forçando salvamento com dados atuais.");
-          this.doCommitManualSave(resolve).catch(console.error);
-          this.pendingManualSaveResolver = null;
+          this.doCommitManualSave(resolve, slotId).catch(console.error);
+          this.pendingManualSave = null;
         }
       }, 3000);
     });
@@ -1346,9 +1398,9 @@ export class GameSession {
       }
 
       // COMMIT ATÔMICO: Transação segura no exato frame em que a matriz fresca chegou.
-      if (this.pendingManualSaveResolver) {
-        this.doCommitManualSave(this.pendingManualSaveResolver).catch(console.error);
-        this.pendingManualSaveResolver = null;
+      if (this.pendingManualSave) {
+        this.doCommitManualSave(this.pendingManualSave.resolve, this.pendingManualSave.slotId).catch(console.error);
+        this.pendingManualSave = null;
       }
       if (this.pendingAutosave) {
         this.doCommitAutosave();
@@ -1357,10 +1409,10 @@ export class GameSession {
     }
   }
 
-  private async doCommitManualSave(resolve: () => void): Promise<void> {
-    const snapshot = this.buildSaveSlotSnapshot(MANUAL_SLOT_ID);
+  private async doCommitManualSave(resolve: () => void, slotId: SaveSlotId): Promise<void> {
+    const snapshot = this.buildSaveSlotSnapshot(slotId);
     await this.deps.saveRepository.saveToSlot(snapshot);
-    this.recordPlayerCommand("save.manual", { slotId: MANUAL_SLOT_ID });
+    this.recordPlayerCommand("save.manual", { slotId });
     this.captureSnapshot("manual");
     resolve();
   }
@@ -1727,8 +1779,18 @@ export class GameSession {
   }
 
   private onClockTick(deltaMs: number, now: number): void {
+    this.processClockTick(deltaMs, now, false);
+  }
+
+  private processClockTick(
+    deltaMs: number,
+    now: number,
+    ignorePause: boolean,
+    speedMultiplierOverride?: number,
+    applySafetyClamp = true
+  ): void {
     const state = this.currentState;
-    if (!state || state.meta.paused || !this.isWorkerReady) {
+    if (!state || (!ignorePause && state.meta.paused) || !this.isWorkerReady) {
       return;
     }
 
@@ -1737,9 +1799,10 @@ export class GameSession {
     // PROTEÇÃO CONTRA ESPIRAL DA MORTE (Spiral of Death)
     // Limita o tempo máximo lido por pulso a 1000ms. Se a CPU engasgar, 
     // evitamos que uma dívida de tempo exponencial seja cobrada no próximo frame.
-    const safeDeltaMs = Math.min(deltaMs, 1000);
+    const safeDeltaMs = applySafetyClamp ? Math.min(deltaMs, 1000) : Math.max(0, deltaMs);
 
-    this.accumulatedMs += safeDeltaMs * state.meta.speedMultiplier;
+    const appliedSpeedMultiplier = speedMultiplierOverride ?? state.meta.speedMultiplier;
+    this.accumulatedMs += safeDeltaMs * appliedSpeedMultiplier;
 
     let progressed = false;
     let simNow = state.meta.lastUpdatedAt;

@@ -1,4 +1,4 @@
-﻿﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createInitialState } from "../src/application/boot/create-initial-state";
 import { createStaticWorldData } from "../src/application/boot/static-world-data";
 import { WORLD_DEFINITIONS_V1 } from "../src/application/boot/generated/world-definitions-v1";
@@ -10,8 +10,13 @@ describe("LocalWarResolver", () => {
     const staticData = createStaticWorldData();
     const state = createInitialState(staticData, undefined, WORLD_DEFINITIONS_V1);
     const resolver = new LocalWarResolver(staticData);
+    const attacker = Object.values(state.kingdoms).find((kingdom) => !kingdom.isPlayer && kingdom.id !== "k_nature");
 
-    const attackerId = "k_rival_north";
+    if (!attacker) {
+      throw new Error("Expected at least one NPC kingdom in the initial state.");
+    }
+
+    const attackerId = attacker.id;
     const defenderId = "k_player";
 
     const risk = resolver.evaluateWarRisk(state.kingdoms[attackerId], state.kingdoms[defenderId], state);

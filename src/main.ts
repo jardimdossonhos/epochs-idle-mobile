@@ -1,6 +1,7 @@
 import "./styles/global.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Diagnostic } from "./application/diagnostics";
+import { generateHeir } from "./core/simulation/systems/character-system";
 import {
   GameSession,
   type DiplomaticActionType,
@@ -25,6 +26,8 @@ import { LocalWarResolver } from "./infrastructure/war/local-war-resolver";
 import { calculateTechnologyBonuses } from "./core/models/technology-effects-service";
 import { FAMILY_TRIBUTE_LEGENDARIES } from "./core/data/legendaries";
 import { loadDirectoryHandle, saveDirectoryHandle, clearDirectoryHandle, WebFsGameStateRepository, WebFsSaveRepository } from "./infrastructure/persistence/web-fs-repositories";
+import { TabControllerManager } from "./ui/controllers/tab-controller-manager";
+import { buildRenderGameTextState } from "./ui/view-models/render-game-to-text";
 
 interface UiRefs {
   playerValue: HTMLElement;
@@ -108,6 +111,13 @@ interface LocalPlayerProfile {
 
 const PROFILE_STORAGE_KEY = "midk.profile.v1";
 
+type DebugWindow = Window & {
+  __DEBUG_SESSION?: GameSession;
+  __WORLD_DEFS?: typeof WORLD_DEFINITIONS_V1;
+  render_game_to_text?: () => string;
+  advanceTime?: (ms: number) => Promise<void>;
+};
+
 const TECH_DOMAIN_ORDER: TechnologyDomain[] = [
   TechnologyDomain.Economy,
   TechnologyDomain.Military,
@@ -116,6 +126,9 @@ const TECH_DOMAIN_ORDER: TechnologyDomain[] = [
   TechnologyDomain.Logistics,
   TechnologyDomain.Engineering
 ];
+
+// Gerenciador de controladores de abas (MVC/MVP Pattern)
+const tabControllerManager = new TabControllerManager();
 
 function queryElement<T extends Element>(root: ParentNode, selector: string): T {
   const element = root.querySelector(selector);
@@ -456,7 +469,7 @@ async function bootstrapApp(): Promise<void> {
         <p style="color: #aaa;">A forja de um novo império aguarda o seu comando.</p>
         <div id="splash-loading-indicator" style="margin-top: 2rem; color: #888; font-weight: bold; padding: 0.8rem;">Lendo pergaminhos locais...</div>
         <div id="splash-actions" class="splash-actions" style="display: none;">
-          <button id="splash-continue-btn" class="primary" style="display: none;">Continuar Jornada</button>
+          <button id="splash-continue-btn" class="primary" style="display: none;">Carregar Jogo Salvo</button>
           <button id="splash-new-btn">Nova Campanha</button>
         </div>
         <div id="splash-form" class="splash-form is-hidden">
@@ -577,7 +590,7 @@ async function bootstrapApp(): Promise<void> {
         <button id="open-settings-btn">Configurações</button>
         <span id="toast-area" class="toast"></span>
       </section>
-
+      <div class="scrollable-content-area">
       <section class="map-workspace">
         <article class="card map-card" style="display: flex; flex-direction: column;">
           <div class="map-toolbar">
@@ -618,18 +631,6 @@ async function bootstrapApp(): Promise<void> {
             <ul id="resource-list" class="list compact"></ul>
           </article>
         </aside>
-      </section>
-
-      <section class="tabs card">
-        <button class="tab-btn is-active" data-tab="mapa">Mapa</button>
-        <button class="tab-btn" data-tab="governo">Governo</button>
-        <button class="tab-btn" data-tab="religiao">Religião</button>
-        <button class="tab-btn" data-tab="diplomacia">Diplomacia</button>
-        <button class="tab-btn" data-tab="tecnologia">Tecnologia</button>
-        <button class="tab-btn" data-tab="militar">Militar</button>
-        <button class="tab-btn" data-tab="eventos">Eventos</button>
-        <button class="tab-btn" data-tab="saves">Saves</button>
-        <button class="tab-btn" data-tab="configuracoes">Configurações</button>
       </section>
 
       <section class="panel-grid">
@@ -838,6 +839,148 @@ async function bootstrapApp(): Promise<void> {
           <button id="profile-save-btn">Salvar perfil local</button>
           <p class="hint-text">Este perfil local prepara o caminho para autenticação e sincronização entre dispositivos no multiplayer futuro.</p>
         </article>
+
+        <article class="card tab-panel is-hidden" data-tab-panel="progressao">
+          <h2>🏆 Progressão das Eras</h2>
+          <div class="era-progression">
+            <div class="current-era-banner">
+              <h3>🌅 Era Atual: Aurora</h3>
+              <p class="era-description">A era da fundação e consolidação dos primeiros impérios. Você controla as bases da civilização: economia, governo e tecnologia básica.</p>
+            </div>
+
+            <div class="era-features">
+              <h4>✨ Funcionalidades Disponíveis na Era Aurora</h4>
+              <div class="feature-grid">
+                <div class="feature-item available">
+                  <span class="feature-icon">🗺️</span>
+                  <div class="feature-content">
+                    <strong>Mapa Mundial</strong>
+                    <p>Explore e expanda seu território através do mapa interativo</p>
+                  </div>
+                </div>
+                <div class="feature-item available">
+                  <span class="feature-icon">🏛️</span>
+                  <div class="feature-content">
+                    <strong>Governo e Administração</strong>
+                    <p>Gerencie seu império, orçamento e políticas governamentais</p>
+                  </div>
+                </div>
+                <div class="feature-item available">
+                  <span class="feature-icon">⚙️</span>
+                  <div class="feature-content">
+                    <strong>Tecnologia Básica</strong>
+                    <p>Pesquise e desenvolva tecnologias fundamentais da civilização</p>
+                  </div>
+                </div>
+                <div class="feature-item available">
+                  <span class="feature-icon">💾</span>
+                  <div class="feature-content">
+                    <strong>Sistema de Saves</strong>
+                    <p>Salve e carregue seu progresso de jogo</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="upcoming-eras">
+              <h4>🔮 Eras Futuras e Desbloqueios</h4>
+              <div class="era-roadmap">
+                <div class="era-stage locked" id="solar-era">
+                  <div class="era-header">
+                    <span class="era-icon">🌞</span>
+                    <h5>Era Solar</h5>
+                    <span class="era-status">🔒 Bloqueado</span>
+                  </div>
+                  <p class="era-condition" id="solar-era-condition">Alcance 50.000 habitantes totais no império</p>
+                  <div class="era-features-preview">
+                    <div class="feature-item locked">
+                      <span class="feature-icon">🤝</span>
+                      <strong>Diplomacia Internacional</strong>
+                    </div>
+                    <div class="feature-item locked">
+                      <span class="feature-icon">⚔️</span>
+                      <strong>Sistema Militar</strong>
+                    </div>
+                    <div class="feature-item locked">
+                      <span class="feature-icon">⛪</span>
+                      <strong>Religião e Cultura</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="era-stage locked" id="stellar-era">
+                  <div class="era-header">
+                    <span class="era-icon">⭐</span>
+                    <h5>Era Estelar</h5>
+                    <span class="era-status">🔒 Bloqueado</span>
+                  </div>
+                  <p class="era-condition" id="stellar-era-condition">Alcance 500.000 habitantes e domine 10 regiões</p>
+                  <div class="era-features-preview">
+                    <div class="feature-item locked">
+                      <span class="feature-icon">🎭</span>
+                      <strong>Eventos Históricos</strong>
+                    </div>
+                    <div class="feature-item locked">
+                      <span class="feature-icon">👥</span>
+                      <strong>Conselho Imperial</strong>
+                    </div>
+                    <div class="feature-item locked">
+                      <span class="feature-icon">🏺</span>
+                      <strong>Civilizações Antigas</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="era-stage locked" id="cosmic-era">
+                  <div class="era-header">
+                    <span class="era-icon">🌌</span>
+                    <h5>Era Cósmica</h5>
+                    <span class="era-status">🔒 Bloqueado</span>
+                  </div>
+                  <p class="era-condition" id="cosmic-era-condition">Alcance 5 milhões de habitantes e conquiste o mundo</p>
+                  <div class="era-features-preview">
+                    <div class="feature-item locked">
+                      <span class="feature-icon">🚀</span>
+                      <strong>Exploração Espacial</strong>
+                    </div>
+                    <div class="feature-item locked">
+                      <span class="feature-icon">🤖</span>
+                      <strong>IA e Automação</strong>
+                    </div>
+                    <div class="feature-item locked">
+                      <span class="feature-icon">⚛️</span>
+                      <strong>Tecnologias Avançadas</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="progression-tips">
+              <h4>💡 Dicas para Progressão</h4>
+              <ul class="tips-list">
+                <li><strong>Expansão:</strong> Foque em expandir seu território para aumentar a população e recursos</li>
+                <li><strong>Tecnologia:</strong> Pesquise tecnologias que aumentem sua eficiência econômica</li>
+                <li><strong>Governo:</strong> Mantenha um governo estável para evitar revoltas e maximizar produtividade</li>
+                <li><strong>Objetivo:</strong> Trabalhe para alcançar 50.000 habitantes totais para desbloquear a Era Solar</li>
+              </ul>
+            </div>
+          </div>
+        </article>
+      </section>
+      </div>
+
+      <section class="tabs card">
+        <button class="tab-btn is-active" data-tab="mapa">Mapa</button>
+        <button class="tab-btn" data-tab="governo">Governo</button>
+        <button class="tab-btn" data-tab="religiao">Religião</button>
+        <button class="tab-btn" data-tab="diplomacia">Diplomacia</button>
+        <button class="tab-btn" data-tab="tecnologia">Tecnologia</button>
+        <button class="tab-btn" data-tab="militar">Militar</button>
+        <button class="tab-btn" data-tab="eventos">Eventos</button>
+        <button class="tab-btn" data-tab="saves">Saves</button>
+        <button class="tab-btn" data-tab="configuracoes">Configurações</button>
+        <button class="tab-btn" data-tab="progressao">Progressão</button>
       </section>
     </main>
   `;
@@ -1390,6 +1533,9 @@ async function bootstrapApp(): Promise<void> {
     for (const panel of ui.tabPanels) {
       panel.classList.toggle("is-hidden", panel.dataset.tabPanel !== tabId);
     }
+
+    // Notificar gerenciador de controladores sobre mudança de aba
+    tabControllerManager.setActiveTab(tabId);
   }
 
   function syncProfileUi(): void {
@@ -1569,31 +1715,82 @@ async function bootstrapApp(): Promise<void> {
   });
 
   // ALVO B: Ouve eventos da simulação POO e dispara danos instantâneos na Memória ECS (Desastres)
-  eventBus.subscribe("disaster.plague", (event: any) => {
+  function applyEmpireEcsEffect(
+    kingdomId: string | undefined,
+    target: "food" | "population",
+    operation: "add_empire_total" | "subtract_empire_total",
+    value: number
+  ): void {
+    if (!kingdomId || value <= 0) {
+      return;
+    }
+
     const state = session.getState();
-    if (!state) return;
-    const kingdomId = event.payload?.actorKingdomId || event.actorKingdomId;
+    if (!state) {
+      return;
+    }
+
     const indices = getKingdomRegionIndices(state, kingdomId);
-    if (indices.length === 0) return;
+    if (indices.length === 0) {
+      return;
+    }
+
     simulationWorker.postMessage({
       type: "APPLY_ECS_EFFECTS",
-      payload: { target: "population", operation: "subtract", value: 1000, indices }
+      payload: { target, operation, value, indices }
     });
+  }
+
+  eventBus.subscribe("disaster.plague", (event: any) => {
+    applyEmpireEcsEffect(
+      event.actorKingdomId,
+      "population",
+      "subtract_empire_total",
+      Number(event.payload?.amount ?? 0)
+    );
   });
 
   eventBus.subscribe("disaster.drought", (event: any) => {
-    const state = session.getState();
-    if (!state) return;
-    const kingdomId = event.payload?.actorKingdomId || event.actorKingdomId;
-    const indices = getKingdomRegionIndices(state, kingdomId);
-    if (indices.length === 0) return;
-    simulationWorker.postMessage({
-      type: "APPLY_ECS_EFFECTS",
-      payload: { target: "food", operation: "subtract", value: 2000, indices }
-    });
+    applyEmpireEcsEffect(
+      event.actorKingdomId,
+      "food",
+      "subtract_empire_total",
+      Number(event.payload?.amount ?? 0)
+    );
   });
 
   // Escuta os poderes divinos POO e aplica o benefício nas matrizes ECS
+  eventBus.subscribe("event.bountiful_harvest", (event: any) => {
+    applyEmpireEcsEffect(
+      event.actorKingdomId,
+      "food",
+      "add_empire_total",
+      Number(event.payload?.amount ?? 0)
+    );
+  });
+
+  eventBus.subscribe("event.population_migration", (event: any) => {
+    applyEmpireEcsEffect(
+      event.actorKingdomId,
+      "population",
+      "add_empire_total",
+      Number(event.payload?.amount ?? 0)
+    );
+  });
+
+  eventBus.subscribe("event_chain.economic_crisis", (event: any) => {
+    if (event.payload?.impact !== "food_shortage") {
+      return;
+    }
+
+    applyEmpireEcsEffect(
+      event.actorKingdomId,
+      "food",
+      "subtract_empire_total",
+      Number(event.payload?.amount ?? 0)
+    );
+  });
+
   eventBus.subscribe("religion.blessing", (event: any) => {
     const state = session.getState();
     if (!state) return;
@@ -1714,6 +1911,9 @@ async function bootstrapApp(): Promise<void> {
       payload: { target: "population", operation: "subtract_empire_total", value: amount, indices }
     });
   });
+
+  // Inicializar gerenciador de controladores de abas (MVC/MVP Pattern)
+  tabControllerManager.initialize(ui, session);
 
   // highlight-end
   const mapRenderer = new HybridMapRenderer(ui.mapCanvas, staticWorldData, (selection: MapSelection) => {
@@ -2321,6 +2521,7 @@ async function bootstrapApp(): Promise<void> {
     ui.globalAutomationToggle.checked = !!player.administration.automation.globalToggleActive;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function renderCouncil(state: GameState): void {
     const player = getPlayerKingdom(state);
     const admin = player.administration;
@@ -2455,6 +2656,7 @@ async function bootstrapApp(): Promise<void> {
             <button style="flex: 1; font-size: 0.8rem;" data-interact-role="${role}" data-interact-action="raise_salary">+ Ouro</button>
             <button style="flex: 1; font-size: 0.8rem;" data-interact-role="${role}" data-interact-action="cut_salary">- Ouro</button>
             <button class="danger" style="flex: 1; font-size: 0.8rem;" data-interact-role="${role}" data-interact-action="threaten">Ameaçar</button>
+            <button style="flex: 1; font-size: 0.8rem; background: #6b46c1; border-color: #6b46c1;" data-swap-role="${role}">Remanejar</button>
             <button class="danger" style="flex: 1; font-size: 0.8rem; border-color: #f00;" data-fire-role="${role}">Demitir</button>
           </div>
         `;
@@ -2750,6 +2952,7 @@ async function bootstrapApp(): Promise<void> {
     renderTechnologyTree(choices);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function renderReligion(state: GameState): void {
     const player = getPlayerKingdom(state);
     const playerIndices = getPlayerRegionIndicesCached(state, player);
@@ -2883,6 +3086,7 @@ async function bootstrapApp(): Promise<void> {
     return button;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function renderDiplomacy(state: GameState): void {
     const player = getPlayerKingdom(state);
     const playerIndices = getPlayerRegionIndicesCached(state, player);
@@ -2948,6 +3152,7 @@ async function bootstrapApp(): Promise<void> {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function renderMilitary(state: GameState): void {
     const player = getPlayerKingdom(state);
 
@@ -2982,10 +3187,33 @@ async function bootstrapApp(): Promise<void> {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function renderEventLog(state: GameState): void {
     ui.eventList.innerHTML = "";
 
-    if (state.events.length === 0) {
+    const activeChains = Object.values(state.world.eventChains ?? {}).sort((left, right) => right.startedAt - left.startedAt);
+
+    for (const chain of activeChains.slice(0, 5)) {
+      const item = document.createElement("li");
+      const kingdomName = state.kingdoms[chain.kingdomId]?.name ?? chain.kingdomId;
+      const chainLabel = chain.chainType === "economic_crisis" ? "Crise economica" : "Guerra santa";
+      item.className = "event-info";
+      item.innerHTML = `
+        <strong>Cadeia ativa: ${chainLabel}</strong>
+        <span>${kingdomName} esta no estagio ${chain.stage}/${chain.maxStages}.</span>
+        <small>Iniciada no tick ${chain.startedAt}.</small>
+      `;
+      ui.eventList.appendChild(item);
+    }
+
+    if (activeChains.length > 5) {
+      const item = document.createElement("li");
+      item.className = "event-info";
+      item.textContent = `+${activeChains.length - 5} cadeias ativas adicionais em andamento.`;
+      ui.eventList.appendChild(item);
+    }
+
+    if (state.events.length === 0 && activeChains.length === 0) {
       const item = document.createElement("li");
       item.textContent = "Sem eventos recentes.";
       ui.eventList.appendChild(item);
@@ -3000,6 +3228,34 @@ async function bootstrapApp(): Promise<void> {
       item.innerHTML = `<strong>${event.title}${countText}</strong><span>${event.details}</span>${suggestion}<small>${formatDate(event.occurredAt)}</small>`;
       ui.eventList.appendChild(item);
     }
+  }
+
+  function exposeAutomationHooks(): void {
+    const debugWindow = window as DebugWindow;
+
+    debugWindow.render_game_to_text = () => {
+      const state = session.getState();
+      if (!state) {
+        return JSON.stringify({ mode: "booting" });
+      }
+
+      return buildRenderGameTextState({
+        state,
+        player: getPlayerKingdom(state),
+        definitions: WORLD_DEFINITIONS_V1,
+        simulation: currentSimulationState,
+        activeLayer: ui.mapLayerSelect.value as MapLayerMode,
+        selectedRegionId,
+        selectedMapLabel
+      });
+    };
+
+    debugWindow.advanceTime = async (ms: number) => {
+      session.advanceTimeForTesting(ms);
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+    };
   }
 
   function buildMapRenderContext(state: GameState): MapRenderContext {
@@ -3348,6 +3604,9 @@ async function bootstrapApp(): Promise<void> {
     renderDiplomacy(state);
     renderMilitary(state);
     renderEventLog(state);
+
+    tabControllerManager.updateAllTabs(state);
+
     mapRenderer.render(state.world, state.kingdoms, buildMapRenderContext(state));
     ui.offlineProgressionToggle.checked = state.meta.offlineProgression ?? false;
     ui.immortalityToggle.checked = state.meta.immortalityEnabled ?? false;
@@ -3473,6 +3732,68 @@ async function bootstrapApp(): Promise<void> {
     if (fireRole) {
       const result = session.fireMinister(fireRole as MinisterRole);
       showToast(result.message);
+    }
+
+    // Intercepta ações de remanejamento de ministros
+    const swapRole = target.dataset.swapRole;
+    if (swapRole) {
+      const state = session.getState();
+      const player = getPlayerKingdom(state);
+      const council = player?.administration.council || {};
+      const ALL_ROLES = [MinisterRole.PrimeMinister, MinisterRole.Steward, MinisterRole.Marshal, MinisterRole.Chancellor, MinisterRole.Chaplain, MinisterRole.Scholar];
+      const roleTitles: Record<string, string> = {
+        [MinisterRole.PrimeMinister]: "Primeiro-Ministro (A Mão)",
+        [MinisterRole.Steward]: "Intendente Real",
+        [MinisterRole.Marshal]: "Lorde Marechal",
+        [MinisterRole.Chancellor]: "Grão-Chanceler",
+        [MinisterRole.Chaplain]: "Alto Capelão",
+        [MinisterRole.Scholar]: "Sábio da Corte"
+      };
+      // Mostra um modal/prompt para escolher o novo cargo
+      const availableRoles = ALL_ROLES.filter(r => !council[r] || r === swapRole);
+      const options = availableRoles.map(r => `<option value="${r}" ${r === swapRole ? 'selected' : ''}>${roleTitles[r]}</option>`).join('');
+      
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.8); z-index: 1000; display: flex; 
+        align-items: center; justify-content: center;
+      `;
+      
+      modal.innerHTML = `
+        <div style="background: #111; border: 2px solid #d4af37; border-radius: 8px; padding: 20px; max-width: 400px; width: 90%;">
+          <h3 style="color: #d4af37; margin-top: 0;">Remanejar Ministro</h3>
+          <p style="color: #ccc; margin-bottom: 15px;">Escolha o novo cargo para este ministro:</p>
+          <select id="swap-target-role" style="width: 100%; padding: 8px; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px; margin-bottom: 15px;">
+            ${options}
+          </select>
+          <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="swap-cancel" style="padding: 8px 16px; background: #666; border: none; border-radius: 4px; color: white; cursor: pointer;">Cancelar</button>
+            <button id="swap-confirm" style="padding: 8px 16px; background: #d4af37; border: none; border-radius: 4px; color: #111; cursor: pointer; font-weight: bold;">Remanejar</button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      const cancelBtn = modal.querySelector('#swap-cancel') as HTMLButtonElement;
+      const confirmBtn = modal.querySelector('#swap-confirm') as HTMLButtonElement;
+      const selectEl = modal.querySelector('#swap-target-role') as HTMLSelectElement;
+      
+      cancelBtn.addEventListener('click', () => document.body.removeChild(modal));
+      confirmBtn.addEventListener('click', () => {
+        const targetRole = selectEl.value as MinisterRole;
+        if (targetRole !== swapRole) {
+          const result = session.reassignMinister(swapRole as MinisterRole, targetRole);
+          showToast(result.message);
+        }
+        document.body.removeChild(modal);
+      });
+      
+      // Fecha o modal ao clicar fora
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) document.body.removeChild(modal);
+      });
     }
     
     // Intercepta ações de diálogo e interação
@@ -3966,7 +4287,8 @@ async function bootstrapApp(): Promise<void> {
              targetKingdom.administration.candidatePool.unshift({
                 id: charId, name: `${template.name}, ${template.title}`, role: MinisterRole.Wildcard,
                 personality: MinisterPersonality.Progressive, origin: "Descido dos Céus (O Panteão)",
-                skillLevel: 5, salary: 0, delegationLevel: AutomationLevel.Manual, loyalty: 100
+                skillLevel: 5, experience: 0, experienceToNext: 500,
+                salary: 0, delegationLevel: AutomationLevel.Manual, loyalty: 100
              });
              state.world.characters[charId].status = "minister";
           }
@@ -4009,8 +4331,17 @@ async function bootstrapApp(): Promise<void> {
     splashActions.style.display = "flex";
   }
 
+  // Mostrar botão "Carregar Jogo Salvo" sempre, mas com texto diferente se não há saves
+  ui.splashContinueBtn.style.display = "inline-block";
+
   if (initialSlots.length > 0 || currentState) {
-    ui.splashContinueBtn.style.display = "inline-block";
+    ui.splashContinueBtn.textContent = "Carregar Jogo Salvo";
+    ui.splashContinueBtn.title = "Carregar seu jogo salvo mais recente";
+  } else {
+    ui.splashContinueBtn.textContent = "Carregar Jogo Salvo";
+    ui.splashContinueBtn.disabled = true;
+    ui.splashContinueBtn.title = "Nenhum jogo salvo encontrado. Comece uma nova campanha primeiro.";
+    ui.splashContinueBtn.style.opacity = "0.5";
   }
 
   ui.splashNewBtn.addEventListener("click", () => {
@@ -4019,6 +4350,12 @@ async function bootstrapApp(): Promise<void> {
   });
 
   ui.splashContinueBtn.addEventListener("click", async () => {
+    // Se não há saves nem estado atual, mostrar mensagem e não fazer nada
+    if (initialSlots.length === 0 && !currentState) {
+      alert("Nenhum jogo salvo encontrado. Comece uma nova campanha primeiro.");
+      return;
+    }
+
     // UX: Fornece feedback visual de que o jogo está processando dados densos
     ui.splashContinueBtn.disabled = true;
     ui.splashNewBtn.disabled = true;
@@ -4118,6 +4455,13 @@ async function bootstrapApp(): Promise<void> {
         personalWealth: 0, influence: 100,
         memory: [`Unificou as tribos e forjou a coroa no Ano 1.`]
       };
+
+      // Gera herdeiros para o novo monarca
+      const heir1 = generateHeir(freshState.world.characters[charId], playerKingdom.id, 0);
+      const heir2 = generateHeir(freshState.world.characters[charId], playerKingdom.id, 0);
+      freshState.world.characters[heir1.id] = heir1;
+      freshState.world.characters[heir2.id] = heir2;
+      playerKingdom.heirs = [heir1.id, heir2.id];
     }
 
     await persistence.gameStateRepository.saveCurrent(freshState);
@@ -4160,8 +4504,10 @@ async function bootstrapApp(): Promise<void> {
       renderState(state);
     });
 
-    (window as any).__DEBUG_SESSION = session;
-    (window as any).__WORLD_DEFS = WORLD_DEFINITIONS_V1;
+    const debugWindow = window as DebugWindow;
+    debugWindow.__DEBUG_SESSION = session;
+    debugWindow.__WORLD_DEFS = WORLD_DEFINITIONS_V1;
+    exposeAutomationHooks();
 
     await renderSaveSlots();
     session.start();

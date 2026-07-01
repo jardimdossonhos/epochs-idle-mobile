@@ -16,14 +16,20 @@
     "desktop": "electron .",
     "desktop:run": "npm run build && electron .",
     "desktop:pack": "npm run build && electron-builder --dir",
-    "desktop:dist": "npm run build && electron-builder --win portable nsis"
+    "desktop:dist": "npm run build && electron-builder --win portable nsis",
+    "telemetry": "node scripts/ai-telemetry-server.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/preferences": "^8.0.1",
     "idb": "^8.0.2",
     "maplibre-gl": "^5.11.0",
     "pixi.js": "^8.8.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
     "@playwright/test": "^1.58.2",
     "@turf/turf": "^7.3.4",
     "@types/node": "^22.13.9",

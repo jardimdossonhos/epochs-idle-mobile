@@ -1,0 +1,671 @@
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, FlatList, Alert, Image } from 'react-native';
+import { useGameState } from '../GameProvider';
+import type { Character } from '../../core/models/character';
+import type { Minister } from '../../core/models/administration';
+import { MinisterRole } from '../../core/models/enums';
+
+export default function CharacterScreen() {
+  const { gameState, session, playerKingdomId } = useGameState();
+  const [activeTab, setActiveTab] = useState<'ruler' | 'council' | 'court'>('ruler');
+
+  if (!gameState || !session) return null;
+
+  const kingdom = gameState.kingdoms[playerKingdomId];
+  if (!kingdom) return null;
+
+  // Filter based on tab
+  const getTabCharacters = () => {
+    switch (activeTab) {
+      case 'ruler':
+        if (kingdom.rulerId && gameState.world.characters?.[kingdom.rulerId]) {
+          return [gameState.world.characters[kingdom.rulerId]];
+        }
+        return Object.values(gameState.world.characters || {}).filter(
+          c => c.status === 'ruler' && c.employerKingdomId === playerKingdomId
+        );
+      case 'council':
+        return Object.values(kingdom.administration?.council || {}).filter((m): m is Minister => !!m);
+      case 'court':
+        return kingdom.administration?.candidatePool || [];
+      default:
+        return [];
+    }
+  };
+
+  const characters = getTabCharacters();
+
+  const handleFire = (role: MinisterRole) => {
+    const res = session.fireMinister(role);
+    if (!res.ok) {
+      Alert.alert("Erro ao Demitir", res.message);
+    } else {
+      Alert.alert("Conselho Atualizado", res.message);
+    }
+  };
+
+  const handleReassign = (currentRole: MinisterRole, targetRole: MinisterRole) => {
+    const res = session.reassignMinister(currentRole, targetRole);
+    if (!res.ok) {
+      Alert.alert("Erro ao Remanejar", res.message);
+    } else {
+      Alert.alert("Conselho Atualizado", res.message);
+    }
+  };
+
+  const handleInteract = (role: MinisterRole, interaction: "praise" | "threaten" | "consult" | "raise_salary" | "cut_salary") => {
+    const res = session.interactMinister(role, interaction);
+    if (!res.ok) {
+      Alert.alert("Ação Falhou", res.message);
+    } else {
+      Alert.alert("Interação", res.message);
+    }
+  };
+
+  const handleHire = (candidateId: string, targetRole: MinisterRole) => {
+    const res = session.hireMinister(candidateId, targetRole);
+    if (!res.ok) {
+      Alert.alert("Erro ao Contratar", res.message);
+    } else {
+      Alert.alert("Conselho Atualizado", res.message);
+    }
+  };
+
+  const renderItem = ({ item }: { item: any }) => {
+    if (activeTab === 'ruler') {
+      return <CharacterCard character={item} />;
+    } else if (activeTab === 'council') {
+      // Find the role of this minister in the council
+      const roleEntry = Object.entries(kingdom.administration?.council || {}).find(([_, m]) => m && m.id === item.id);
+      const role = roleEntry ? (roleEntry[0] as MinisterRole) : MinisterRole.Wildcard;
+      return (
+        <CouncilCard 
+          minister={item} 
+          role={role} 
+          onFire={handleFire} 
+          onReassign={handleReassign} 
+          onInteract={handleInteract} 
+        />
+      );
+    } else {
+      const occupiedRoles = Object.keys(kingdom.administration?.council || {}) as MinisterRole[];
+      return (
+        <CandidateCard 
+          candidate={item} 
+          onHire={handleHire} 
+          occupiedRoles={occupiedRoles}
+        />
+      );
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Tabs */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'ruler' && styles.activeTab]}
+          onPress={() => setActiveTab('ruler')}
+        >
+          <Text style={[styles.tabText, activeTab === 'ruler' && styles.activeTabText]}>Soberano</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'council' && styles.activeTab]}
+          onPress={() => setActiveTab('council')}
+        >
+          <Text style={[styles.tabText, activeTab === 'council' && styles.activeTabText]}>Conselho</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'court' && styles.activeTab]}
+          onPress={() => setActiveTab('court')}
+        >
+          <Text style={[styles.tabText, activeTab === 'court' && styles.activeTabText]}>Corte</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Content */}
+      <FlatList
+        data={characters}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Ninguém encontrado nestes salões.</Text>
+          </View>
+        }
+        renderItem={renderItem}
+      />
+    </View>
+  );
+}
+
+function getAvatarUrl(cultureId?: string, seed?: string, gender?: 'male'|'female') {
+  const safeSeed = seed || 'default';
+  let style = 'lorelei';
+  switch(cultureId) {
+    case 'nordic': style = 'adventurer'; break;
+    case 'eastern': style = 'avataaars'; break;
+    case 'desert': style = 'micah'; break;
+    case 'savanna': style = 'micah'; break;
+    case 'celtic': style = 'adventurer'; break;
+    case 'slavic': style = 'lorelei'; break;
+    case 'indigenous': style = 'avataaars'; break;
+    case 'vedic': style = 'micah'; break;
+    default: style = 'lorelei'; break;
+  }
+  return `https://api.dicebear.com/9.x/${style}/png?seed=${safeSeed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffdfbf,ffd5dc`;
+}
+
+function DynamicAvatar({ uri, fallbackIcon, borderColor }: { uri: string, fallbackIcon: string, borderColor?: string }) {
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <View style={[styles.avatarPlaceholder, { borderColor: borderColor || '#D4AF37', overflow: 'hidden' }]}>
+      {!failed ? (
+        <Image 
+          source={{ uri }} 
+          style={styles.avatarImage} 
+          onError={() => setFailed(true)} 
+        />
+      ) : (
+        <Text style={styles.avatarIcon}>{fallbackIcon}</Text>
+      )}
+    </View>
+  );
+}
+
+function CharacterCard({ character }: { character: Character }) {
+  const cultureId = (character as any).cultureId;
+  const cultureColor = cultureId === 'nordic' ? '#49657a' : cultureId === 'latin' ? '#e6b322' : '#8A2BE2';
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <DynamicAvatar 
+          uri={getAvatarUrl((character as any).cultureId, (character as any).portraitSeed, (character as any).gender)} 
+          fallbackIcon="👑" 
+          borderColor={cultureColor} 
+        />
+        <View style={styles.cardTitleArea}>
+          <Text style={styles.charName}>{character.name}</Text>
+          <Text style={styles.charStatus}>
+            {character.status.toUpperCase()} | Cultura: {cultureId?.toUpperCase() || 'LOCAL'} {character.isLegendary ? '⭐ LENDÁRIO' : ''}
+          </Text>
+          <Text style={styles.charEra}>Traje da Era: Tradicional / Manto Real</Text>
+        </View>
+      </View>
+
+      {/* Stats Row */}
+      <View style={styles.statsRow}>
+        <StatBox label="ADM" value={character.stats.administration} color="#4A90E2" />
+        <StatBox label="MAR" value={character.stats.martial} color="#E24A4A" />
+        <StatBox label="DIP" value={character.stats.diplomacy} color="#50E3C2" />
+        <StatBox label="INT" value={character.stats.intrigue} color="#9013FE" />
+        <StatBox label="LRN" value={character.stats.learning} color="#F8E71C" />
+      </View>
+
+      {/* Traits */}
+      {character.traits && character.traits.length > 0 && (
+        <View style={styles.traitsRow}>
+          {character.traits.map(t => (
+            <View key={t} style={styles.traitBadge}>
+              <Text style={styles.traitText}>{t}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function CouncilCard({ 
+  minister, 
+  role, 
+  onFire, 
+  onReassign, 
+  onInteract 
+}: { 
+  minister: Minister; 
+  role: MinisterRole; 
+  onFire: (role: MinisterRole) => void; 
+  onReassign: (role: MinisterRole, target: MinisterRole) => void; 
+  onInteract: (role: MinisterRole, type: "praise" | "threaten" | "consult" | "raise_salary" | "cut_salary") => void; 
+}) {
+  const [showInteract, setShowInteract] = useState(false);
+  const [showReassign, setShowReassign] = useState(false);
+
+  const roleLabels: Record<MinisterRole, string> = {
+    [MinisterRole.Steward]: "Administrador",
+    [MinisterRole.Marshal]: "Marechal",
+    [MinisterRole.Chancellor]: "Chanceler",
+    [MinisterRole.Chaplain]: "Capelão",
+    [MinisterRole.Scholar]: "Erudito",
+    [MinisterRole.PrimeMinister]: "Primeiro Ministro",
+    [MinisterRole.Wildcard]: "Curinga"
+  };
+
+  const roleIcons: Record<MinisterRole, string> = {
+    [MinisterRole.Steward]: "📜",
+    [MinisterRole.Marshal]: "⚔️",
+    [MinisterRole.Chancellor]: "🕊️",
+    [MinisterRole.Chaplain]: "✝️",
+    [MinisterRole.Scholar]: "📚",
+    [MinisterRole.PrimeMinister]: "🏛️",
+    [MinisterRole.Wildcard]: "👤"
+  };
+
+  const rolesList = Object.values(MinisterRole).filter(r => r !== role && r !== MinisterRole.Wildcard);
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <View style={styles.avatarContainer}>
+          <DynamicAvatar 
+            uri={getAvatarUrl(minister.cultureId, minister.portraitSeed, minister.gender)} 
+            fallbackIcon="👤" 
+          />
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleBadgeIcon}>{roleIcons[role] || "👤"}</Text>
+          </View>
+        </View>
+        <View style={styles.cardTitleArea}>
+          <Text style={styles.charName}>{minister.name}</Text>
+          <Text style={styles.charStatus}>
+            {roleLabels[role]?.toUpperCase() || "CONSELHEIRO"} | Personalidade: {minister.personality?.toUpperCase() || 'EQUILIBRADO'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Info Row */}
+      <View style={styles.infoRow}>
+        <Text style={styles.infoText}>Lealdade: <Text style={{ color: minister.loyalty > 50 ? '#50E3C2' : '#E24A4A', fontWeight: 'bold' }}>{minister.loyalty}/100</Text></Text>
+        <Text style={styles.infoText}>Salário: <Text style={{ color: '#D4AF37', fontWeight: 'bold' }}>💰 {minister.salary}</Text></Text>
+        <Text style={styles.infoText}>Nível: <Text style={{ fontWeight: 'bold', color: '#FFF' }}>{minister.skillLevel} ({minister.experience}/{minister.experienceToNext} XP)</Text></Text>
+      </View>
+
+      <Text style={styles.originText}>Origem: {minister.origin}</Text>
+
+      {/* Stats Row */}
+      {minister.stats && (
+        <View style={styles.statsRow}>
+          <StatBox label="ADM" value={minister.stats.administration} color="#4A90E2" />
+          <StatBox label="MAR" value={minister.stats.martial} color="#E24A4A" />
+          <StatBox label="DIP" value={minister.stats.diplomacy} color="#50E3C2" />
+          <StatBox label="INT" value={minister.stats.intrigue} color="#9013FE" />
+          <StatBox label="LRN" value={minister.stats.learning} color="#F8E71C" />
+        </View>
+      )}
+
+      {/* Action Buttons */}
+      <View style={styles.buttonRow}>
+        <TouchableOpacity style={styles.btnSmall} onPress={() => { setShowInteract(!showInteract); setShowReassign(false); }}>
+          <Text style={styles.btnText}>Interagir</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.btnSmall} onPress={() => { setShowReassign(!showReassign); setShowInteract(false); }}>
+          <Text style={styles.btnText}>Remanejar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.btnSmall, { backgroundColor: '#5A1A1A' }]} onPress={() => onFire(role)}>
+          <Text style={[styles.btnText, { color: '#FFF' }]}>Demitir</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Interaction Panel */}
+      {showInteract && (
+        <View style={styles.actionPanel}>
+          <Text style={styles.panelTitle}>Ações de Interação:</Text>
+          <View style={styles.panelGrid}>
+            <TouchableOpacity style={styles.panelBtn} onPress={() => { onInteract(role, 'praise'); setShowInteract(false); }}>
+              <Text style={styles.panelBtnText}>Elogiar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.panelBtn} onPress={() => { onInteract(role, 'threaten'); setShowInteract(false); }}>
+              <Text style={styles.panelBtnText}>Ameaçar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.panelBtn} onPress={() => { onInteract(role, 'consult'); setShowInteract(false); }}>
+              <Text style={styles.panelBtnText}>Consultar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.panelBtn} onPress={() => { onInteract(role, 'raise_salary'); setShowInteract(false); }}>
+              <Text style={styles.panelBtnText}>+ Salário</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.panelBtn} onPress={() => { onInteract(role, 'cut_salary'); setShowInteract(false); }}>
+              <Text style={styles.panelBtnText}>- Salário</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Reassign Panel */}
+      {showReassign && (
+        <View style={styles.actionPanel}>
+          <Text style={styles.panelTitle}>Escolher Novo Cargo:</Text>
+          <View style={styles.panelGrid}>
+            {rolesList.map(r => (
+              <TouchableOpacity key={r} style={styles.panelBtn} onPress={() => { onReassign(role, r); setShowReassign(false); }}>
+                <Text style={styles.panelBtnText}>{roleLabels[r]}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function CandidateCard({ 
+  candidate, 
+  onHire,
+  occupiedRoles
+}: { 
+  candidate: Minister; 
+  onHire: (candidateId: string, role: MinisterRole) => void; 
+  occupiedRoles: MinisterRole[];
+}) {
+  const [showRoles, setShowRoles] = useState(false);
+
+  const roleLabels: Record<MinisterRole, string> = {
+    [MinisterRole.Steward]: "Administrador",
+    [MinisterRole.Marshal]: "Marechal",
+    [MinisterRole.Chancellor]: "Chanceler",
+    [MinisterRole.Chaplain]: "Capelão",
+    [MinisterRole.Scholar]: "Erudito",
+    [MinisterRole.PrimeMinister]: "Primeiro Ministro",
+    [MinisterRole.Wildcard]: "Curinga"
+  };
+
+  const rolesList = Object.values(MinisterRole).filter(r => r !== MinisterRole.Wildcard && !occupiedRoles.includes(r));
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <DynamicAvatar 
+          uri={getAvatarUrl(candidate.cultureId, candidate.portraitSeed, candidate.gender)} 
+          fallbackIcon="👤" 
+        />
+        <View style={styles.cardTitleArea}>
+          <Text style={styles.charName}>{candidate.name}</Text>
+          <Text style={styles.charStatus}>
+            Candidato a {roleLabels[candidate.role] || "Curinga"} | Personalidade: {candidate.personality.toUpperCase()}
+          </Text>
+        </View>
+      </View>
+
+      {/* Info Row */}
+      <View style={styles.infoRow}>
+        <Text style={styles.infoText}>Salário Pretendido: <Text style={{ color: '#D4AF37', fontWeight: 'bold' }}>💰 {candidate.salary}</Text></Text>
+        <Text style={styles.infoText}>Nível: <Text style={{ fontWeight: 'bold', color: '#FFF' }}>{candidate.skillLevel}</Text></Text>
+      </View>
+
+      <Text style={styles.originText}>Origem: {candidate.origin}</Text>
+
+      {/* Stats Row */}
+      {candidate.stats && (
+        <View style={styles.statsRow}>
+          <StatBox label="ADM" value={candidate.stats.administration} color="#4A90E2" />
+          <StatBox label="MAR" value={candidate.stats.martial} color="#E24A4A" />
+          <StatBox label="DIP" value={candidate.stats.diplomacy} color="#50E3C2" />
+          <StatBox label="INT" value={candidate.stats.intrigue} color="#9013FE" />
+          <StatBox label="LRN" value={candidate.stats.learning} color="#F8E71C" />
+        </View>
+      )}
+
+      {/* Hire Button */}
+      <View style={styles.buttonRow}>
+        <TouchableOpacity style={[styles.btnSmall, { backgroundColor: '#D4AF37' }]} onPress={() => {
+          if (rolesList.length === 0) {
+            Alert.alert("Conselho Cheio", "Não há vagas disponíveis no Conselho. Demita alguém primeiro.");
+          } else {
+            setShowRoles(!showRoles);
+          }
+        }}>
+          <Text style={[styles.btnText, { color: '#121212' }]}>Nomear para Conselho</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Roles Selector */}
+      {showRoles && (
+        <View style={styles.actionPanel}>
+          <Text style={styles.panelTitle}>Nomear para qual Cargo?</Text>
+          <View style={styles.panelGrid}>
+            {rolesList.map(r => (
+              <TouchableOpacity key={r} style={styles.panelBtn} onPress={() => { onHire(candidate.id, r); setShowRoles(false); }}>
+                <Text style={styles.panelBtnText}>{roleLabels[r]}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function StatBox({ label, value, color }: { label: string, value: number, color: string }) {
+  return (
+    <View style={styles.statBox}>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#121212',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#1A1A1A',
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: {
+    borderBottomColor: '#D4AF37',
+  },
+  tabText: {
+    color: '#888',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  activeTabText: {
+    color: '#D4AF37',
+  },
+  listContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  // Card Styles
+  card: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  avatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#333',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#D4AF37',
+  },
+  avatarText: {
+    color: '#D4AF37',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  avatarIcon: {
+    fontSize: 24,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarContainer: {
+    position: 'relative',
+  },
+  roleBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#D4AF37',
+  },
+  roleBadgeIcon: {
+    fontSize: 10,
+  },
+  cardTitleArea: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  charName: {
+    color: '#E0E0E0',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  charStatus: {
+    color: '#888',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  charEra: {
+    color: '#50E3C2',
+    fontSize: 11,
+    marginTop: 2,
+    fontStyle: 'italic',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#121212',
+    padding: 12,
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  statBox: {
+    alignItems: 'center',
+  },
+  statLabel: {
+    color: '#666',
+    fontSize: 10,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  traitsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  traitBadge: {
+    backgroundColor: '#2A2A2A',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
+  },
+  traitText: {
+    color: '#AAA',
+    fontSize: 11,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    backgroundColor: '#121212',
+    padding: 8,
+    borderRadius: 4,
+  },
+  infoText: {
+    color: '#AAA',
+    fontSize: 12,
+  },
+  originText: {
+    color: '#888',
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginBottom: 12,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    gap: 8,
+  },
+  btnSmall: {
+    flex: 1,
+    backgroundColor: '#2A2A2A',
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
+  },
+  btnText: {
+    color: '#D4AF37',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  actionPanel: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#121212',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  panelTitle: {
+    color: '#D4AF37',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  panelGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  panelBtn: {
+    backgroundColor: '#2A2A2A',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  panelBtnText: {
+    color: '#FFF',
+    fontSize: 12,
+  },
+});

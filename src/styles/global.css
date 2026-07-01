@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --paper-top: #efe2cb;
   --paper-bottom: #c7ac84;
   --ink: #2f2618;
@@ -486,21 +486,346 @@ p {
   font-size: 0.82rem;
 }
 
+/* Estilos para a aba de progressão */
+.era-progression {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.current-era-banner {
+  background: color-mix(in srgb, #f7d873 18%, white 82%);
+  border: 2px solid #d3a727;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.current-era-banner h3 {
+  margin: 0 0 0.5rem 0;
+  color: var(--accent);
+  font-size: 1.4rem;
+}
+
+.era-description {
+  margin: 0;
+  color: color-mix(in srgb, var(--ink) 76%, white 24%);
+  font-style: italic;
+}
+
+.era-features h4,
+.upcoming-eras h4,
+.progression-tips h4 {
+  margin: 0 0 1rem 0;
+  color: var(--accent);
+  border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+  padding-bottom: 0.5rem;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.34);
+  border: 1px solid rgb(133 106 70 / 0.28);
+}
+
+.feature-item.available {
+  background: color-mix(in srgb, var(--ok) 12%, white 88%);
+  border-color: color-mix(in srgb, var(--ok) 38%, var(--card-border) 62%);
+}
+
+.feature-item.locked {
+  background: color-mix(in srgb, var(--danger) 9%, white 91%);
+  border-color: color-mix(in srgb, var(--danger) 32%, var(--card-border) 68%);
+  opacity: 0.96;
+}
+
+.feature-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.feature-content strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--ink);
+}
+
+.feature-content p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: color-mix(in srgb, var(--ink) 76%, white 24%);
+}
+
+.era-roadmap {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.era-stage {
+  background: rgb(255 255 255 / 0.28);
+  border: 1px solid rgb(133 106 70 / 0.34);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.era-stage.locked {
+  opacity: 1;
+}
+
+.era-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.era-icon {
+  font-size: 1.5rem;
+}
+
+.era-header h5 {
+  margin: 0;
+  color: var(--accent);
+  flex-grow: 1;
+}
+
+.era-status {
+  font-size: 0.85rem;
+  color: var(--danger);
+  font-weight: bold;
+}
+
+.era-condition {
+  margin: 0 0 1rem 0;
+  color: color-mix(in srgb, var(--ink) 68%, white 32%);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.era-features-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.era-features-preview .feature-item {
+  padding: 0.75rem;
+  margin: 0;
+}
+
+.era-features-preview .feature-item strong {
+  font-size: 0.9rem;
+}
+
+.progression-tips {
+  background: color-mix(in srgb, var(--accent) 9%, white 91%);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--card-border) 72%);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.tips-list {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.tips-list li {
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+
+.tips-list li:last-child {
+  margin-bottom: 0;
+}
+
+.tips-list strong {
+  color: var(--accent);
+}
+
+/* Estilos para abas bloqueadas */
+.tab-locked {
+  opacity: 0.78;
+  position: relative;
+}
+
+.tab-locked::after {
+  content: "🔒";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  font-size: 0.8rem;
+  background: rgba(140, 31, 31, 0.8);
+  color: white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.tab-locked:hover {
+  opacity: 0.9;
+}
+
+.military-operations {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid rgb(133 106 70 / 0.34);
+  background: rgb(255 255 255 / 0.28);
+}
+
+.military-operations h3 {
+  margin-bottom: 0.5rem;
+  color: var(--accent);
+}
+
+.military-help {
+  margin-top: 0.75rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--ink) 74%, white 26%);
+}
+
+/* Estilos para condições atendidas */
+.condition-met {
+  color: #4ade80 !important;
+  font-weight: bold;
+}
+
+/* Estilos para condições atendidas */
+.condition-met {
+  color: #4ade80 !important;
+  font-weight: bold;
+}
+
+.condition-met::before {
+  content: "✅ ";
+}
+
 @media (max-width: 1180px) {
-  .app-header,
-  .map-workspace {
-    grid-template-columns: 1fr;
+  /* No mobile, o body no rola globalmente. 
+     O layout vira um "App Shell" com header fixo, content scrollvel e bottom nav fixa. */
+  body, html {
+    height: 100dvh;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+  }
+
+  .app-shell {
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    gap: 0;
+    max-width: 100vw;
+  }
+
+  /* Header e controles ganham padding mas so empurrados pro topo */
+  .app-header, .control-row {
+    margin: 8px 12px 0 12px;
+    flex-shrink: 0;
+    border-radius: 8px;
   }
 
   .status-grid {
     grid-template-columns: repeat(2, minmax(130px, 1fr));
   }
 
+  /* Container principal com scroll independente para contedo em texto */
+  .scrollable-content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    padding-bottom: 80px; /* espao para a bottom bar */
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Esconde o painel grid e os cards normais se o mapa estiver ativo.
+     O JS deve gerenciar isso: no mobile, ou se v o mapa, ou se v os tab-panels. */
+  body.mobile-map-active .panel-grid {
+    display: none !important;
+  }
+  body.mobile-map-active .side-column {
+    display: none !important;
+  }
+
+  /* Quando o mapa estiver ativo, ele ocupa toda a rea */
+  .map-workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 0;
+  }
+  
+  body:not(.mobile-map-active) .map-workspace {
+    display: none !important;
+  }
+
   .map-card {
-    min-height: 420px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-radius: 0;
+    margin: 0 -12px; /* estica at as bordas */
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
   }
 
   .map-canvas {
-    min-height: 360px;
+    flex: 1;
+    height: 100%;
+    min-height: unset;
+    border-radius: 0;
+  }
+
+  /* Bottom Navigation Bar */
+  .tabs {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(0deg, var(--paper-top), var(--paper-bottom));
+    border-top: 1px solid var(--card-border);
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 8px 12px;
+    gap: 8px;
+    z-index: 1000;
+    box-shadow: 0 -4px 10px rgba(0,0,0,0.15);
+    /* Scroll horizontal suave */
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    flex: 0 0 auto;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    border-radius: 20px;
+    white-space: nowrap;
   }
 }

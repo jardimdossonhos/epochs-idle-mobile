@@ -1,102 +1,121 @@
-# Manual do Usuário e Guia de Testes (Criador)
+# Manual do Usuario e Guia de Testes
 
-Bem-vindo ao **Epochs Idle**. Este manual tem o objetivo de eliminar a "caixa preta" do jogo. Ele explica as regras de funcionamento, os significados visuais e as mecânicas exatas para que você possa jogar, testar e guiar o desenvolvimento com clareza.
+Bem-vindo ao **Epochs Idle**. Este manual explica como ler a interface, testar os sistemas e validar se o jogo continua coerente apos mudancas relevantes.
 
----
+## 1. Interface e Mapa Estrategico
 
-## 1. Interface e Mapa Estratégico
+O mapa e a principal visao do mundo.
 
-O mapa é a sua principal visão do mundo. Por padrão, você verá dezenas de nações coloridas.
+- **Meus territorios:** seu reino exibe marcacao coerente na UI e concentra seus recursos na barra lateral.
+- **Camadas do mapa:** o seletor no topo do mapa muda o foco visual entre dominio, diplomacia, instabilidade, guerra e outras leituras de situacao.
+- **Selecao de regiao:** clicar em uma regiao atualiza o painel lateral com dono, fe, instabilidade, devastacao e acoes disponiveis.
 
-*   **Meus Territórios:** No painel de informações, seu reino nativo sempre exibirá o sufixo **(Você)** após o nome do governante/império, facilitando saber exatamente de quem é a terra.
-*   **Camadas do Mapa (Seletor no topo do mapa):**
-    *   **Domínio:** Mostra cada reino com uma cor única aleatória. Ajuda a ver fronteiras.
-    *   **Diplomacia:** *(Em desenvolvimento)* Seu reino em Azul, aliados em tons claros, inimigos declarados em Vermelho.
-    *   **Instabilidade:** Áreas verdes estão calmas. Áreas laranjas e vermelhas indicam alto risco de revolta civil na província.
-    *   **Guerra/Contestado:** Zonas rachadas e vermelhas mostram onde batalhas e cercos estão ocorrendo no momento.
+## 1.5 Aba de Progressao das Eras
 
----
+A aba **Progressao** mostra o que ja esta disponivel na Era Aurora e o que permanece bloqueado.
+
+### Era Atual: Aurora
+- Mapa mundial interativo
+- Governo e administracao
+- Tecnologia basica
+- Sistema de saves
+- Registro de eventos e cadeias ativas acessiveis na interface atual
+
+### Eras Futuras
+- **Era Solar:** diplomacia internacional, sistema militar e religiao em camada mais ampla
+- **Era Estelar:** grandes crises historicas e camada politica mais profunda
+- **Era Cosmica:** exploracao espacial, IA e tecnologias avancadas
+
+### Dicas de Progressao
+- Expanda territorio para aumentar populacao e recursos.
+- Pesquise tecnologias que aumentem eficiencia economica e administrativa.
+- Mantenha estabilidade para evitar revoltas e travas de crescimento.
 
 ## 2. Governo e Economia
 
-O painel de Governo é onde você controla as alavancas do seu império. Todos os recursos (Ouro, Comida, etc.) são atualizados por ciclo (1 tick = 1 segundo de simulação).
+O painel de Governo controla as alavancas do imperio.
 
-### Taxas (Impostos)
-Os impostos definem a extração de riqueza da sua população. Taxas altas geram Ouro rápido, mas aumentam a "Instabilidade" (Risco de Revoltas).
-*   **Taxa Base:** É o imposto geral sobre a população comum.
-    *   *Mínimo permitido:* `0.05` (5%) - Deixa a população feliz.
-    *   *Máximo permitido:* `0.60` (60%) - Gera muito ouro, mas corre risco extremo de revolução.
-*   **Alívio Nobre:** Desconto dado aos nobres. (Varia de `0.00` a `0.40`). Aumenta a Legitimidade, mas reduz a arrecadação.
-*   **Isenção Clero:** Desconto à igreja (Varia de `0.00` a `0.40`). Aumenta a produção de Fé, mas custa ouro.
-*   **Tarifa Comercial:** Imposto sobre fronteiras e feiras (Max `0.50`).
+### Taxas
+- **Taxa Base:** gera ouro, mas aumenta instabilidade quando sobe demais.
+- **Alivio Nobre:** reduz pressao sobre elites e afeta legitimidade/arrecadacao.
+- **Isencao Clero:** favorece fe, mas custa ouro.
+- **Tarifa Comercial:** imposto sobre fronteiras e feiras.
 
-### Orçamento (%)
-Todo imposto arrecadado vai para um "Pote de Orçamento". Você deve dividir 100% deste pote nas seguintes áreas:
-*   **Economia:** Investimento que aumenta a produção futura de Comida e Ouro.
-*   **Militar:** Necessário para pagar o salário dos exércitos (Manutenção).
-*   **Religião / Administração / Tecnologia:** Financiam a pesquisa e expansão.
-*   *Regra:* A soma dos orçamentos deve idealmente ser 100.
+### Orcamento
+O orcamento deve ser distribuido entre economia, militar, religiao, administracao e tecnologia.
 
----
+- A soma ideal continua sendo 100%.
+- O botao `Aplicar` grava a politica atual na sessao.
 
-## 3. O Conselho Real e os Ministros
+## 3. Conselho Real e Ministros
 
-Para auxiliá-lo na microgestão, você pode nomear **Ministros** (Chanceler, Marechal, etc.). Cada um tem uma personalidade (ex: Militarista, Cauteloso) que dita como eles aconselham.
-*   **Idempotência e Relatórios:** Eles não vão implorar pela mesma coisa duas vezes. Se o Intendente pedir aumento de impostos e você aprovar, na próxima reunião ele apenas relatará que os cofres estão se recuperando.
-*   **Inteligência Geográfica:** Se um Império inimigo ameaçar suas terras, o Grão-Chanceler não pedirá defesas aleatórias. Ele olhará o mapa, identificará exatamente **qual fronteira** corre perigo, e vai propor a você financiar a construção de uma **Fortaleza** ou **Quartel** especificamente naquele local.
-*   **Decisões e Lealdade:** Se você tomar decisões que contrariam a personalidade do Ministro, a lealdade dele cai. Se cair abaixo de 15%, ele renuncia ao cargo levando segredos de estado.
+O conselho transforma parte da microgestao em tutoria e automacao contextual.
 
----
+- Ministros possuem personalidade, lealdade, habilidades e historico.
+- A IA do conselho evita repetir recomendacoes identicas quando o problema ja foi tratado.
+- Em fronteiras ameacadas, a sugestao pode mirar construcoes especificas na regiao correta.
+- Remanejamento de cargos e um eixo importante da camada de personagens/dinastias.
 
-## 4. Religião e Poderes Divinos
+## 4. Religiao e Poderes Divinos
 
-O jogo possui um sistema de **Fé** que se acumula passivamente com o tempo, especialmente se você isentar o clero de impostos.
-*   **Poderes Divinos (Ações Ativas):** Você pode canalizar a Fé acumulada para realizar "Milagres". Exemplo:
-    *   *Bênção da Colheita (-500 Fé):* Injeta imediatamente uma vasta quantidade de Comida na simulação.
-*   A interface reflete o custo instantaneamente (*Optimistic UI*), impedindo o uso caso não haja fé suficiente e protegendo a economia do jogo.
-*   **O Profeta (Religião Customizada):** Com vasta fé e legitimidade, você pode "Forjar Nova Fé". Use os 100 pontos orçamentários para combinar Dogmas Sagrados (como *Ritos de Fertilidade* ou *Monasticismo*). Combinar *Ônus* (Dificuldades como o Ascetismo) permite comprar dogmas mais caros.
-*   **Postura do Clero:** Defina se a sua igreja será Tolerante (favorece a paz), Ortodoxa ou Fanática (multiplica a conversão, expurgando inimigos).
-*   **Cuidado com as Heresias:** Ao fundar uma nova religião ou conquistar terras com fés radicalmente diferentes (Cisma Religioso), a Instabilidade Civil nessas províncias subirá **250% mais rápido**. Aja enviando missionários, e esteja ciente de que antigos aliados de mesma fé agora te odiarão diplomaticamente.
-*   **A Osmose:** Religiões vazam naturalmente pelas fronteiras abertas. Vizinhos radicais tentarão converter passivamente suas áreas.
+- A fe se acumula e habilita acoes ativas.
+- E possivel fundar religiao customizada com tenets e custo orcamentario.
+- Politicas religiosas alteram conversao, tolerancia e tensao interna.
+- Cismas e heresias aumentam instabilidade e afetam a diplomacia.
+- A osmose de fronteira continua espalhando influencia religiosa passivamente.
 
-## 5. Painel Militar e Diplomacia
+## 5. Painel Militar, Diplomacia e Eventos
 
-*   **Pontuação Militar (Military Power):** É um número matemático que resume a sua força bélica total. Ele é calculado somando a quantidade de soldados ativos (Manpower), o nível da sua Tecnologia Militar e os Bônus de Qualidade de Tropa. A Inteligência Artificial (NPCs) usa este número para decidir se vai te atacar ou se deve ter medo de você.
-*   **Reserva (Manpower):** Soldados disponíveis para repor as baixas após uma guerra.
-*   **Diplomacia (Rivalidade vs Confiança):** Interações na aba Diplomacia afetam o que as outras nações pensam de você. Acima de 60% de confiança, a chance de aliança é alta.
-*   **A Distância (Alcance Logístico):** Você e os NPCs não são oniscientes. Ações bélicas diretas requerem fronteira conectada ou estar dentro do alcance logístico territorial do exército (aprox. 3 a 5 províncias vizinhas terrestres). Reinos nos pólos opostos do globo sequer se enxergam na Antiguidade.
-*   **Colapso Demográfico:** Se as baixas da guerra ou a fome matarem toda a população civil, a província é arruinada. Seu império perderá o controle e o território retornará à Natureza (Terra Selvagem).
+- **Military Power:** resume forca militar total e influencia a leitura da IA sobre seu reino.
+- **Manpower:** reserva de reposicao para guerras.
+- **Aba Militar:** agora concentra ordens imediatas para reforcar guarnicao, pacificar a regiao operacional e abrir rapidamente a aba de diplomacia.
+- **Diplomacia:** rivalidade, confianca, tratados e limites logisticos moldam as interacoes.
+- **Colapso demografico:** provincias devastadas ou sem populacao podem retornar a Natureza.
+- **Aba Eventos:** permanece acessivel na campanha atual, mostra o feed recente e tambem destaca cadeias narrativas ativas, como crises economicas e guerras santas em andamento.
 
----
+## 6. A Inteligencia do Mundo
 
-## 6. A Inteligência do Mundo (Como os NPCs pensam)
-Neste jogo, as nações controladas pelo computador **não são oniscientes e não jogam de forma "perfeita"**. 
-* Eles sofrem de **Racionalidade Limitada**: Um vizinho pode superestimar a própria força, tentar invadir você e falhar miseravelmente.
-* Eles possuem **Memória Histórica**: Se você traiu um aliado 200 anos atrás, o ressentimento diminui com o tempo, mas não some instantaneamente.
-* Eles sofrem **Pressão Estrutural**: O líder NPC pode querer declarar guerra a você, mas se a população dele estiver faminta ou as elites oprimidas (Alta Instabilidade), a sociedade o impedirá de agir. Espione as nações vizinhas através dos painéis de *Inteligência Global* para prever essas falhas.
+Os NPCs nao sao oniscientes e nao jogam de forma perfeita.
 
-## 7. Salvamento e Proteção de Dados (Persistência)
+- Sofrem racionalidade limitada.
+- Guardam memoria historica com decaimento.
+- Sofrem pressao estrutural interna antes de agir.
+- Reagem a distancia, risco, poder relativo, religiao, tratados e pressao social.
 
-O jogo foi projetado para rodar localmente no seu navegador.
-*   **Autosave:** O jogo salva a si mesmo automaticamente a cada 5 ciclos (5 segundos).
-*   **Atualizar a Página (F5 / Auto-Boot):** O jogo suporta carregamento direto. Apertar F5, fechar ou reabrir a aba fará a engine pular o menu inicial e reconectar automaticamente na sua simulação exata, sem perda de recursos ou moedas.
-*   **Save Manual:** A qualquer momento, na aba "Saves", você pode clicar em "Salvar Jogo". Isso cria um marco definitivo que não será apagado pelo Autosave.
-*   **Fechamento:** Ao fechar a aba, o jogo fará um "Catch-up" na próxima vez que você abrir (tentará simular o que aconteceu enquanto você esteve fora, até um limite de tempo).
+## 7. Salvamento e Protecao de Dados
 
----
+- **Autosave:** o jogo salva automaticamente a sessao em intervalos regulares da simulacao.
+- **F5 / Auto-Boot:** recarregar a pagina deve restaurar a sessao atual sem perder recursos.
+- **Save manual:** cria um marco estavel que pode ser carregado depois.
+- **Offline progression:** ao reabrir, o jogo tenta simular o periodo ausente dentro dos limites definidos.
 
-## 8. Guia para o Criador / Testador (Uso do Painel Dev)
+## 8. Guia para Criador / Testador
 
-Ao rodar o jogo localmente com `npm run dev`, você terá acesso ao **Painel de Depuração** no canto inferior da tela. Este painel existe apenas para testar sistemas sem precisar esperar horas.
+Ao rodar localmente, o projeto possui ferramentas de depuracao e observabilidade alem da interface principal.
 
-Para acessar, clique **5 vezes rapidamente** na versão do jogo (canto superior esquerdo). O painel flutuante contém as seguintes abas:
-*   **Alvo das Ações:** Um menu suspenso no topo permite escolher se as trapaças abaixo afetarão o seu império (👑) ou qualquer outro NPC do mundo.
-*   **Recursos:** Injeção de `+10k Ouro`, `+10k Comida`, `Fé`, `Legitimidade` e botão de Apocalipse (zerar economia).
-*   **Tecnologia:** Atalho para desbloqueio da árvore.
-*   **Mapa:** Botão **Remover Névoa (Fog of Truth)**. Revela instantaneamente a população e a instabilidade exata de tribos distantes e NPCs escondidos.
-*   **Demografia:** Injeção de `+1.000 Habitantes` nas suas regiões para forçar o gatilho automático do Sistema de Migração (testar expansão territorial) ou botão de dizimar a população para testar colapso.
-*   **Debug:** Gera um Relatório de Estado instantâneo (Raio-X) ou inicia uma Gravação Contínua (Holter) que acompanha a evolução econômica e diplomática do mundo ao longo do tempo. Os dados são exportados para o Console do Navegador (F12).
+### Painel de Debug
 
-### Dicas de Teste Padrão
-1. **Testando a Economia:** Altere a Taxa Base para 0.6. Aguarde 10 segundos e veja se o seu ouro sobe violentamente, mas acompanhe na barra lateral se o Risco de Revolta subiu junto.
-2. **Testando o Save:** Clique em "Salvar Jogo Manual". Altere a velocidade do jogo. Feche a aba e abra de novo. Carregue o save. A velocidade deve voltar a ser a de antes do F5.
+Ao clicar repetidamente na versao do jogo, o painel de debug permite:
+
+- injetar recursos;
+- alterar populacao;
+- destravar tecnologias;
+- revelar informacoes globais;
+- exportar relatorios e telemetria.
+
+### Hooks de Observabilidade
+
+No console do navegador (`F12`):
+
+- `window.render_game_to_text()`
+  - Retorna um JSON conciso com tick, camada ativa, reino do jogador, recursos, eventos recentes, `eventChains` e regiao selecionada.
+- `window.advanceTime(ms)`
+  - Avanca manualmente a simulacao, inclusive com o jogo pausado, para smoke tests e depuracao controlada.
+
+### Dicas de Teste Padrao
+
+1. **Economia:** suba a Taxa Base e observe ouro, estabilidade e risco de revolta.
+2. **Persistencia:** salve, altere velocidade/estado, recarregue a pagina e confira se a sessao volta coerente.
+3. **Eventos:** acompanhe a aba `Eventos` e verifique se cadeias ativas aparecem quando disparadas.
+4. **Observabilidade:** rode `window.render_game_to_text()` e confirme se o JSON bate com a tela.
+5. **Stepping:** com a simulacao pausada, rode `window.advanceTime(3000)` e confira o avanco controlado do tick.

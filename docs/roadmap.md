@@ -1,75 +1,98 @@
 # Roadmap de Desenvolvimento
 
-Este documento serve como referência central para o planejamento das fases de desenvolvimento do jogo.
+Este documento serve como referencia central para o planejamento das fases do jogo e para o estado real de cada uma.
+
+## Estado operacional atual
+
+**Validado em 2026-05-04**
+- `npm test` verde: 22 arquivos / 41 testes.
+- `npm run build` verde.
+- Fase 4 funcional.
+- Fase 4.5 em estabilizacao, nao encerrada de fato.
+- Fase 5 ainda bloqueada.
+- `eventChains` persistem no `GameState.world.eventChains`, aparecem no feed de eventos e entram no snapshot textual exposto pela UI.
+- A UI expoe `window.render_game_to_text()` e `window.advanceTime(ms)` para smoke test e observabilidade.
 
 ### Fase 1: Loop de Gameplay Militar
-**Objetivo:** Implementar o núcleo da interação militar e conquista.
-1.  **Exércitos e Movimentação:**
-    -   Criar entidades de "Exército" no ECS.
-    -   [Concluído] O Motor valida distâncias geográficas e impede Teletransporte Logístico intercontinental.
-2.  **Combate e Resolução de Batalhas:**
-    -   Desenvolver um sistema de combate que resolva batalhas entre exércitos. A fórmula deve considerar tamanho do exército, bônus tecnológicos, terreno (bioma) e generais (futuro).
-3.  **Conquista e Ocupação:**
-    -   [Concluído] Implementar a mecânica de cercos (*sieges*) baseada em frentes físicas.
-    -   [Concluído] Colapso de terreno: populações exterminadas devolvem a terra à natureza.
-    -   Permitir a transferência de controle e posse de uma região após uma conquista bem-sucedida.
+**Objetivo:** implementar o nucleo da interacao militar e conquista.
+1. **Exercitos e Movimentacao**
+   - Criar entidades de exercito no ECS.
+   - [Concluido] O motor valida distancias geograficas e impede teletransporte logistico intercontinental.
+2. **Combate e Resolucao de Batalhas**
+   - Desenvolver a resolucao de batalhas considerando tamanho do exercito, bonus tecnologicos, terreno e generais futuros.
+3. **Conquista e Ocupacao**
+   - [Concluido] Implementar cercos baseados em frentes fisicas.
+   - [Concluido] Colapso de terreno: populacoes exterminadas devolvem a terra a natureza.
+   - Permitir transferencia completa de controle e posse apos conquista bem-sucedida.
 
-### Fase 2: Especialização Econômica (Edifícios)
-**Objetivo:** Adicionar profundidade estratégica à gestão das regiões.
-1.  **Sistema de Construção:**
-    -   Permitir que o jogador construa "Edifícios" em suas regiões (ex: Mercado, Quartel, Mosteiro, Universidade).
-    -   Cada edifício terá um custo em recursos e um tempo de construção.
-2.  **Modificadores Regionais:**
-    -   Edifícios aplicarão modificadores permanentes à região:
-        -   `Mercado`: Aumenta a geração de ouro.
-        -   `Quartel`: Acelera a recuperação de *manpower*.
-        -   `Mosteiro`: Aumenta a geração de fé e a resistência a missionários.
-        -   `Universidade`: Gera pontos de pesquisa passivos.
+### Fase 1.5: Religiao Dinamica (Concluida)
+**Objetivo:** usar a fe como instrumento de expansao ativa.
+1. [Concluido] Fundacao organica com 100 pontos orcamentarios.
+2. [Concluido] Cismas causando 250% de instabilidade civil.
+3. [Concluido] Expansao passiva continua nas fronteiras (osmose).
 
-### Fase 1.5: Religião Dinâmica (Concluída)
-**Objetivo:** Uso da fé como instrumento de expansão ativa.
-1.  [Concluído] Fundação orgânica com 100 pontos orçamentários.
-2.  [Concluído] Cismas causando 250% de Instabilidade civil.
-3.  [Concluído] Expansão passiva contínua nas fronteiras (Osmose).
+### Fase 2: Especializacao Economica (Edificios) - CONCLUIDA
+**Objetivo:** adicionar profundidade estrategica a gestao das regioes.
+1. **Sistema de Construcao**
+   - [Concluido] Permitir edificios regionais como Mercado, Quartel, Mosteiro, Universidade e Fortaleza.
+2. **Modificadores Regionais**
+   - [Concluido] Cada edificio aplica efeitos permanentes coerentes com sua funcao economica, militar, religiosa ou administrativa.
 
-### Fase 2.5: Sistema de Conselho Real (Concluída)
-**Objetivo:** Humanizar o motor matemático e prover tutoria/automatização.
-1.  [Concluído] Mercado de Ministros com personalidades, lealdade e habilidades.
-2.  [Concluído] **Consciência Contextual e Geográfica**: IA de ministros que cruza `StaticWorldData` para propor construções táticas em fronteiras físicas reais e evitar *spam* de ações já resolvidas.
+### Fase 2.5: Sistema de Conselho Real (Concluida)
+**Objetivo:** humanizar o motor matematico e prover tutoria/automacao.
+1. [Concluido] Mercado de ministros com personalidade, lealdade e habilidades.
+2. [Concluido] Conselheiros com consciencia contextual e geografica usando `StaticWorldData`.
 
-### Fase 2.8: Personagens e Dinastias (Em Andamento)
-**Objetivo:** Transformar Ministros, NPCs e o Jogador em entidades de RPG com Fichas, Atributos e Mortalidade.
-1.  [Concluído] Documentação e Chave Mestra (Modo Imortalidade).
-2.  [Concluído] Modelagem de Dados: Interfaces Base, Status e a Forja do "Panteão Lendário" (Tributo).
-3.  [Em Andamento] Motor de Envelhecimento, Treinamento (Level Up) e Eventos de Sucessão.
-4.  [Concluído] Interface Visual da Sala de Guerra: Criação de Monarca (Distribuição de Pontos e Arquétipos).
-5.  [Pendente] A Ficha do Personagem na UI do Painel de Governo (Primeiro-Ministro e Swap de Cargos).
+### Fase 2.8: Personagens e Dinastias (Concluida)
+**Objetivo:** transformar ministros, NPCs e jogador em entidades de RPG com atributos, mortalidade e sucessao.
+1. [Concluido] Documentacao e chave mestra (modo imortalidade).
+2. [Concluido] Modelagem de dados, status e Panteao Lendario.
+3. [Concluido] Envelhecimento, level up e sucessao.
+4. [Concluido] Sala de Guerra para criacao do monarca.
+5. [Concluido] Ficha de personagem e remanejamento basico de cargos.
 
-### Fase 3: Aprofundamento da Diplomacia e IA
-**Objetivo:** Tornar as interações com outros reinos mais dinâmicas e significativas.
-1.  [Concluído] **IA Diplomática:** IA toma decisões com poder relativo, distância espacial e limites lógicos (Utility AI).
-2.  **Expansão de Tratados:** Adicionar acordos comerciais e pactos defensivos.
-3.  **Interação Externa:** Permissão para financiar guerras de terceiros.
+### Fase 3: Aprofundamento da Diplomacia e IA (Em andamento)
+**Objetivo:** tornar as interacoes com outros reinos mais dinamicas e significativas.
+1. [Concluido] IA diplomatica com poder relativo, distancia espacial e limites logicos.
+2. [Concluido] Expansao de tratados: acordos comerciais e pactos defensivos.
+3. [Concluido] Interacao externa: financiamento de guerras de terceiros.
+4. [Aberto] Consolidar UX, transparencia e validacao jogavel dessas mecanicas no fluxo principal da UI.
 
-### Fase 3.5: O Motor de Agência (RPG Dinâmico)
-**Objetivo:** Permitir que Ministros e NPCs atuem organicamente no mundo (Traições, Corrupção, Golpes).
-1.  Implementação da *AgencyEngine*: NPCs roubam ouro (`personalWealth`) ou forjam aliados.
-2.  Estado de Exílio: Transição para `Wanderer` e asilo diplomático ao perder a última província.
-3.  Jogabilidade Assimétrica: UI mutável para cargos de conselho sob suserania de NPCs.
+### Fase 3.5: O Motor de Agencia (RPG Dinamico)
+**Objetivo:** permitir que ministros e NPCs atuem organicamente no mundo.
+1. Implementacao da `AgencyEngine`: desvio de riqueza, manobras politicas e traicoes.
+2. Estado de exilio para reinos sem provincia.
+3. Jogabilidade assimetrica para cargos sob suserania de NPCs.
 
-### Fase 4: Sistema de Eventos Dinâmicos
-**Objetivo:** Narrativas emergentes e desafios imprevistos.
-1.  **Motor de Eventos:** Gatilhos baseados no ECS (tempo, população, fé).
-2.  **Cadeias Narrativas:** Desastres (pragas), boas colheitas, revoltas, intrigas.
+### Fase 4: Sistema de Eventos Dinamicos (Concluida)
+**Objetivo:** criar narrativas emergentes e desafios imprevistos.
+1. [Concluido] Motor de eventos com gatilhos baseados em tempo, populacao e fe.
+2. [Concluido] Cadeias narrativas com estagios, delays e consequencias progressivas.
+3. [Concluido] Persistencia de `eventChains` no estado salvo.
+4. [Concluido] Feed de eventos agora mostra tambem cadeias ativas relevantes.
 
-### Fase 4.5: Componentização de Apresentação (Refatoração de Débito Técnico)
-**Objetivo:** Erradicar o antipadrão *God Object* do arquivo `main.ts` antes de avançarmos para as abas 3D/Táticas.
-1. Implementação do padrão MVC/MVP para a UI do DOM.
-2. Extração dos Listeners para Controladores de Abas isolados.
+### Fase 4.5: Componentizacao de Apresentacao (Refatoracao de Debito Tecnico) (EM ESTABILIZACAO)
+**Objetivo:** reduzir o papel de `src/main.ts` como orquestrador unico antes de avancar para UI taticas/3D.
+1. [Concluido] Base MVC/MVP com `BaseTabController` e `TabControllerManager`.
+2. [Concluido] Controladores iniciais para `progressao`, `mapa`, `governo` e `tecnologia`.
+3. [Concluido] Aba de progressao das eras.
+4. [Concluido] Correcao da tela inicial com `Carregar Jogo Salvo` sempre visivel.
+5. [Concluido] Hooks de observabilidade para smoke test: `render_game_to_text` e `advanceTime`.
+6. [Aberto] Extrair o restante da UI e reduzir renderizacao legada em `main.ts`.
 
-### Fase 5: Vida Microscópica e Tática de Tempo Real
-**Objetivo:** Renderizar a vida nas províncias e comandar batalhas em tempo real (Estilo *Total War* / *Age of Empires*).
-1.  **Dual Engine:** Integração de um motor WebGL 3D/2D Isométrico avançado (Babylon.js / PixiJS) para instanciar a vida local.
-2.  **Dilatação Temporal (Pausa):** Congelamento sincronizado entre o relógio Macro (Worker ECS) e a arena Micro (Engine Visual).
-3.  **Tradução ECS-Visual:** Converter os arrays do ECS (População, Biomas, Ouro, Edifícios) em topografia gerada proceduralmente, vilas com camponeses trabalhando e Batalhões marchando.
-4.  **Feedback Ativo:** Retornar as baixas de uma batalha tática ou recursos coletados localmente de volta para as matrizes matemáticas globais do WebWorker (via `APPLY_ECS_EFFECTS`).
+### Fase 5: Vida Microscopica e Tatica de Tempo Real
+**Objetivo:** renderizar vida nas provincias e comandar batalhas em tempo real.
+
+**Gate atual:** nao iniciar esta fase antes de:
+- concluir mais extracao da UI;
+- reduzir o tamanho do bundle principal;
+- manter save/load + integracao ECS/UI sob regressao automatizada e smoke test confiavel.
+
+1. **Dual Engine**
+   - Integrar um motor visual mais avancado para vida local e batalhas.
+2. **Dilatacao Temporal**
+   - Sincronizar pausa entre macro simulacao e arena micro.
+3. **Traducao ECS-Visual**
+   - Converter arrays do ECS em topografia, vilas, populacao e batalhoes visiveis.
+4. **Feedback Ativo**
+   - Retornar efeitos da arena tatica para as matrizes do WebWorker.

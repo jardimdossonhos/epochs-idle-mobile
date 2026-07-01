@@ -52,11 +52,123 @@ function generateCandidate(idSeq: number): Minister {
     personality,
     origin,
     skillLevel: skill,
+    experience: 0, // Começa com 0 experiência
+    experienceToNext: skill * 100, // Experiência necessária cresce com o nível
     stats,
     salary: baseSalary,
     delegationLevel: "manual" as any,
     loyalty: Math.floor(Math.random() * 30) + 50 // Inicia entre 50 e 80
   };
+}
+
+// Nova Função: Sistema de Experiência e Level Up para Ministros
+export function updateMinisterExperience(minister: Minister, state: GameState, kingdomId: string, context: TickContext): void {
+  const kingdom = state.kingdoms[kingdomId];
+  if (!kingdom) return;
+
+  // Cooldown de 10 ticks entre level ups para evitar spam
+  if (minister.lastLevelUpTick && (state.meta.tick - minister.lastLevelUpTick) < 10) {
+    return;
+  }
+
+  let experienceGain = 0;
+
+  // Ganho base por tick ativo (ministro empregado)
+  experienceGain += 1;
+
+  // Bônus baseado na performance do reino (métricas positivas)
+  if (kingdom.population.growthRatePerTick > 0.0002) experienceGain += 2; // Economia/população crescendo
+  if (kingdom.population.unrest < 0.3) experienceGain += 1; // Povo feliz
+  const averageMorale = kingdom.military.armies.length > 0
+    ? kingdom.military.armies.reduce((sum, army) => sum + army.morale, 0) / kingdom.military.armies.length
+    : 0;
+  if (averageMorale > 0.8) experienceGain += 1; // Exército motivado
+  if (kingdom.religion.cohesion > 0.8) experienceGain += 1; // Religião unida
+  if (kingdom.economy.corruption < 0.1) experienceGain += 1; // Baixa corrupção
+
+  // Bônus baseado no papel específico do ministro
+  switch (minister.role) {
+    case MinisterRole.Steward:
+      if (kingdom.economy.stock[ResourceType.Gold] > 500) experienceGain += 2; // Tesouro saudável
+      if (kingdom.population.growthRatePerTick > 0.0005) experienceGain += 3; // Crescimento excepcional
+      break;
+    case MinisterRole.Marshal:
+      if (!Object.values(state.wars).some(w => w.attackers.includes(kingdomId) || w.defenders.includes(kingdomId))) {
+        experienceGain += 2; // Manutenção da paz
+      }
+      if (kingdom.military.reserveManpower > 200) experienceGain += 1; // Forças bem treinadas
+      break;
+    case MinisterRole.Chancellor:
+      // Diplomacia é mais complexa - ganha experiência por alianças ativas
+      const activeAlliances = kingdom.diplomacy.treaties.filter(t =>
+        t.parties.includes(kingdomId) && t.type === 'alliance'
+      ).length;
+      experienceGain += activeAlliances * 2;
+      break;
+    case MinisterRole.Chaplain:
+      if (kingdom.religion.cohesion > 0.9) experienceGain += 3; // Fé muito forte
+      if (kingdom.population.unrest < 0.2) experienceGain += 1; // Ordem social
+      break;
+  }
+
+  // Multiplicador baseado no nível de skill (ministros mais experientes ganham mais devagar)
+  const skillMultiplier = Math.max(0.5, 1 - (minister.skillLevel - 1) * 0.1);
+  experienceGain = Math.floor(experienceGain * skillMultiplier);
+
+  // Aplica ganho de experiência
+  minister.experience += experienceGain;
+
+  // Verifica se atingiu o nível necessário para upar
+  if (minister.experience >= minister.experienceToNext) {
+    // Level Up!
+    minister.skillLevel += 1;
+    minister.experience = 0; // Reset experiência
+    minister.experienceToNext = minister.skillLevel * 100; // Novo requisito
+    minister.lastLevelUpTick = state.meta.tick;
+
+    // Melhora atributos baseada na personalidade
+    if (minister.stats) {
+      const bonus = 2; // +2 em atributos por level up
+      switch (minister.personality) {
+        case MinisterPersonality.Greedy:
+          minister.stats.administration += bonus;
+          break;
+        case MinisterPersonality.Militarist:
+          minister.stats.martial += bonus;
+          break;
+        case MinisterPersonality.Pacifist:
+          minister.stats.diplomacy += bonus;
+          break;
+        case MinisterPersonality.Progressive:
+          minister.stats.learning += bonus;
+          break;
+        case MinisterPersonality.Zealous:
+          minister.stats.intrigue += bonus; // Zelosos são mais manipuladores
+          break;
+        case MinisterPersonality.Cautious:
+          minister.stats.administration += Math.floor(bonus / 2);
+          minister.stats.diplomacy += Math.floor(bonus / 2);
+          break;
+      }
+    }
+
+    // Aumenta salário levemente
+    minister.salary += 2;
+
+    // Dispara evento de level up
+    context.events.push({
+      id: createEventId({ prefix: "evt_minister_levelup", tick: state.meta.tick, systemId: "council", actorId: minister.id, sequence: Math.floor(Math.random() * 1000) }),
+      type: "minister.level_up",
+      actorKingdomId: kingdomId,
+      payload: {
+        ministerId: minister.id,
+        ministerName: minister.name,
+        newLevel: minister.skillLevel,
+        role: minister.role
+      },
+      occurredAt: context.now
+    });
+  }
 }
 
 function evaluateMinisterLoyalty(minister: Minister, state: GameState, kingdomId: string): void {
@@ -429,6 +541,9 @@ export function createCouncilSystem(): SimulationSystem {
 
         // 2. Cálculo da Psicologia e Lealdade
         evaluateMinisterLoyalty(minister, state, player.id);
+
+        // 2.5. Sistema de Experiência e Level Up
+        updateMinisterExperience(minister, state, player.id, context);
 
         // Se a lealdade zerar, o Ministro se demite e joga a pasta no chão
         if (minister.loyalty < 15) {

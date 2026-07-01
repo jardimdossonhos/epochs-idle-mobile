@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState } from "../src/application/boot/create-initial-state";
-import { buildSaveSummary } from "../src/application/save/build-save-summary";
 import { WORLD_DEFINITIONS_V1 } from "../src/application/boot/generated/world-definitions-v1";
+import { buildSaveSummary } from "../src/application/save/build-save-summary";
 
 describe("buildSaveSummary", () => {
   it("creates a valid summary", () => {
@@ -12,7 +12,7 @@ describe("buildSaveSummary", () => {
 
     expect(summary.slotId).toBe("manual-1");
     expect(summary.tick).toBe(12);
-    expect(summary.playerKingdomName).toBe("Coroa da Ibéria");
+    expect(summary.playerKingdomName).toBe(state.kingdoms.k_player.name);
     expect(summary.territoryCount).toBeGreaterThan(0);
   });
 });

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState } from "./boot/create-initial-state";
-import { createStaticWorldData } from "./boot/static-world-data";
-import { GameSession, type GameSessionDeps } from "./game-session";
+import { createInitialState } from "../src/application/boot/create-initial-state";
+import { createStaticWorldData } from "../src/application/boot/static-world-data";
+import { WORLD_DEFINITIONS_V1 } from "../src/application/boot/generated/world-definitions-v1";
+import { GameSession, type GameSessionDeps } from "../src/application/game-session";
 import type {
   CommandLogRepository,
   GameStateRepository,
@@ -10,12 +11,12 @@ import type {
   SaveSnapshot,
   SaveSummary,
   SnapshotRepository
-} from "../core/contracts/game-ports";
-import type { ClockService, EventBus } from "../core/contracts/services";
-import type { CommandLogEntry, SnapshotSummary, StateSnapshot } from "../core/models/commands";
-import type { DomainEvent } from "../core/models/events";
-import type { GameState } from "../core/models/game-state";
-import { AUTOSAVE_SLOT_ID, MANUAL_SLOT_ID } from "../infrastructure/persistence/save-slots";
+} from "../src/core/contracts/game-ports";
+import type { ClockService, EventBus } from "../src/core/contracts/services";
+import type { CommandLogEntry, SnapshotSummary, StateSnapshot } from "../src/core/models/commands";
+import type { DomainEvent } from "../src/core/models/events";
+import type { GameState } from "../src/core/models/game-state";
+import { AUTOSAVE_SLOT_ID, MANUAL_SLOT_ID } from "../src/infrastructure/persistence/save-slots";
 
 // Helper classes from game-session-player-actions.test.ts to isolate tests
 class InMemoryGameStateRepository implements GameStateRepository {
@@ -172,9 +173,9 @@ function createTestSession(deps: Partial<GameSessionDeps>): GameSession {
     ...deps
   });
 
-  eventBus.subscribe("game.loaded", () => {
+  eventBus.subscribe("game.loaded", (event) => {
     // Simula a chegada do primeiro TICK do WebWorker que auto-destrava a engine
-    session.updateEcsState({} as any);
+    session.updateEcsState(event?.payload?.ecs ?? ({} as any));
   });
 
   return session;
@@ -188,7 +189,7 @@ describe("Save, Load and State Restoration Audit", () => {
     const gameStateRepo = new InMemoryGameStateRepository();
     const saveRepo = new InMemorySaveRepository();
     const clock = new ManualClock(Date.now());
-    const initial = createInitialState(staticData);
+    const initial = createInitialState(staticData, undefined, WORLD_DEFINITIONS_V1);
     initial.meta.paused = false;
     initial.meta.lastUpdatedAt = clock.now();
     initial.meta.speedMultiplier = 1;
@@ -196,6 +197,8 @@ describe("Save, Load and State Restoration Audit", () => {
     
     const session1 = createTestSession({ gameStateRepository: gameStateRepo, saveRepository: saveRepo, clock });
     await session1.bootstrap(initial);
+    session1.setPaused(false);
+    session1.setSpeed(1);
 
     // 2. Advance state and trigger an autosave
     const playerKingdom1 = Object.values(session1.getState().kingdoms).find((k: any) => k.isPlayer) as any;
@@ -208,7 +211,7 @@ describe("Save, Load and State Restoration Audit", () => {
     clock.advance(1000); // Tick 2 -> should trigger autosave (autosaveEveryTicks: 2)
     
     // Dispara o TICK do Worker para consumir o pendingAutosave no momento exato
-    session1.updateEcsState({} as any);
+    session1.updateEcsState(session1.getState().ecs);
 
     await session1.flushPersistence(); // Ensure async save operations complete
 
@@ -219,7 +222,7 @@ describe("Save, Load and State Restoration Audit", () => {
     // 3. Simulate a refresh: create a new session with the same repositories
     const clock2 = new ManualClock(clock.now() + 100); // slightly later
     const session2 = createTestSession({ gameStateRepository: gameStateRepo, saveRepository: saveRepo, clock: clock2 });
-    const initial2 = createInitialState(staticData);
+    const initial2 = createInitialState(staticData, undefined, WORLD_DEFINITIONS_V1);
     initial2.meta.paused = false;
     initial2.meta.lastUpdatedAt = clock2.now();
     initial2.meta.speedMultiplier = 1;
@@ -241,7 +244,7 @@ describe("Save, Load and State Restoration Audit", () => {
     const gameStateRepo = new InMemoryGameStateRepository();
     const saveRepo = new InMemorySaveRepository();
     const clock = new ManualClock(Date.now());
-    const initial = createInitialState(staticData);
+    const initial = createInitialState(staticData, undefined, WORLD_DEFINITIONS_V1);
     initial.meta.paused = false;
     initial.meta.lastUpdatedAt = clock.now();
     initial.meta.speedMultiplier = 1;
@@ -255,7 +258,7 @@ describe("Save, Load and State Restoration Audit", () => {
     const savePromise = session.saveManual();
     
     // O Save só se concretiza na chegada natural do próximo frame de dados (Sincronização Passiva)
-    session.updateEcsState({} as any);
+    session.updateEcsState(session.getState().ecs);
     await savePromise;
     
     await session.flushPersistence();
@@ -283,7 +286,7 @@ describe("Save, Load and State Restoration Audit", () => {
     const clock = new ManualClock(Date.now());
 
     // 2. Create an older autosave
-    const autosaveState = createInitialState(staticData);
+    const autosaveState = createInitialState(staticData, undefined, WORLD_DEFINITIONS_V1);
     autosaveState.meta.tick = 5;
     autosaveState.meta.lastUpdatedAt = clock.now();
     const autosaveSnapshot = { state: autosaveState, summary: { slotId: AUTOSAVE_SLOT_ID, savedAt: clock.now() } as SaveSummary };
@@ -291,14 +294,14 @@ describe("Save, Load and State Restoration Audit", () => {
     
     // 3. Create a more recent "current" state (e.g. from a session.stop() call)
     clock.advance(10000); // 10 seconds later
-    const currentState = createInitialState(staticData);
+    const currentState = createInitialState(staticData, undefined, WORLD_DEFINITIONS_V1);
     currentState.meta.tick = 10;
     currentState.meta.lastUpdatedAt = clock.now();
     await gameStateRepo.saveCurrent(currentState);
 
     // 4. Bootstrap a new session
     const session = createTestSession({ gameStateRepository: gameStateRepo, saveRepository: saveRepo, clock });
-    const initial = createInitialState(staticData);
+    const initial = createInitialState(staticData, undefined, WORLD_DEFINITIONS_V1);
     initial.meta.lastUpdatedAt = clock.now();
     await session.bootstrap(initial);
 

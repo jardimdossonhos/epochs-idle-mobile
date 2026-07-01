@@ -1,7 +1,7 @@
 import type { ReligionDefinition, StaticWorldData } from "../../core/models/static-world-data";
 import type { RegionDefinition, StrategicRoute } from "../../core/models/world";
 import type { ReligionTenet } from "../../core/models/religion";
-import { WORLD_DEFINITIONS_MAP_ID, WORLD_DEFINITIONS_V1 } from "./generated/world-definitions-v1";
+import { WORLD_DEFINITIONS_V1, WORLD_DEFINITIONS_MAP_ID } from "./generated/world-definitions-v1";
 
 function round(value: number, decimals = 2): number {
   const factor = 10 ** decimals;
@@ -126,11 +126,11 @@ const RELIGIONS_V1: ReligionDefinition[] = [
 ];
 
 export function createStaticWorldData(
-  injectedDefinitions?: RegionDefinition[],
-  injectedMapId?: string
+  injectedDefinitions: RegionDefinition[] = WORLD_DEFINITIONS_V1,
+  injectedMapId: string = WORLD_DEFINITIONS_MAP_ID
 ): StaticWorldData {
-  const defs = injectedDefinitions ?? WORLD_DEFINITIONS_V1;
-  const mId = injectedMapId ?? WORLD_DEFINITIONS_MAP_ID;
+  const defs = injectedDefinitions;
+  const mId = injectedMapId;
 
   const definitions: Record<string, RegionDefinition> = Object.fromEntries(
     [...defs]

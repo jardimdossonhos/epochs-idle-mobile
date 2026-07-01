@@ -1,18 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState } from "../src/application/boot/create-initial-state";
+import { WORLD_DEFINITIONS_V1 } from "../src/application/boot/generated/world-definitions-v1";
 import { buildSaveSummary } from "../src/application/save/build-save-summary";
 import { TreatyType } from "../src/core/models/enums";
 import { buildTreatyId } from "../src/core/models/identifiers";
 import { MANUAL_SLOT_ID } from "../src/infrastructure/persistence/save-slots";
 import { normalizeSaveEnvelope, SAVE_SCHEMA_VERSION } from "../src/infrastructure/persistence/save-schema";
-import { WORLD_DEFINITIONS_V1 } from "../src/application/boot/generated/world-definitions-v1";
 
 describe("save schema migration", () => {
   it("migrates v1 saves to canonical v2 ids", () => {
     const state = createInitialState(undefined, undefined, WORLD_DEFINITIONS_V1);
     state.meta.schemaVersion = 1;
 
-    const attackerId = "k_rival_south";
+    const attacker = Object.values(state.kingdoms).find((kingdom) => !kingdom.isPlayer && kingdom.id !== "k_nature");
+    if (!attacker) {
+      throw new Error("Expected at least one NPC kingdom in the initial state.");
+    }
+
+    const attackerId = attacker.id;
     const defenderId = "k_player";
     const signedAt = 45_000;
 

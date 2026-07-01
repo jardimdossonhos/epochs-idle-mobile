@@ -1,23 +1,32 @@
-# Base de Conhecimento: Medieval Idle Kingdom
+# Base de Conhecimento: Epochs Idle
 
-Este é o Hub Central da documentação. Ele serve como o mapa roteador primário para a IA Assistant, garantindo que o contexto injetado na memória seja estritamente o necessário para a tarefa em execução.
+Este arquivo e o indice vivo da pasta `docs/`. Ele existe para responder duas perguntas rapidamente:
 
-## 🧭 Guia de Navegação Modular
+1. Qual documento devo abrir para cada tipo de tarefa?
+2. Qual documento e fonte de verdade operacional agora?
 
-Para evitar poluição de contexto, carregue apenas os documentos referentes ao domínio da tarefa atual:
+**Estado validado em 2026-05-04**
+- `npm test` verde: 22 arquivos / 41 testes.
+- `npm run build` verde.
+- Smoke test local sem erros de console no fluxo `Nova Campanha -> Forjar Destino`.
+- A UI agora expõe `window.render_game_to_text()` e `window.advanceTime(ms)` para automação e inspeção.
 
-*   **[Roadmap Macro](./roadmap.md)**
-    *   **Uso:** GDD de alto nível. Leia para entender "Qual fase estamos construindo agora" (Ex: Militar, Econômica, Diplomática).
-*   **📂 `1-planning/`** *(Plano Tático)*
-    *   **Uso:** Arquivos de tarefas imediatas, checklists de implementação técnica passo a passo.
-*   **📂 `2-architecture/`** *(A Fundação Técnica)*
-    *   **Uso:** Como o motor funciona por baixo dos panos. Regras do ECS, comunicação em paralelo com Web Workers via TypedArrays e sistema de Save Atômico.
-*   **📂 `3-mechanics/`** *(Regras de Negócio e Design)*
-    *   **Uso:** A fonte da verdade para fórmulas de gameplay (ex: algoritmo de crescimento de população, matemática do combate, cálculo de isenções de taxas).
-*   **📂 `4-engineering/`** *(Logs e Padrões)*
-    *   **Uso:** Estratégia de testes E2E e o Histórico de Decisões Arquiteturais Críticas (ADRs) documentando grandes bugs resolvidos (ex: problemas no WebGL).
+## Guia de Navegacao
 
-## 🤖 Diretrizes de Engenharia para a IA
-1. **Motor ECS Blindado:** A Main Thread é apenas para UI. Nenhuma regra de jogo pesada roda nela.
-2. **Single Source of Truth:** Nunca adivinhe uma fórmula matemática do jogo. Se não souber, peça para carregar o arquivo correspondente na pasta `/3-mechanics/`.
-3. **Segurança de Tipos:** Respeite a arquitetura de alta performance adotada nos Float64Arrays do Worker.
+- `roadmap.md`: status macro de produto e fases de desenvolvimento. Use para saber o que esta concluido, o que esta em estabilizacao e o que continua bloqueado.
+- `implementation-plan.md`: plano tatico de curto prazo. Use para os proximos alvos de engenharia antes da Fase 5.
+- `manual.md`: manual do jogador, criador e testador. Use para entender fluxos da UI, persistencia e operacao do painel de debug.
+- `testing-strategy.md`: estrategia de qualidade. Use para saber como validar build, testes automatizados, smoke test e hooks de observabilidade.
+- `developer-logs.md`: diario cronologico de implementacoes, bugs e decisoes. Use como memoria historica append-only.
+- `ARCHITECTURE.md`: arquitetura, contratos e direcao tecnica de medio/longo prazo. Atualize quando o desenho tecnico mudar de fato.
+- `CODEBASE_MAP.md`: mapa de onde cada responsabilidade mora no codigo. Atualize quando modulos mudarem de lugar ou quando uma camada deixar de refletir a realidade.
+- `map-data.md`: referencia do pipeline e origem dos dados geograficos.
+- `adr-001-map-generation.md`: ADR historico sobre as decisoes da geracao/renderizacao do mapa.
+- `architecture-and-roadmap.md`: arquivo de compatibilidade. Mantido apenas como ponte curta para `ARCHITECTURE.md` e `roadmap.md`.
+
+## Regras de Uso
+
+- Antes de editar codigo, consulte `roadmap.md` e `CODEBASE_MAP.md`.
+- Antes de documentar um bug ou decisao, consulte `developer-logs.md`.
+- Antes de declarar uma fase como concluida, valide com `testing-strategy.md`.
+- `progress.md` na raiz pode ser usado como caderno de sessao, mas nao substitui os documentos oficiais desta pasta.

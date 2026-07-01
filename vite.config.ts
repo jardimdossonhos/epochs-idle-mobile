@@ -11,10 +11,19 @@ export default defineConfig({
     }
   },
   build: {
-    target: "es2022"
+    target: "es2022",
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'pixi': ['pixi.js'],
+          'maplibre': ['maplibre-gl'],
+          'idb': ['idb'],
+          'capacitor': ['@capacitor/core', '@capacitor/app', '@capacitor/preferences']
+        }
+      }
+    }
   },
   test: {
-    // Point Vitest to unit tests inside the `src` folder ONLY.
-    include: ["src/**/*.test.ts"]
+    include: ["tests/**/*.test.ts", "src/**/*.test.ts"]
   }
 });

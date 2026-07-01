@@ -1,0 +1,725 @@
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
+import { useGameState } from '../GameProvider';
+import type { TaxPolicy, BudgetPriority } from '../../core/models/economy';
+
+// ─── Tipos de Diretrizes ─────────────────────────────────────────────────────
+type DirectiveKey =
+  | 'territorial_expansion'
+  | 'gold_focus'
+  | 'war_mode'
+  | 'aggressive_diplomacy'
+  | 'accelerated_research'
+  | 'religious_mission';
+
+interface DirectiveDef {
+  key: DirectiveKey;
+  icon: string;
+  label: string;
+  description: string;
+  incompatibleWith?: DirectiveKey[];
+}
+
+const DIRECTIVES: DirectiveDef[] = [
+  {
+    key: 'territorial_expansion',
+    icon: '🗺️',
+    label: 'Expansão Territorial',
+    description: 'A IA coloniza automaticamente regiões adjacentes não ocupadas.',
+    incompatibleWith: ['war_mode'],
+  },
+  {
+    key: 'gold_focus',
+    icon: '💰',
+    label: 'Foco em Ouro',
+    description: 'Prioriza taxas, mercados e rotas comerciais sobre gastos militares.',
+    incompatibleWith: ['war_mode'],
+  },
+  {
+    key: 'war_mode',
+    icon: '⚔️',
+    label: 'Modo Guerra',
+    description: 'Recruta tropas e ataca vizinhos fracos automaticamente.',
+    incompatibleWith: ['territorial_expansion', 'gold_focus', 'aggressive_diplomacy'],
+  },
+  {
+    key: 'aggressive_diplomacy',
+    icon: '🤝',
+    label: 'Diplomacia Agressiva',
+    description: 'Envia embaixadores e propõe alianças a cada oportunidade.',
+    incompatibleWith: ['war_mode'],
+  },
+  {
+    key: 'accelerated_research',
+    icon: '🔬',
+    label: 'Pesquisa Acelerada',
+    description: 'Aplica 40% do orçamento em tecnologia automaticamente.',
+    incompatibleWith: [],
+  },
+  {
+    key: 'religious_mission',
+    icon: '🙏',
+    label: 'Missão Religiosa',
+    description: 'Envia missionários a cada oportunidade disponível.',
+    incompatibleWith: [],
+  },
+];
+
+export default function GovScreen() {
+  const { gameState, session, playerKingdomId } = useGameState();
+  const [activeTab, setActiveTab] = useState<'economy' | 'laws' | 'automation' | 'events'>('economy');
+
+  // ── Estado das Diretrizes ──────────────────────────────────────────────────
+  const [directives, setDirectives] = useState<Record<DirectiveKey, boolean>>({
+    territorial_expansion: false,
+    gold_focus: false,
+    war_mode: false,
+    aggressive_diplomacy: false,
+    accelerated_research: false,
+    religious_mission: false,
+  });
+
+  // Sincroniza estado inicial das diretrizes do game state
+  useEffect(() => {
+    if (!gameState || !playerKingdomId) return;
+    const kingdom = gameState.kingdoms[playerKingdomId];
+    if (!kingdom?.administration) return;
+    const savedDirectives = (kingdom.administration as any).directives;
+    if (savedDirectives && typeof savedDirectives === 'object') {
+      setDirectives((prev) => ({ ...prev, ...savedDirectives }));
+    }
+  }, [gameState, playerKingdomId]);
+
+  const handleToggleDirective = (key: DirectiveKey) => {
+    if (!session) return;
+    const newEnabled = !directives[key];
+
+    // Se ativando, desativa incompatíveis
+    const updates: Partial<Record<DirectiveKey, boolean>> = { [key]: newEnabled };
+    if (newEnabled) {
+      const def = DIRECTIVES.find((d) => d.key === key);
+      def?.incompatibleWith?.forEach((incompKey) => {
+        if (directives[incompKey]) {
+          updates[incompKey] = false;
+          (session as any).updateAutomationDirective(incompKey, false);
+        }
+      });
+    }
+
+    setDirectives((prev) => ({ ...prev, ...updates }));
+    (session as any).updateAutomationDirective(key, newEnabled);
+  };
+
+  const isIncompatible = (key: DirectiveKey): DirectiveKey | null => {
+    const def = DIRECTIVES.find((d) => d.key === key);
+    if (!def?.incompatibleWith) return null;
+    const found = def.incompatibleWith.find((k) => directives[k]);
+    return found || null;
+  };
+
+  if (!gameState) return null;
+
+  const kingdom = gameState.kingdoms[playerKingdomId];
+  if (!kingdom) return null;
+
+  const { economy, administration } = kingdom;
+
+  // Helper to change tax policy
+  const adjustTaxPolicy = (field: keyof TaxPolicy, delta: number) => {
+    if (!session) return;
+    let min = 0;
+    let max = 0.4;
+    if (field === 'baseRate') {
+      min = 0.05;
+      max = 0.6;
+    } else if (field === 'tariffRate') {
+      min = 0;
+      max = 0.5;
+    }
+    const current = economy.taxPolicy[field] || 0;
+    const newVal = Math.max(min, Math.min(max, parseFloat((current + delta).toFixed(2))));
+    session.updateTaxPolicy({ [field]: newVal });
+  };
+
+  // Helper to adjust budget priority
+  const adjustBudget = (field: keyof BudgetPriority, delta: number) => {
+    if (!session) return;
+    const current = economy.budgetPriority[field] || 0;
+    const newVal = Math.max(0, current + delta);
+    session.updateBudgetPriority({ [field]: newVal });
+  };
+
+  // Calculate state efficiency locally
+  const adminCorruption = administration?.corruption || 0;
+  const adminUsed = administration?.usedCapacity || 0;
+  const adminCap = administration?.adminCapacity || 1;
+  const stateEfficiency = Math.max(0.05, 1 - adminCorruption - Math.max(0, (adminUsed - adminCap) / Math.max(1, adminCap)));
+
+  return (
+    <View style={styles.container}>
+      {/* Tabs */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'economy' && styles.activeTab]}
+          onPress={() => setActiveTab('economy')}
+        >
+          <Text style={[styles.tabText, activeTab === 'economy' && styles.activeTabText]}>Economia</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'laws' && styles.activeTab]}
+          onPress={() => setActiveTab('laws')}
+        >
+          <Text style={[styles.tabText, activeTab === 'laws' && styles.activeTabText]}>Estado</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'automation' && styles.activeTab]}
+          onPress={() => setActiveTab('automation')}
+        >
+          <Text style={[styles.tabText, activeTab === 'automation' && styles.activeTabText]}>Idle / Auto</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'events' && styles.activeTab]}
+          onPress={() => setActiveTab('events')}
+        >
+          <Text style={[styles.tabText, activeTab === 'events' && styles.activeTabText]}>Feed Mundo</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        {activeTab === 'economy' && (
+          <View>
+            <Text style={styles.sectionTitle}>Tesouro & Estoques</Text>
+            <View style={styles.resourceGrid}>
+              <ResourceCard icon="💰" name="Ouro" amount={economy.stock.gold} income={economy.incomePerTick.gold} />
+              <ResourceCard icon="🍞" name="Comida" amount={economy.stock.food} income={economy.incomePerTick.food} />
+              <ResourceCard icon="🪵" name="Madeira" amount={economy.stock.wood} income={economy.incomePerTick.wood} />
+              <ResourceCard icon="⛏️" name="Ferro" amount={economy.stock.iron} income={economy.incomePerTick.iron} />
+              <ResourceCard icon="🙏" name="Fé" amount={economy.stock.faith} income={economy.incomePerTick.faith} />
+              <ResourceCard icon="👑" name="Legitima." amount={economy.stock.legitimacy} income={economy.incomePerTick.legitimacy} />
+            </View>
+
+            <Text style={styles.sectionTitle}>Política Fiscal</Text>
+            <View style={styles.taxControlBox}>
+              <TaxStepper 
+                label="Taxa Base (BasePop)" 
+                value={economy.taxPolicy.baseRate} 
+                onDecrease={() => adjustTaxPolicy('baseRate', -0.05)}
+                onIncrease={() => adjustTaxPolicy('baseRate', 0.05)}
+              />
+              <TaxStepper 
+                label="Alívio dos Nobres" 
+                value={economy.taxPolicy.nobleRelief} 
+                onDecrease={() => adjustTaxPolicy('nobleRelief', -0.05)}
+                onIncrease={() => adjustTaxPolicy('nobleRelief', 0.05)}
+              />
+              <TaxStepper 
+                label="Isenção do Clero" 
+                value={economy.taxPolicy.clergyExemption} 
+                onDecrease={() => adjustTaxPolicy('clergyExemption', -0.05)}
+                onIncrease={() => adjustTaxPolicy('clergyExemption', 0.05)}
+              />
+              <TaxStepper 
+                label="Tarifas Alfandegárias" 
+                value={economy.taxPolicy.tariffRate} 
+                onDecrease={() => adjustTaxPolicy('tariffRate', -0.05)}
+                onIncrease={() => adjustTaxPolicy('tariffRate', 0.05)}
+              />
+              <Text style={styles.taxHelperText}>
+                Impostos altos geram mais Ouro, mas reduzem a estabilidade. Alívios e isenções acalmam as classes dominantes.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {activeTab === 'laws' && (
+          <View>
+            <Text style={styles.sectionTitle}>Indicadores do Estado</Text>
+            <View style={styles.card}>
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Estabilidade</Text>
+                <Text style={styles.statValue}>{(kingdom.stability * 100).toFixed(1)}%</Text>
+              </View>
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Eficiência Estatal</Text>
+                <Text style={styles.statValue}>{(stateEfficiency * 100).toFixed(1)}%</Text>
+              </View>
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Corrupção</Text>
+                <Text style={styles.statValue}>{(economy.corruption * 100).toFixed(1)}%</Text>
+              </View>
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Inflação</Text>
+                <Text style={styles.statValue}>{(economy.inflation * 100).toFixed(1)}%</Text>
+              </View>
+            </View>
+            <Text style={styles.taxHelperText}>
+              A eficiência estatal multiplica toda a sua produção. Mantenha a estabilidade alta!
+            </Text>
+
+            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Prioridades de Orçamento</Text>
+            <View style={styles.budgetCard}>
+              <BudgetStepper 
+                label="Economia" 
+                value={economy.budgetPriority.economy} 
+                onDecrease={() => adjustBudget('economy', -5)}
+                onIncrease={() => adjustBudget('economy', 5)}
+              />
+              <BudgetStepper 
+                label="Militar" 
+                value={economy.budgetPriority.military} 
+                onDecrease={() => adjustBudget('military', -5)}
+                onIncrease={() => adjustBudget('military', 5)}
+              />
+              <BudgetStepper 
+                label="Religião" 
+                value={economy.budgetPriority.religion} 
+                onDecrease={() => adjustBudget('religion', -5)}
+                onIncrease={() => adjustBudget('religion', 5)}
+              />
+              <BudgetStepper 
+                label="Administração" 
+                value={economy.budgetPriority.administration} 
+                onDecrease={() => adjustBudget('administration', -5)}
+                onIncrease={() => adjustBudget('administration', 5)}
+              />
+              <BudgetStepper 
+                label="Tecnologia" 
+                value={economy.budgetPriority.technology} 
+                onDecrease={() => adjustBudget('technology', -5)}
+                onIncrease={() => adjustBudget('technology', 5)}
+              />
+              <Text style={styles.budgetHelperText}>
+                O orçamento é auto-normalizado para totalizar 100%. Ajustar um sector afeta proporcionalmente os outros.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {activeTab === 'automation' && (
+          <View>
+            <Text style={styles.sectionTitle}>Diretrizes Estratégicas (Idle)</Text>
+            <Text style={styles.taxHelperText}>
+              Ative as políticas que seus ministros devem seguir automaticamente enquanto você não governa.
+              Diretrizes conflitantes são mutuamente exclusivas.
+            </Text>
+
+            <View style={{ marginTop: 12, gap: 10 }}>
+              {DIRECTIVES.map((def) => {
+                const isEnabled = directives[def.key];
+                const conflictKey = isIncompatible(def.key);
+                const hasConflict = !isEnabled && conflictKey !== null;
+                const conflictLabel = hasConflict
+                  ? DIRECTIVES.find((d) => d.key === conflictKey)?.label
+                  : null;
+
+                return (
+                  <TouchableOpacity
+                    key={def.key}
+                    style={[
+                      styles.directiveCard,
+                      isEnabled && styles.directiveCardActive,
+                      hasConflict && styles.directiveCardConflict,
+                    ]}
+                    onPress={() => handleToggleDirective(def.key)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.directiveLeft}>
+                      <Text style={styles.directiveIcon}>{def.icon}</Text>
+                      <View style={{ flex: 1 }}>
+                        <View style={styles.directiveTitleRow}>
+                          <Text style={[
+                            styles.directiveLabel,
+                            isEnabled && styles.directiveLabelActive,
+                          ]}>
+                            {def.label}
+                          </Text>
+                          {isEnabled && (
+                            <View style={styles.directiveBadgeOn}>
+                              <Text style={styles.directiveBadgeText}>ATIVO</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.directiveDesc}>{def.description}</Text>
+                        {hasConflict && conflictLabel && (
+                          <Text style={styles.directiveConflictText}>
+                            ⚠️ Incompatível com "{conflictLabel}"
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    <View style={[
+                      styles.directiveToggle,
+                      isEnabled ? styles.directiveToggleOn : styles.directiveToggleOff,
+                    ]}>
+                      <Text style={styles.directiveToggleText}>
+                        {isEnabled ? '●' : '○'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.taxHelperText, { marginTop: 16 }]}>
+              As diretrizes são executadas a cada ciclo de automação. Combine-as com as prioridades de orçamento para máxima eficiência.
+            </Text>
+          </View>
+        )}
+
+        {activeTab === 'events' && (
+          <View>
+            <Text style={styles.sectionTitle}>Eventos em Tempo Real (Mundo Vivo)</Text>
+            {(!gameState.events || gameState.events.length === 0) ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Nenhum evento registrado recentemente no império.</Text>
+              </View>
+            ) : (
+              <View style={{ marginTop: 8 }}>
+                {[...gameState.events].reverse().slice(0, 30).map((evt, idx) => {
+                  const severityColor = evt.severity === 'critical' ? '#E24A4A' : evt.severity === 'warning' ? '#F8E71C' : '#50E3C2';
+                  return (
+                    <View key={evt.id || idx} style={styles.eventCard}>
+                      <View style={styles.eventHeader}>
+                        <Text style={[styles.eventSeverity, { color: severityColor }]}>● {evt.severity?.toUpperCase() || 'INFO'}</Text>
+                        <Text style={styles.eventTitle}>{evt.title}</Text>
+                      </View>
+                      <Text style={styles.eventDetails}>{evt.details}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+function ResourceCard({ icon, name, amount, income }: { icon: string, name: string, amount: number, income: number }) {
+  const incomeColor = income > 0 ? '#50E3C2' : income < 0 ? '#E24A4A' : '#888';
+  return (
+    <View style={styles.resourceCard}>
+      <View style={styles.resourceHeader}>
+        <Text style={styles.resourceIcon}>{icon}</Text>
+        <Text style={styles.resourceName}>{name}</Text>
+      </View>
+      <Text style={styles.resourceAmount}>{Math.floor(amount).toLocaleString()}</Text>
+      <Text style={[styles.resourceIncome, { color: incomeColor }]}>
+        {income > 0 ? '+' : ''}{income.toFixed(1)}/t
+      </Text>
+    </View>
+  );
+}
+
+function TaxStepper({ 
+  label, 
+  value, 
+  onDecrease, 
+  onIncrease 
+}: { 
+  label: string; 
+  value: number; 
+  onDecrease: () => void; 
+  onIncrease: () => void; 
+}) {
+  return (
+    <View style={styles.taxControlBoxRow}>
+      <Text style={styles.taxRowLabel}>{label}</Text>
+      <View style={styles.stepper}>
+        <TouchableOpacity style={styles.stepperBtn} onPress={onDecrease}>
+          <Text style={styles.stepperBtnText}>-</Text>
+        </TouchableOpacity>
+        <Text style={styles.taxValueText}>{(value * 100).toFixed(0)}%</Text>
+        <TouchableOpacity style={styles.stepperBtn} onPress={onIncrease}>
+          <Text style={styles.stepperBtnText}>+</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+function BudgetStepper({ 
+  label, 
+  value, 
+  onDecrease, 
+  onIncrease 
+}: { 
+  label: string; 
+  value: number; 
+  onDecrease: () => void; 
+  onIncrease: () => void; 
+}) {
+  return (
+    <View style={styles.budgetRow}>
+      <Text style={styles.budgetLabel}>{label}</Text>
+      <View style={styles.stepper}>
+        <TouchableOpacity style={styles.stepperBtn} onPress={onDecrease}>
+          <Text style={styles.stepperBtnText}>-</Text>
+        </TouchableOpacity>
+        <Text style={styles.budgetValueText}>{value.toFixed(0)}%</Text>
+        <TouchableOpacity style={styles.stepperBtn} onPress={onIncrease}>
+          <Text style={styles.stepperBtnText}>+</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#121212' },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#1A1A1A',
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: { borderBottomColor: '#D4AF37' },
+  tabText: { color: '#888', fontSize: 14, fontWeight: 'bold', textTransform: 'uppercase' },
+  activeTabText: { color: '#D4AF37' },
+  content: { padding: 16, paddingBottom: 40 },
+  sectionTitle: {
+    fontSize: 18,
+    color: '#D4AF37',
+    fontWeight: 'bold',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  resourceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  resourceCard: {
+    width: '48%',
+    backgroundColor: '#1A1A1A',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+  },
+  resourceHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  resourceIcon: { fontSize: 16, marginRight: 6 },
+  resourceName: { color: '#888', fontSize: 14, fontWeight: '600' },
+  resourceAmount: { color: '#E0E0E0', fontSize: 20, fontWeight: 'bold' },
+  resourceIncome: { fontSize: 12, marginTop: 4, fontWeight: 'bold' },
+  taxControlBox: {
+    backgroundColor: '#1A1A1A',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+  },
+  taxControlBoxRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
+  },
+  taxRowLabel: {
+    color: '#E0E0E0',
+    fontSize: 14,
+    flex: 1,
+  },
+  taxLabel: { color: '#E0E0E0', fontSize: 16, marginBottom: 12, textAlign: 'center' },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperBtn: {
+    backgroundColor: '#D4AF37',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperBtnText: { color: '#121212', fontSize: 20, fontWeight: 'bold' },
+  taxValueText: { color: '#E0E0E0', fontSize: 20, fontWeight: 'bold', width: 60, textAlign: 'center' },
+  taxHelperText: { color: '#888', fontSize: 12, textAlign: 'center', fontStyle: 'italic', marginTop: 10 },
+  card: {
+    backgroundColor: '#1A1A1A',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
+  },
+  statLabel: { color: '#A0A0A0', fontSize: 16 },
+  statValue: { color: '#D4AF37', fontSize: 16, fontWeight: 'bold' },
+  budgetCard: {
+    backgroundColor: '#1A1A1A',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+  },
+  budgetRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
+  },
+  budgetLabel: {
+    color: '#E0E0E0',
+    fontSize: 14,
+    flex: 1,
+  },
+  budgetValueText: {
+    color: '#E0E0E0',
+    fontSize: 18,
+    fontWeight: 'bold',
+    width: 60,
+    textAlign: 'center',
+  },
+  budgetHelperText: {
+    color: '#888',
+    fontSize: 12,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 10,
+  },
+  autoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
+  },
+  autoLabel: { color: '#E0E0E0', fontSize: 15, fontWeight: 'bold' },
+  autoDesc: { color: '#888', fontSize: 12, marginTop: 2 },
+  autoBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    minWidth: 90,
+    alignItems: 'center',
+  },
+  autoBtnActive: { backgroundColor: '#50E3C2', borderColor: '#50E3C2' },
+  autoBtnManual: { backgroundColor: '#2A2A2A', borderColor: '#444' },
+  autoBtnText: { color: '#E0E0E0', fontSize: 12, fontWeight: 'bold' },
+  // ── Directive Styles ──────────────────────────────────────────────────────
+  directiveCard: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  directiveCardActive: {
+    borderColor: '#D4AF37',
+    backgroundColor: '#1E1B0F',
+  },
+  directiveCardConflict: {
+    borderColor: '#444444',
+    opacity: 0.65,
+  },
+  directiveLeft: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flex: 1,
+    paddingRight: 10,
+  },
+  directiveIcon: {
+    fontSize: 22,
+    marginRight: 12,
+    marginTop: 2,
+  },
+  directiveTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 3,
+  },
+  directiveLabel: {
+    color: '#A0A0A0',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  directiveLabelActive: {
+    color: '#D4AF37',
+  },
+  directiveBadgeOn: {
+    backgroundColor: '#D4AF37',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  directiveBadgeText: {
+    color: '#121212',
+    fontSize: 9,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  directiveDesc: {
+    color: '#666666',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  directiveConflictText: {
+    color: '#E2784A',
+    fontSize: 11,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  directiveToggle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+  },
+  directiveToggleOn: {
+    borderColor: '#D4AF37',
+    backgroundColor: '#D4AF37',
+  },
+  directiveToggleOff: {
+    borderColor: '#444444',
+    backgroundColor: 'transparent',
+  },
+  directiveToggleText: {
+    color: '#121212',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  eventCard: {
+    backgroundColor: '#1A1A1A',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#2C2C2C',
+  },
+  eventHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  eventSeverity: { fontSize: 11, fontWeight: 'bold', marginRight: 8 },
+  eventTitle: { color: '#D4AF37', fontSize: 15, fontWeight: 'bold', flex: 1 },
+  eventDetails: { color: '#CCCCCC', fontSize: 13, lineHeight: 18 },
+  emptyContainer: { padding: 40, alignItems: 'center' },
+  emptyText: { color: '#666', fontStyle: 'italic' },
+});

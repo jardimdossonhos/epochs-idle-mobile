@@ -35,6 +35,9 @@ export interface Minister {
   role: MinisterRole;
   personality: MinisterPersonality;
   skillLevel: number; // 1 a 5 (Molda a eficiência administrativa e chance de sucesso de ações delegadas)
+  experience: number; // Experiência atual acumulada
+  experienceToNext: number; // Experiência necessária para o próximo nível
+  lastLevelUpTick?: number; // Tick do último level up (para cooldown de treinamento)
   stats?: CharacterStats; // Os atributos de RPG reais (Admin, Martial, Diplo, Intriga, Saber)
   salary: number; // Salário atual do ministro em ouro por ciclo
   delegationLevel: AutomationLevel; // Manual (Apenas avisa), Assistido (Emite propostas), Automático (Executa e reporta)

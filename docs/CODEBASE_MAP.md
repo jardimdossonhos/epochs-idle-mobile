@@ -1,129 +1,196 @@
-# 🗺️ Mapa Mental e Arquitetura da Base de Código (Deep Dive)
+# Mapa Mental e Arquitetura da Base de Codigo
 
-Este documento mapeia a utilidade de **toda a extensão da árvore de diretórios e padrões de arquivos** do projeto `epochs-idle-pc` (abrangendo seus mais de 1.000 arquivos). 
-Devido ao rigor da **Clean Architecture** e **Threads Separadas (Web Worker)**, use este guia como bússola para entender onde inserir novos códigos e prever o impacto das suas alterações.
+Este documento responde a pergunta pratica: **onde mexer para cada tipo de mudanca**.
 
----
+Ele foi atualizado para refletir o estado real do repositorio em **2026-05-04**.
 
-## Nível 0: Arquivos e Pastas Raiz do Repositório
-*   **`/` (Raiz)**: Contém arquivos de configuração que ditam o ambiente, build e linters. Edite com extremo cuidado.
-    *   `package.json`, `tsconfig.json`, `vite.config.ts`: Definição de dependências e bundling (Vite).
-    *   `.eslintrc.json`, `.prettierrc`: Regras estritas de qualidade de código.
-    *   `ARCHITECTURE.md`, `MANUAL.md`, `README.md`, `CODEBASE_MAP.md`: Documentação viva do projeto.
-*   **`docs/`**: Contém a documentação estendida, planos de execução (execution plans) das fases de desenvolvimento e detalhamentos de arquitetura mais profundos.
-*   **`public/assets/maps/`**: Contém artefatos estáticos. O arquivo `world-countries-v1.geojson` é usado na renderização final e ditou os metadados do mundo do jogo.
-*   **`scripts/`**: Utilitários Node.js executados fora do escopo do jogo (ex: build do GeoJSON e tipagens auto-geradas `generate-world-geojson.mjs`).
-*   **`tests/`**: A suíte de testes automatizados utilizando **Vitest** (`npm run test`). É aqui que a integridade do jogo é garantida, focando principalmente em testar as funções puras matemáticas do *Core* e os contratos do ECS sem depender da interface visual.
-*   **`desktop/`**: Invólucro **Electron** (`main.js`, `preload.js`) para transformar o jogo web num `.exe` nativo de PC com acesso offline real aos arquivos do `%APPDATA%`.
-*   **`node_modules/`** *(Gerado automaticamente)*: Armazena todas as bibliotecas de terceiros listadas no `package.json` (Vite, MapLibre, Electron). **Intocável:** Nunca edite arquivos aqui dentro, pois eles são sobrescritos a cada instalação.
+## Nivel 0: Raiz do repositorio
 
----
+- `/`
+  - `package.json`, `tsconfig.json`, `vite.config.ts`: configuracao de build, scripts e bundling.
+  - `README.md`: overview rapido do projeto.
+  - `progress.md`: caderno de sessao. Util para continuidade local, mas nao e documento oficial de produto/arquitetura.
+- `docs/`
+  - Fonte oficial de documentacao viva: roadmap, manual, estrategia de testes, arquitetura e diario tecnico.
+- `src/`
+  - Codigo do jogo web.
+- `desktop/`
+  - Casca Electron para distribuicao desktop/offline.
+- `public/assets/maps/`
+  - Artefatos do mapa gerados pelo pipeline geografico.
+- `scripts/`
+  - Ferramentas auxiliares de geracao e build de dados.
+- `tests/`
+  - Suite automatizada com Vitest e Playwright.
 
-## Nível 1: Camada de UI e Visualização (A Superfície)
-A casca visual que o usuário interage. **Nenhuma lógica de negócios reside aqui.**
-*   **`src/styles/`**:
-    *   `global.css`: Todas as definições de responsividade, CSS variables, painéis (DOM) e do canvas do mapa.
-*   **`src/ui/`**: 
-    *   `i18n/messages.ts`, `types.ts`: Dicionários de traduções e internacionalização (en-US, pt-BR).
-*   **`src/main.ts`**: O Maestro. 
-    *   ⚠️ *Nota de Débito Técnico:* Atualmente atua como um "God Object" (Renderização, Binding e Inicialização misturados). Mapeado para refatoração futura em Controllers/Views (Padrão MVC).
-    *   Monta a DOM.
-*   **`src/application/god-mode.ts`**: Ferramenta de auditoria do Desenvolvedor. Um console injetável que ignora as regras do jogo e permite manipular o Worker diretamente (cheat menu).
-    *   Instancia a `GameSession` (Aplicação).
-    *   Controla a **Splash Screen** e o **Auto-Boot**.
-    *   **Ponto Crítico:** Orquestra a comunicação entre a UI e o Worker. É o responsável por enviar os comandos de restauração (`RESTORE_ECS_STATE`) e início (`START`). O protocolo de comunicação original não aguardava confirmação do Worker, sendo a causa principal da falha no carregamento de jogos. *(Ver Seção 4.1 do ARCHITECTURE.md).*
-    *   Processa a ponte visual de dados (recebe os `TICK`s do worker e atualiza a `GameSession`).
+## Nivel 1: UI e apresentacao
 
----
+### `src/main.ts`
 
-## Nível 2: Aplicação e Orquestração (A Ponte)
-Sistemas de controle de fluxo de estado. Eles ditam "o quê" fazer, orquestrando as regras puras do *Core*.
-*   **`src/application/`**:
-    *   `game-session.ts`: A super-classe da API do Jogo. Mantém uma cópia do `currentState`.
-    *   **Ponto Crítico:** Dispara o `autosave` com base em seus próprios ticks, usando uma cópia local do estado do Worker. Essa dessincronia causa a **race condition** que resulta na perda de recursos. *(Ver Seção 4.2 do ARCHITECTURE.md).*
-    *   Despacha as intenções do jogador (ex: botões de Diplomacia ou Governo) e verifica custos (`canAfford`) usando sua cópia local (e potencialmente desatualizada) do `EcsState`.
-    *   **`boot/`**: Rotinas para construir a campanha "do zero".
-        *   `create-initial-state.ts`, `static-world-data.ts`: Fabricas que constroem a árvore inicial JSON.
-        *   `generated/world-definitions-v1.ts`: Um wrapper leve que carrega o dado real de `src/application/boot/generated/world-definitions-v1.json`. O array de regiões ainda dita a alocação do Worker de alta performance, mas não fica hardcoded como TS bruto.
-    *   **`save/`**: Rotinas exclusivas de snapshots.
-        *   `build-save-summary.ts`: Fabrica os metadados (Tamanho do exército, Nome do Monarca, Tempo jogado) legíveis no Menu de Saves sem precisar carregar o mapa inteiro na RAM.
+Continua sendo o maestro da aplicacao web.
 
----
+Responsabilidades atuais:
+- montar a DOM principal;
+- inicializar `GameSession`, worker, persistencia e renderer;
+- orquestrar splash screen, save/load, debug panel e parte importante da renderizacao legado;
+- expor hooks de automacao como `window.render_game_to_text()` e `window.advanceTime(ms)`.
 
-## Nível 3: Infraestrutura (Os Adaptadores Concretos)
-Arquivos acoplados a frameworks externos (IndexDB, MapLibre, WebWorkers) que implementam as "Ports" (contratos) exigidos pelo *Core*.
-*   **`src/infrastructure/worker/`**:
-    *   `simulation.worker.ts`: A Segunda Thread matemática. Isola 100% dos cálculos do ECS para impedir congelamentos de interface (UI bloqueada).
-    *   **Ponto Crítico:** Ao receber `RESTORE_ECS_STATE`, ele restaura seu estado interno mas, no protocolo original, **não enviava nenhuma mensagem de confirmação (handshake)** para a thread principal. Essa ausência de confirmação era a causa raiz da falha no carregamento de jogos. *(Ver Seção 4.1 do ARCHITECTURE.md).*
-*   **`src/infrastructure/rendering/`**:
-    *   `hybrid-map-renderer.ts`, `maplibre-world-renderer.ts`: Consumidores da biblioteca MapLibre GL. Traduzem o estado dos reinos do `GameSession` em preenchimentos (polígonos e cores) no canvas geográfico.
-*   **`src/infrastructure/persistence/`**:
-    *   `runtime-persistence.ts`, `save-slots.ts`: Repositórios reais (LocalStorage/IndexedDB). Gravam e leem os JSONs imensos e lidam com limpeza de memória de saves antigos.
-*   **`src/infrastructure/runtime/`**:
-    *   `browser-clock-service.ts`: O "coração batendo" do jogo (requestAnimationFrame/setInterval).
-    *   `local-event-bus.ts`: Mensageria síncrona (pub/sub) que avisa ao sistema que algo ocorreu (ex: "guerra_declarada", "vitoria_alcancada").
-*   **`src/infrastructure/diplomacy/`, `npc/`, `war/`**: 
-    *   `npc/`: Onde habita a **Utility AI** (Racionalidade Limitada). Avalia vetores de personalidade, memória histórica com decaimento, percepção vs realidade (Fog) e adaptação por Era.
+**Estado real:** nao e mais um "God Object puro", mas ainda concentra muita responsabilidade. A extracao para controladores existe e esta incompleta.
 
----
+### `src/styles/`
 
-## Nível 4: Core Domain (O "Graal" - Lógica Pura Multithread)
-O núcleo intocável do jogo. Agnostico de JS, Web ou Bancos de Dados. Representa centenas de arquivos divididos na sub-arquitetura ECS e POO (Orientada a Objetos).
+- `global.css`: layout, tema, responsividade, paineis DOM e estilos do mapa.
 
-### 4.1. Modelos (A Base de Dados Viva)
-*   **`src/core/models/game-state.ts`**: O Santo Graal. A Interface Typescript gigante que diz o que é salvo no disco. **Alterar um campo aqui requer refatorar leituras/escritas em quase todas as camadas.**
-*   **`src/core/models/*.ts` (Mais dezenas de arquivos)**: Divide a árvore JSON em partes legíveis.
-    *   `economy.ts`, `population.ts`, `military.ts`, `religion.ts`, `diplomacy.ts`, `technology.ts`, `npc.ts`, `world.ts`, `events.ts`, `victory.ts`
-    *   `enums.ts` e `identifiers.ts`: Constantes (ex: `ResourceType.Gold`, geradores de Hash).
+### `src/ui/controllers/`
 
-### 4.2. Contratos e Dados Estáticos
-*   **`src/core/contracts/`**: Interfaces (`game-ports.ts`, `services.ts`) que exigem que algo de fora (Infra) implemente comportamentos de repositório (I/O).
-*   **`src/core/data/`**: Definições massivas e imutáveis.
-    *   `technology-tree.ts`: A árvore complexa de pré-requisitos tecnológicos, custos e hard-codes das descrições.
-*   **`src/core/utils/`**:
-    *   `stable-hash.ts`, `state-fingerprint.ts`: Geradores algorítmicos para garantir determinismo, permitindo auditoria nos slots de save (anti-corrupção e anti-cheat).
+Camada de controladores MVC/MVP criada para reduzir acoplamento de `main.ts`.
 
-### 4.3. Pipeline Principal (Tick Engine POO)
-Roda os cálculos de alto nível estruturais não transferidos para a memória do Worker (como Guerras Globais).
-*   **`src/core/simulation/`**:
-    *   `tick-pipeline.ts`: O loop. Invoca em fila rigorosa todos os sistemas (AI, Eventos, Guerras).
-    *   `systems/council-system.ts`: IA de Ministros com consciência de contexto e geográfica. Varre a `StaticWorldData` para sugerir obras (Fortalezas) em hexágonos de fronteira vulneráveis.
-    *   **Ponto Crítico:** Ao criar espelhos do estado (`cloneGameStateForSimulation`), certifique-se de que dicionários dinâmicos (como as Novas Religiões) não sejam acidentalmente limpos do `WorldState`.
-    *   `create-default-systems.ts`: O Injetor de Dependência que agrupa todos os motores.
+Arquivos principais:
+- `base-controller.ts`: base comum.
+- `tab-controller-manager.ts`: ciclo de vida dos controladores.
+- `progression-controller.ts`: aba de progressao.
+- `map-controller.ts`, `government-controller.ts`, `technology-controller.ts`: primeiras abas extraidas.
 
-### 4.4. O Motor de Alta Performance (ECS Sub-Domain)
-Centenas de megabytes rodando a cada segundo em arrays coladas e contínuas na Memória RAM (Data-Oriented Design).
-*   **`src/core/ecs/World.ts`**: Gerencia IDs matemáticos das entidades.
-*   **`src/core/components/`**: Ex: `EconomyComponent.ts`, `PopulationComponent.ts`. Repositórios de Matrizes tipadas de alta velocidade (`Float64Array`).
-*   **`src/core/systems/`**: Ex: `EconomySystem.ts`, `PopulationSystem.ts`. Funções matemáticas rígidas que rodam os loops "For" multiplicando taxas para 241+ países na mesma fração de segundo.
+### `src/ui/view-models/`
 
----
+Helpers puros de apresentacao.
 
-## Cheatsheets Avançados (Manutenção Diária)
+Arquivos principais:
+- `dashboard-vm.ts`: resumo de dashboard.
+- `render-game-to-text.ts`: serializer textual do estado jogavel usado em automacao, smoke test e depuracao.
 
-**Cenário A: Adicionar um novo recurso de economia (Ex: "Pedra"):**
-    *   `enums.ts` (Adicionar ao ResourceType)
-    *   `game-state.ts` / `EcsState` (Adicionar `stone: number[]`)
-    *   `EconomyComponent.ts` (Criar o Float64Array de Pedra)
-    *   `EconomySystem.ts` (Calcular a produção de Pedra)
-    *   `simulation.worker.ts` (Extrair no `EXTRACT_SAVE_STATE` e restaurar no `RESTORE_ECS_STATE`)
-    *   `main.ts` (Renderizar a Pedra na UI e receber do worker)
-    *   `game-session.ts` (Atualizar o ECS backup com a Pedra)
+### `src/ui/i18n/`
 
-**Cenário B: Adicionar Dicionários Dinâmicos (Ex: Facções, Religiões):**
-    *   Definir no `game-state.ts`.
-    *   **OBRIGATÓRIO:** Atualizar o `cloneGameStateForSimulation` em `src/core/utils/clone-game-state.ts`. Se omitir, a variável de memória sumirá na transição de Ticks do simulador.
+- Dicionarios e mensagens de interface.
 
-**Cenário C: Criar um botão "Ação Global" (Ex: Decretar Édito):**
-    *   `main.ts` (A UI invoca `session.executeEdito()`)
-    *   `game-session.ts` (Aplica a lógica de negócios, paga custos do ECS copiados e salva logs)
-    *   `models/events.ts` (Se o edito logar um evento)
+## Nivel 2: Aplicacao e orquestracao
 
-**Cenário D: Alterar propriedades da malha hexagonal do mundo (Clima, Tamanho do Tabuleiro):**
-    *   Alterar a lógica procedural (Turf.js) no `scripts/generate-world-geojson.mjs`.
-    *   Rodar `npm run map:build` para fatiar o mundo e gerar os Vector Tiles (`.pbf`).
-    *   O build continuará usando o wrapper `src/application/boot/generated/world-definitions-v1.ts`, que importa `public/assets/maps/world-definitions-v1.json`. Isso mantém a alocação de memória do ECS intacta sem expor os dados como literal TypeScript.
-    *   *Risco*: Qualquer alteração na quantidade de zonas geográficas corrompe os Saves antigos devido ao desalinhamento estrutural dos índices. O jogo precisará ser recomeçado.
+### `src/application/game-session.ts`
 
----
-> ⚠️ **Nota Crítica de Refatoração:** A arquitetura multithread exige espelhamento exato do Estado. Sempre valide o recarregamento do Browser (F5) para atestar a "Persistência ECS" após mexer em qualquer tipo, Array ou Interface do `core/models`.
+E a API central da campanha.
+
+Responsabilidades:
+- manter o `currentState`;
+- aplicar acoes do jogador;
+- rodar o `TickPipeline`;
+- salvar/carregar snapshots e slots;
+- integrar eventos, autosave, offline progression e metricas de runtime;
+- oferecer stepping manual de simulacao via `advanceTimeForTesting`.
+
+**Quando mexer aqui:** qualquer mudanca em regras de sessao, persistencia, pacing do tick, comandos do jogador ou observabilidade.
+
+### `src/application/boot/`
+
+Bootstrap da campanha.
+
+Arquivos principais:
+- `create-initial-state.ts`: fabrica do estado inicial.
+- `static-world-data.ts`: dados estaticos do mundo.
+- `generated/world-definitions-v1.*`: definicoes geograficas geradas.
+
+### `src/application/save/`
+
+- `build-save-summary.ts`: resumo legivel de saves.
+
+### `src/application/god-mode.ts`
+
+- Console/painel de desenvolvedor para cheats, telemetria e diagnostico.
+
+## Nivel 3: Infraestrutura
+
+### `src/infrastructure/worker/`
+
+- `simulation.worker.ts`: thread paralela dos arrays ECS e efeitos numericos pesados.
+
+### `src/infrastructure/rendering/`
+
+- `hybrid-map-renderer.ts`: casca principal do mapa.
+- Renderers auxiliares MapLibre/Pixi/WebGL.
+
+### `src/infrastructure/persistence/`
+
+- `runtime-persistence.ts`: bundle de persistencia de runtime.
+- `save-slots.ts`: IDs e convencoes dos slots.
+- `web-fs-repositories.ts`: persistencia baseada em Web File System quando aplicavel.
+
+### `src/infrastructure/runtime/`
+
+- `browser-clock-service.ts`: clock da simulacao.
+- `local-event-bus.ts`: barramento de eventos local.
+
+### `src/infrastructure/diplomacy/`, `npc/`, `war/`
+
+Adaptadores concretos da IA diplomatica, decisoes NPC e resolucao de guerra.
+
+## Nivel 4: Core domain
+
+### `src/core/models/`
+
+Modelos centrais do estado salvo.
+
+Arquivos criticos:
+- `game-state.ts`: raiz do estado.
+- `world.ts`: regioes, religioes, personagens e `eventChains`.
+- `events.ts`, `economy.ts`, `military.ts`, `religion.ts`, `technology.ts`, `administration.ts`.
+
+**Regra critica:** se mudar contrato em `core/models`, valide save/load, F5, smoke test e regressao automatizada.
+
+### `src/core/data/`
+
+- Arvores e definicoes imutaveis, como `technology-tree.ts` e legendaries.
+
+### `src/core/utils/`
+
+- `clone-game-state.ts`, `stable-hash.ts`, `state-fingerprint.ts` e utilitarios de seguranca/determinismo.
+
+### `src/core/simulation/`
+
+Pipeline POO de alto nivel.
+
+Arquivos principais:
+- `tick-pipeline.ts`: loop de simulacao.
+- `create-default-systems.ts`: composicao dos sistemas.
+- `systems/`: conselho, personagens, desastres, event chains, event log, decisoes NPC e afins.
+
+## Cheatsheet de impacto
+
+### Se voce quer adicionar uma nova acao de UI
+
+Mire, em ordem:
+- `src/main.ts` ou `src/ui/controllers/*`
+- `src/application/game-session.ts`
+- `src/core/models/events.ts` se precisar log/evento
+- testes de `GameSession` ou view-model correspondente
+
+### Se voce quer adicionar novo dado salvo
+
+Mire, em ordem:
+- `src/core/models/*`
+- `src/core/utils/clone-game-state.ts`
+- `src/application/boot/create-initial-state.ts`
+- persistencia (`game-session`, repositorios, migracao de save)
+- testes de save/load
+
+### Se voce quer alterar o comportamento do mundo
+
+Mire, em ordem:
+- `src/core/simulation/systems/*`
+- `src/core/simulation/create-default-systems.ts`
+- `src/application/game-session.ts` se a mudanca afetar pacing, eventos ou persistencia
+- testes do sistema tocado
+
+### Se voce quer melhorar smoke automation
+
+Mire, em ordem:
+- `src/ui/view-models/render-game-to-text.ts`
+- hooks em `src/main.ts`
+- `GameSession.advanceTimeForTesting`
+- `tests/render-game-to-text.test.ts`
+- `tests/game-session-advance-time.test.ts`
+
+## Riscos atuais
+
+- `src/main.ts` ainda concentra muita renderizacao e binding legados.
+- O bundle principal segue grande.
+- A extracao de UI ainda nao cobre todas as abas.
+- Antes de iniciar a Fase 5, este mapa deve continuar refletindo a reducao real desse debito, nao uma intencao.
