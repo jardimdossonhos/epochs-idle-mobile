@@ -18,44 +18,44 @@ interface RegionOption {
 const REGION_OPTIONS: RegionOption[] = [
   {
     id: 'r_hex_10286',
-    name: 'Temperate Fertile Valley',
-    biome: 'Temperate',
+    name: 'Vale Fértil Temperado',
+    biome: 'Temperado',
     icon: '🌾',
-    desc: 'Rich green riverlands with plentiful food growth and gentle climate.',
-    bonus: '+15% Food Production & Population Growth',
+    desc: 'Ricas terras ribeirinhas verdes com abundante produção de alimentos e clima ameno.',
+    bonus: '+15% de Produção de Alimento & Crescimento Populacional',
   },
   {
     id: 'r_hex_10287',
-    name: 'Coastal Haven',
-    biome: 'Coastal',
+    name: 'Porto Seguro Costeiro',
+    biome: 'Costeiro',
     icon: '🌊',
-    desc: 'Protected bay favoring maritime trade, fishing, and early exploration.',
-    bonus: '+20% Tariff Income & Sea Travel Speed',
+    desc: 'Baía protegida que favorece o comércio marítimo, pesca e exploração inicial.',
+    bonus: '+20% de Receita de Tarifas & Velocidade de Viagem Marítima',
   },
   {
     id: 'r_hex_10288',
-    name: 'Arid Mountain Frontier',
-    biome: 'Arid',
+    name: 'Fronteira de Montanha Árida',
+    biome: 'Árido',
     icon: '⛰️',
-    desc: 'Rugged highlands rich in iron deposits and natural defensive barriers.',
-    bonus: '+25% Iron Production & Defense Bonus',
+    desc: 'Terras altas acidentadas ricas em depósitos de ferro e barreiras defensivas naturais.',
+    bonus: '+25% de Produção de Ferro & Bônus de Defesa',
   },
   {
     id: 'r_hex_10289',
-    name: 'Great Steppe Plains',
-    biome: 'Steppe',
+    name: 'Grandes Planícies da Estepe',
+    biome: 'Estepe',
     icon: '🏹',
-    desc: 'Vast open grasslands ideal for horse breeding and swift cavalry maneuvering.',
-    bonus: '+20% Cavalry Speed & Reduced Army Upkeep',
+    desc: 'Vastas pastagens abertas ideais para criação de cavalos e manobras rápidas de cavalaria.',
+    bonus: '+20% de Velocidade de Cavalaria & Redução de Upkeep do Exército',
   },
 ];
 
 export default function TerritorySelectStep({ selectedRegionId, onSelectRegion }: TerritorySelectStepProps) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.stepTitle}>Choose Starting Region</Text>
+      <Text style={styles.stepTitle}>Escolha a Região Inicial</Text>
       <Text style={styles.stepSubtitle}>
-        Select the cradle of your civilization. The local biome will determine early resource yields and strategic advantages.
+        Selecione o berço de sua civilização. O bioma local determinará os rendimentos iniciais de recursos e vantagens estratégicas.
       </Text>
 
       <View style={styles.list}>
@@ -72,7 +72,7 @@ export default function TerritorySelectStep({ selectedRegionId, onSelectRegion }
                 <Text style={styles.cardIcon}>{option.icon}</Text>
                 <View style={styles.cardTitleBox}>
                   <Text style={[styles.cardTitle, isSelected && styles.selectedText]}>{option.name}</Text>
-                  <Text style={styles.biomeTag}>Biome: {option.biome}</Text>
+                  <Text style={styles.biomeTag}>Bioma: {option.biome}</Text>
                 </View>
               </View>
 

@@ -11,7 +11,7 @@ import type {
 } from "../core/contracts/game-ports";
 import { getTechnologyNode, isTechnologyAvailable, listAvailableTechnologyNodes, listTechnologyNodes, selectDefaultResearchNode, selectResearchNodeTowardsTarget } from "../core/data/technology-tree";
 import { createEmptyStock } from "../core/models/economy";
-import { AutomationLevel, DiplomaticRelation, ReligiousPolicy, ResourceType, TechnologyDomain, TreatyType, BuildingType, MinisterRole, MinisterPersonality } from "../core/models/enums";
+import { AutomationLevel, DiplomaticRelation, ReligiousPolicy, ResourceType, TechnologyDomain, TreatyType, BuildingType, MinisterRole, MinisterPersonality, NpcArchetype } from "../core/models/enums";
 import type { BudgetPriority, TaxPolicy } from "../core/models/economy";
 import type { ClockService, DiplomacyResolver, EventBus, WarResolver } from "../core/contracts/services";
 import type { CommandLogEntry, SnapshotReason, StateSnapshot } from "../core/models/commands";
@@ -98,6 +98,9 @@ export class GameSession {
     offlineTicks: 0
   };
 
+  public devModeActive = false;
+  public fogOfWarDisabled = false;
+
   constructor(private readonly deps: GameSessionDeps) {
     if (REGION_INDEX_MAP.size === 0) {
       const regionIds = Object.keys(this.deps.staticWorldData.definitions).sort();
@@ -108,7 +111,7 @@ export class GameSession {
     this.pipeline = new TickPipeline(deps.systems, deps.staticWorldData);
   }
 
-  public resumeFromBackground(): void {
+  public async resumeFromBackground(): Promise<void> {
     if (!this.currentState) return;
     
     // Calcula o progresso offline simulando ticks acumulados (Limitado a no max 1 semana para evitar Spiral of Death)
@@ -120,14 +123,20 @@ export class GameSession {
       const maxOfflineMs = 7 * 24 * 60 * 60 * 1000;
       const effectiveOfflineMs = Math.min(offlineMs, maxOfflineMs);
       
-      const tickRate = 1000;
-      const offlineTicks = Math.floor(effectiveOfflineMs / tickRate);
+      const tickDurationMs = Math.max(1, this.currentState.meta.tickDurationMs);
+      const offlineTicks = Math.floor(effectiveOfflineMs / tickDurationMs);
       
       this.runtimeMetrics.offlineCatchUpMs = effectiveOfflineMs;
       this.runtimeMetrics.offlineTicks = offlineTicks;
       
-      // Acumula os ms para que o runLoop processe os ticks em batch rapidamente
-      this.accumulatedMs += effectiveOfflineMs;
+      if (offlineTicks > 0) {
+        const progressResult = await this.runOfflineProgression(this.currentState, now);
+        this.currentState = progressResult.state;
+        this.currentState.meta.lastUpdatedAt = now;
+        this.emitState();
+      }
+      // Reseta a acumulação de ms para evitar o aviso de divida de CPU
+      this.accumulatedMs = 0;
     }
   }
 
@@ -333,8 +342,13 @@ export class GameSession {
 
   setSpeed(multiplier: number): void {
     const state = this.requireState();
-    state.meta.speedMultiplier = Math.max(0.5, Math.min(10, multiplier));
-    this.recordPlayerCommand("session.speed", { speedMultiplier: state.meta.speedMultiplier });
+    state.meta.speedMultiplier = Math.max(0.5, Math.min(100, multiplier));
+    if (state.meta.speedMultiplier >= 100) {
+      state.meta.tickDurationMs = 1000;
+    } else {
+      state.meta.tickDurationMs = 3000;
+    }
+    this.recordPlayerCommand("session.speed", { speedMultiplier: state.meta.speedMultiplier, tickDurationMs: state.meta.tickDurationMs });
     this.persistCurrent();
     this.emitState();
   }
@@ -708,16 +722,15 @@ export class GameSession {
    * Liga/desliga uma diretriz estratégica no modo idle.
    * As diretrizes ficam armazenadas em administration.directives como Record<string, boolean>.
    */
-  updateAutomationDirective(key: string, enabled: boolean): void {
+  public updateAutomationDirective(key: string, enabled: boolean): void {
     const state = this.requireState();
     const player = this.getPlayerKingdom(state);
     if (!player.administration) return;
 
-    // Inicializa o mapa de diretrizes caso não exista ainda
-    if (!(player.administration as any).directives) {
-      (player.administration as any).directives = {};
+    if (!player.administration.directives) {
+      player.administration.directives = {};
     }
-    (player.administration as any).directives[key] = enabled;
+    player.administration.directives[key] = enabled;
 
     this.appendActionLog(
       "Diretriz Estratégica",
@@ -1154,24 +1167,14 @@ export class GameSession {
     };
   }
 
-  async saveManual(slotId: SaveSlotId = "manual-1"): Promise<void> {
+  async saveManual(slotId: SaveSlotId): Promise<void> {
     if (!this.currentState) {
-      return Promise.resolve();
+      return;
     }
     
     return new Promise<void>((resolve) => {
-      // Sincronização Passiva: Levanta a bandeira de salvar. 
-      // O save será feito com dados perfeitamente frescos na exata fração de segundo em que o próximo TICK do Worker chegar.
-      (this as any).pendingManualSave = { resolve, slotId };
-      
-      // Proteção de UI (Anti-Ghost Button): Se nada ocorrer em 3s, força o destrave para não congelar o jogo.
-      setTimeout(() => {
-        if ((this as any).pendingManualSave?.resolve === resolve) {
-          console.warn("[GameSession] Timeout aguardando Worker. Forçando salvamento com dados atuais.");
-          this.doCommitManualSave(resolve, slotId).catch(console.error);
-          (this as any).pendingManualSave = null;
-        }
-      }, 3000);
+      // No Mobile (síncrono), podemos salvar instantaneamente sem risco de race conditions
+      this.doCommitManualSave(resolve, slotId).catch(console.error);
     });
   }
 
@@ -1186,7 +1189,7 @@ export class GameSession {
   }
 
   async loadSlot(slotId: SaveSlotId): Promise<GameState> {
-    this.isWorkerReady = false; // Trava a engine até RESTORE_ECS_STATE confirmar
+    this.isWorkerReady = false; // Trava a engine até RESTORE_ECS_STATE confirmar (ou auto-libera no mobile)
 
     const snapshot = await this.deps.saveRepository.loadFromSlot(slotId);
 
@@ -1208,6 +1211,10 @@ export class GameSession {
     (this.deps.eventBus as any).publish({ type: "game.loaded", payload: this.currentState });
 
     this.emitState();
+    
+    // No Mobile, como roda síncrono, a simulação já está liberada
+    this.markWorkerReady();
+    
     return this.currentState;
   }
 
@@ -1258,6 +1265,447 @@ export class GameSession {
     if (this.currentState) {
       await this.deps.gameStateRepository.saveCurrent(this.currentState);
     }
+  }
+
+  public async triggerAutosave(): Promise<void> {
+    if (!this.currentState) return;
+    this.doCommitAutosave();
+    const safeState = structuredClone(this.currentState);
+    if (safeState.ecs) {
+      safeState.ecs = {
+        gold: Array.from(this.currentState.ecs?.gold || []),
+        food: Array.from(this.currentState.ecs?.food || []),
+        wood: Array.from(this.currentState.ecs?.wood || []),
+        iron: Array.from(this.currentState.ecs?.iron || []),
+        faith: Array.from(this.currentState.ecs?.faith || []),
+        legitimacy: Array.from(this.currentState.ecs?.legitimacy || []),
+        populationTotal: Array.from(this.currentState.ecs?.populationTotal || []),
+        populationGrowthRate: Array.from(this.currentState.ecs?.populationGrowthRate || []),
+        manpower: Array.from(this.currentState.ecs?.manpower || []),
+      } as any;
+    }
+    this.enqueueIo(async () => {
+      await this.deps.gameStateRepository.saveCurrent(safeState);
+    });
+    await this.ioQueue;
+  }
+
+  public toggleFogOfWar(): void {
+    this.fogOfWarDisabled = !this.fogOfWarDisabled;
+    this.emitState();
+  }
+
+  public addResourcesDev(resource: string): void {
+    const state = this.requireState();
+    const player = this.getPlayerKingdom(state);
+    if (!player) return;
+
+    const capitalRegionId = player.capitalRegionId;
+    const regionIndex = REGION_INDEX_MAP.get(capitalRegionId);
+
+    if (regionIndex !== undefined && state.ecs) {
+      if (resource === "gold") {
+        state.ecs.gold[regionIndex] = (state.ecs.gold[regionIndex] || 0) + 1000;
+        player.economy.stock.gold = (player.economy.stock.gold || 0) + 1000;
+      } else if (resource === "wood") {
+        state.ecs.wood[regionIndex] = (state.ecs.wood[regionIndex] || 0) + 1000;
+        player.economy.stock.wood = (player.economy.stock.wood || 0) + 1000;
+      } else if (resource === "iron") {
+        state.ecs.iron[regionIndex] = (state.ecs.iron[regionIndex] || 0) + 1000;
+        player.economy.stock.iron = (player.economy.stock.iron || 0) + 1000;
+      } else if (resource === "food") {
+        state.ecs.food[regionIndex] = (state.ecs.food[regionIndex] || 0) + 1000;
+        player.economy.stock.food = (player.economy.stock.food || 0) + 1000;
+      } else if (resource === "faith") {
+        state.ecs.faith[regionIndex] = (state.ecs.faith[regionIndex] || 0) + 1000;
+        player.economy.stock.faith = (player.economy.stock.faith || 0) + 1000;
+      } else if (resource === "legitimacy") {
+        state.ecs.legitimacy[regionIndex] = (state.ecs.legitimacy[regionIndex] || 0) + 1000;
+        player.economy.stock.legitimacy = (player.economy.stock.legitimacy || 0) + 1000;
+      } else if (resource === "manpower") {
+        state.ecs.manpower[regionIndex] = (state.ecs.manpower[regionIndex] || 0) + 1000;
+        player.military.reserveManpower = (player.military.reserveManpower || 0) + 1000;
+      } else if (resource === "wealth") {
+        if (player.rulerId && state.world.characters && state.world.characters[player.rulerId]) {
+          state.world.characters[player.rulerId].personalWealth = (state.world.characters[player.rulerId].personalWealth || 0) + 1000;
+        }
+      }
+    }
+    this.emitState();
+  }
+
+  public completeResearchDev(): void {
+    const state = this.requireState();
+    const player = this.getPlayerKingdom(state);
+    if (!player) return;
+
+    const activeId = player.technology.activeResearchId;
+    if (activeId) {
+      const activeNode = getTechnologyNode(activeId);
+      if (activeNode) {
+        if (!player.technology.unlocked.includes(activeId)) {
+          player.technology.unlocked.push(activeId);
+          for (const effectObj of activeNode.effects) {
+            const effect = effectObj.target;
+            const value = effectObj.value;
+            switch (effect) {
+              case "military.techLevel":
+                player.military.militaryTechLevel = Math.max(1, Math.min(10, player.military.militaryTechLevel + value));
+                break;
+              case "military.reserveManpower":
+                player.military.reserveManpower = Math.max(0, player.military.reserveManpower + Math.round(value));
+                break;
+              case "administration.capacity":
+                player.administration.adminCapacity = Math.max(20, player.administration.adminCapacity + value);
+                break;
+              case "administration.corruption":
+                player.administration.corruption = Math.max(0, Math.min(1, player.administration.corruption + value));
+                break;
+              case "religion.authority":
+                player.religion.authority = Math.max(0, Math.min(1, player.religion.authority + value));
+                break;
+              case "religion.cohesion":
+                player.religion.cohesion = Math.max(0, Math.min(1, player.religion.cohesion + value));
+                break;
+              case "religion.tolerance":
+                player.religion.tolerance = Math.max(0, Math.min(1, player.religion.tolerance + value));
+                break;
+              case "population.growthRate":
+                player.population.growthRatePerTick = Math.max(0.00005, Math.min(0.0005, player.population.growthRatePerTick + value));
+                break;
+              case "economy.goldStock":
+                player.economy.stock.gold = Math.max(0, player.economy.stock.gold + value);
+                break;
+              case "economy.foodStock":
+                player.economy.stock.food = Math.max(0, player.economy.stock.food + value);
+                break;
+              case "economy.woodStock":
+                player.economy.stock.wood = Math.max(0, player.economy.stock.wood + value);
+                break;
+              case "economy.ironStock":
+                player.economy.stock.iron = Math.max(0, player.economy.stock.iron + value);
+                break;
+              case "economy.faithStock":
+                player.economy.stock.faith = Math.max(0, player.economy.stock.faith + value);
+                break;
+              case "stability":
+                player.stability = Math.max(0, Math.min(100, player.stability + value));
+                break;
+              case "legitimacy":
+                player.legitimacy = Math.max(0, Math.min(100, player.legitimacy + value));
+                break;
+            }
+          }
+        }
+        player.technology.accumulatedResearch = 0;
+        player.technology.activeResearchId = null;
+        this.emitState();
+      }
+    }
+  }
+
+  public unlockAllTechnologiesDev(): void {
+    const state = this.requireState();
+    const player = this.getPlayerKingdom(state);
+    if (!player) return;
+
+    const allNodes = listTechnologyNodes();
+    for (const node of allNodes) {
+      if (!player.technology.unlocked.includes(node.id)) {
+        player.technology.unlocked.push(node.id);
+        for (const effectObj of node.effects) {
+          const effect = effectObj.target;
+          const value = effectObj.value;
+          switch (effect) {
+            case "military.techLevel":
+              player.military.militaryTechLevel = Math.max(1, Math.min(10, player.military.militaryTechLevel + value));
+              break;
+            case "military.reserveManpower":
+              player.military.reserveManpower = Math.max(0, player.military.reserveManpower + Math.round(value));
+              break;
+            case "administration.capacity":
+              player.administration.adminCapacity = Math.max(20, player.administration.adminCapacity + value);
+              break;
+            case "administration.corruption":
+              player.administration.corruption = Math.max(0, Math.min(1, player.administration.corruption + value));
+              break;
+            case "religion.authority":
+              player.religion.authority = Math.max(0, Math.min(1, player.religion.authority + value));
+              break;
+            case "religion.cohesion":
+              player.religion.cohesion = Math.max(0, Math.min(1, player.religion.cohesion + value));
+              break;
+            case "religion.tolerance":
+              player.religion.tolerance = Math.max(0, Math.min(1, player.religion.tolerance + value));
+              break;
+            case "population.growthRate":
+              player.population.growthRatePerTick = Math.max(0.00005, Math.min(0.0005, player.population.growthRatePerTick + value));
+              break;
+            case "economy.goldStock":
+              player.economy.stock.gold = Math.max(0, player.economy.stock.gold + value);
+              break;
+            case "economy.foodStock":
+              player.economy.stock.food = Math.max(0, player.economy.stock.food + value);
+              break;
+            case "economy.woodStock":
+              player.economy.stock.wood = Math.max(0, player.economy.stock.wood + value);
+              break;
+            case "economy.ironStock":
+              player.economy.stock.iron = Math.max(0, player.economy.stock.iron + value);
+              break;
+            case "economy.faithStock":
+              player.economy.stock.faith = Math.max(0, player.economy.stock.faith + value);
+              break;
+            case "stability":
+              player.stability = Math.max(0, Math.min(100, player.stability + value));
+              break;
+            case "legitimacy":
+              player.legitimacy = Math.max(0, Math.min(100, player.legitimacy + value));
+              break;
+          }
+        }
+      }
+    }
+    player.technology.accumulatedResearch = 0;
+    player.technology.activeResearchId = null;
+    this.emitState();
+  }
+
+  public getNpcAiDecisionsDev(): any[] {
+    const state = this.requireState();
+    const npcs = Object.values(state.kingdoms).filter(k => !k.isPlayer && k.id !== 'k_nature');
+    
+    return npcs.map(npc => {
+      let focus = "Expandir";
+      let targetName = "Nenhum";
+      let reason = "Ambição e busca por recursos";
+      
+      const archetype = npc.npc?.personality.archetype;
+      if (archetype === NpcArchetype.Expansionist) {
+        focus = "Expandir";
+        reason = "Apetite territorial de " + npc.name;
+      } else if (archetype === NpcArchetype.Defensive) {
+        focus = "Construir Exército";
+        reason = "Garantir a soberania das fronteiras";
+      } else if (archetype === NpcArchetype.Mercantile) {
+        focus = "Rotas Comerciais";
+        reason = "Acumular ouro e expandir a influência comercial";
+      } else if (archetype === NpcArchetype.Diplomatic) {
+        focus = "Fazer Alianças";
+        reason = "Preservar a paz através de tratados de não-agressão";
+      }
+
+      const activeWars = Object.values(state.wars).filter(w => w.attackers.includes(npc.id) || w.defenders.includes(npc.id));
+      if (activeWars.length > 0) {
+        const war = activeWars[0];
+        const enemies = war.attackers.includes(npc.id) ? war.defenders : war.attackers;
+        if (enemies.length > 0) {
+          const targetKingdom = state.kingdoms[enemies[0]];
+          if (targetKingdom) {
+            targetName = targetKingdom.name;
+            focus = "Guerra Ativa";
+            reason = "Subjugar " + targetKingdom.name + " em conflito armado";
+          }
+        }
+      } else {
+        let highestRivalry = -1;
+        let rivalId = "";
+        Object.entries(npc.diplomacy.relations).forEach(([otherId, rel]) => {
+          if (rel.score.rivalry > highestRivalry) {
+            highestRivalry = rel.score.rivalry;
+            rivalId = otherId;
+          }
+        });
+        if (rivalId && state.kingdoms[rivalId]) {
+          targetName = state.kingdoms[rivalId].name;
+          reason = `Rivalidade latente (Score: ${highestRivalry})`;
+        }
+      }
+
+      return {
+        kingdomId: npc.id,
+        kingdomName: npc.name,
+        focus,
+        target: targetName,
+        reason
+      };
+    });
+  }
+
+  public assumeControlOfKingdom(targetKingdomId: string): void {
+    const state = this.requireState();
+    const oldPlayerId = Object.keys(state.kingdoms).find(id => state.kingdoms[id].isPlayer);
+    if (!oldPlayerId || oldPlayerId === targetKingdomId) return;
+
+    const oldPlayer = state.kingdoms[oldPlayerId];
+    const newPlayer = state.kingdoms[targetKingdomId];
+    if (!newPlayer) return;
+
+    oldPlayer.isPlayer = false;
+    newPlayer.isPlayer = true;
+
+    oldPlayer.npc = {
+      personality: {
+        archetype: NpcArchetype.Defensive,
+        ambition: 0.5,
+        caution: 0.5,
+        greed: 0.5,
+        zeal: 0.5,
+        honor: 0.5,
+        betrayalTendency: 0.5
+      },
+      strategicGoal: "proteger_fronteiras",
+      memories: [],
+      lastDecisionTick: state.meta.tick
+    };
+
+    delete newPlayer.npc;
+    this.recordPlayerCommand("dev.assume_control", { from: oldPlayerId, to: targetKingdomId });
+    this.emitState();
+  }
+
+  public autoplayEnabled = false;
+  private preAutoplayPlayerId: string | null = null;
+  private originalSpeedMultiplier = 0.5;
+
+  public toggleAutoplay(): void {
+    const state = this.requireState();
+    this.autoplayEnabled = !this.autoplayEnabled;
+
+    if (this.autoplayEnabled) {
+      const playerId = Object.keys(state.kingdoms).find(id => state.kingdoms[id].isPlayer);
+      if (playerId) {
+        this.preAutoplayPlayerId = playerId;
+        const player = state.kingdoms[playerId];
+        player.isPlayer = false;
+        player.npc = {
+          personality: {
+            archetype: NpcArchetype.Expansionist,
+            ambition: 0.8,
+            caution: 0.3,
+            greed: 0.6,
+            zeal: 0.5,
+            honor: 0.4,
+            betrayalTendency: 0.3
+          },
+          strategicGoal: "auto_play",
+          memories: [],
+          lastDecisionTick: state.meta.tick
+        };
+      }
+      this.originalSpeedMultiplier = state.meta.speedMultiplier;
+      this.setSpeed(100);
+    } else {
+      if (this.preAutoplayPlayerId && state.kingdoms[this.preAutoplayPlayerId]) {
+        const player = state.kingdoms[this.preAutoplayPlayerId];
+        player.isPlayer = true;
+        delete player.npc;
+      }
+      this.setSpeed(this.originalSpeedMultiplier);
+    }
+    this.emitState();
+  }
+
+  public getDiplomacyMatrix(): any[] {
+    const state = this.requireState();
+    const kingdoms = Object.values(state.kingdoms).filter(k => k.id !== 'k_nature');
+    const matrix: any[] = [];
+    
+    for (const k1 of kingdoms) {
+      for (const k2 of kingdoms) {
+        if (k1.id === k2.id) continue;
+        const rel = k1.diplomacy.relations[k2.id];
+        matrix.push({
+          fromId: k1.id,
+          fromName: k1.name,
+          toId: k2.id,
+          toName: k2.name,
+          trust: rel?.score.trust ?? 0,
+          fear: rel?.score.fear ?? 0,
+          rivalry: rel?.score.rivalry ?? 0,
+          status: rel?.status ?? DiplomaticRelation.Neutral,
+        });
+      }
+    }
+    return matrix;
+  }
+
+  public simulateCombatDev(kingdom1Id: string, kingdom2Id: string): {
+    winnerName: string;
+    loserName: string;
+    casualties1: number;
+    casualties2: number;
+    predictedOutcome: string;
+  } | null {
+    const state = this.requireState();
+    const k1 = state.kingdoms[kingdom1Id];
+    const k2 = state.kingdoms[kingdom2Id];
+    if (!k1 || !k2) return null;
+
+    const power1 = k1.military.armies.reduce((total, army) => {
+      const q = 0.6 + army.quality * 0.4;
+      const s = 0.55 + army.morale * 0.25 + army.supply * 0.2;
+      return total + army.manpower * q * s;
+    }, 0) * (1 + k1.military.militaryTechLevel * 0.1) + k1.military.reserveManpower * 0.1;
+
+    const power2 = k2.military.armies.reduce((total, army) => {
+      const q = 0.6 + army.quality * 0.4;
+      const s = 0.55 + army.morale * 0.25 + army.supply * 0.2;
+      return total + army.manpower * q * s;
+    }, 0) * (1 + k2.military.militaryTechLevel * 0.1) + k2.military.reserveManpower * 0.1;
+
+    const totManpower1 = k1.military.armies.reduce((tot, a) => tot + a.manpower, 0) + k1.military.reserveManpower;
+    const totManpower2 = k2.military.armies.reduce((tot, a) => tot + a.manpower, 0) + k2.military.reserveManpower;
+
+    const totalPower = power1 + power2;
+    if (totalPower === 0) {
+      return {
+        winnerName: "Ninguém",
+        loserName: "Ninguém",
+        casualties1: 0,
+        casualties2: 0,
+        predictedOutcome: "Ambos os reinos estão totalmente desprovidos de forças militares."
+      };
+    }
+
+    const ratio1 = power1 / totalPower;
+    const ratio2 = power2 / totalPower;
+
+    let winnerName = k1.name;
+    let loserName = k2.name;
+    let casualties1 = Math.round(totManpower1 * ratio2 * 0.4);
+    let casualties2 = Math.round(totManpower2 * ratio1 * 0.4);
+    let predictedOutcome = "";
+
+    if (power1 > power2) {
+      const diffRatio = power1 / Math.max(1, power2);
+      if (diffRatio > 2.0) {
+        predictedOutcome = `Vitória esmagadora de ${k1.name}. O exército adversário será completamente aniquilado com poucas perdas.`;
+      } else {
+        predictedOutcome = `Vitória tática de ${k1.name} após um confronto equilibrado e sangrento.`;
+      }
+    } else if (power2 > power1) {
+      winnerName = k2.name;
+      loserName = k1.name;
+      const diffRatio = power2 / Math.max(1, power1);
+      if (diffRatio > 2.0) {
+        predictedOutcome = `Vitória esmagadora de ${k2.name}. As forças de ${k1.name} serão esmagadas sem dificuldade.`;
+      } else {
+        predictedOutcome = `Vitória tática de ${k2.name} após um combate disputado.`;
+      }
+    } else {
+      winnerName = "Empate";
+      loserName = "Empate";
+      predictedOutcome = "Equilíbrio absoluto. O combate resultaria em um empate desgastante com pesadas baixas mútuas.";
+    }
+
+    return {
+      winnerName,
+      loserName,
+      casualties1: Math.min(totManpower1, casualties1),
+      casualties2: Math.min(totManpower2, casualties2),
+      predictedOutcome
+    };
   }
 
   async clearAllSaves(): Promise<void> {
@@ -1570,28 +2018,6 @@ export class GameSession {
     this.emitState();
   }
 
-  public updateAutomationDirective(key: string, enabled: boolean): void {
-    const state = this.requireState();
-    const player = this.getPlayerKingdom(state);
-
-    if (!player.administration) {
-      (player as any).administration = {};
-    }
-    if (!player.administration.directives) {
-      (player.administration as any).directives = {};
-    }
-
-    (player.administration as any).directives[key] = enabled;
-
-    this.appendActionLog(
-      enabled ? "Diretriz Ativada" : "Diretriz Suspensa",
-      `A política de "${key}" foi ${enabled ? "ativada" : "desativada"} pelo soberano.`,
-      "info"
-    );
-    this.recordPlayerCommand("automation.directive", { key, enabled });
-    this.persistCurrent();
-    this.emitState();
-  }
 
   private registerTickTiming(elapsedMs: number): void {
     this.tickSamples.push(elapsedMs);
@@ -1925,84 +2351,87 @@ export class GameSession {
     void now;
 
     // PROTEÇÃO CONTRA ESPIRAL DA MORTE (Spiral of Death)
-    // Limita o tempo máximo lido por pulso a 1000ms. Se a CPU engasgar, 
-    // evitamos que uma dívida de tempo exponencial seja cobrada no próximo frame.
     const safeDeltaMs = applySafetyClamp ? Math.min(deltaMs, 1000) : Math.max(0, deltaMs);
-
     const appliedSpeedMultiplier = speedMultiplierOverride ?? state.meta.speedMultiplier;
     this.accumulatedMs += safeDeltaMs * appliedSpeedMultiplier;
 
-    let progressed = false;
-    let simNow = state.meta.lastUpdatedAt;
+    this.pumpSimulationQueue();
+  }
 
-    // Trava de Segurança: Número máximo de cálculos estruturais que a Main Thread fará por frame
-    let ticksProcessedThisCycle = 0;
-    const MAX_TICKS_PER_CYCLE = 5;
+  private isPumping = false;
+  private pumpSimulationQueue(): void {
+    if (this.isPumping || !this.currentState || this.currentState.meta.paused) return;
+    this.isPumping = true;
 
-    while (true) {
+    try {
       const current = this.currentState;
-      if (!current) {
-        break;
-      }
-
       const tickDurationMs = Math.max(1, current.meta.tickDurationMs);
 
-      if (this.accumulatedMs < tickDurationMs) {
-        break;
+      // Aumentamos o limite para 5 ticks por frame. Isso permite processar 30x em 6 quadros sem asfixiar a UI.
+      let ticksProcessedThisCycle = 0;
+      const MAX_TICKS_PER_FRAME = 5;
+      let progressed = false;
+      let simNow = current.meta.lastUpdatedAt;
+
+      while (this.accumulatedMs >= tickDurationMs && ticksProcessedThisCycle < MAX_TICKS_PER_FRAME) {
+        simNow = Math.max(simNow, this.currentState.meta.lastUpdatedAt) + tickDurationMs;
+        const previousTick = this.currentState.meta.tick;
+        const tickStartedAt = this.monotonicNow();
+        
+        const ecsBackup = this.currentState.ecs;
+        const result = this.pipeline.run(this.currentState, tickDurationMs, simNow);
+        const tickElapsedMs = this.monotonicNow() - tickStartedAt;
+        this.registerTickTiming(tickElapsedMs);
+        
+        this.currentState = result.state;
+        if (ecsBackup) {
+          this.currentState.ecs = ecsBackup;
+        }
+        
+        progressed = true;
+        this.ticksSinceAutosave += 1;
+        this.ticksSinceSnapshot += 1;
+        ticksProcessedThisCycle += 1;
+
+        for (const event of result.events) {
+          this.deps.eventBus.publish(event);
+        }
+
+        this.recordTickCommands(previousTick, result.state.meta.tick, result.events, simNow);
+
+        if (this.ticksSinceAutosave >= (this.deps.autosaveEveryTicks ?? 300)) {
+          this.ticksSinceAutosave = 0;
+          this.runAutosave();
+        }
+
+        const snapshotEveryTicks = Math.max(1, this.deps.snapshotEveryTicks ?? 25);
+        while (this.ticksSinceSnapshot >= snapshotEveryTicks) {
+          this.ticksSinceSnapshot -= snapshotEveryTicks;
+          this.captureSnapshot("periodic", simNow);
+        }
+
+        this.accumulatedMs -= tickDurationMs;
       }
 
-      if (ticksProcessedThisCycle >= MAX_TICKS_PER_CYCLE) {
-        this.accumulatedMs = 0; // Descarta a dívida de tempo se a CPU não der conta (Game Slowdown Orgânico)
-        Diagnostic.warn("SYS-PERF", "Limite de Ticks atingido. CPU engasgada: descartando débito temporal para salvar a UI.");
-        break;
+      // Drop de frames pesados se a acumulação sair do controle (limite de 120 ticks na fila)
+      const maxAccumulatedMs = 120000 * Math.max(1, this.currentState?.meta.speedMultiplier ?? 1);
+      if (this.accumulatedMs > maxAccumulatedMs) {
+        Diagnostic.warn("SYS-PERF", "Dívida de CPU massiva detectada. Descartando backlog de simulação.");
+        this.accumulatedMs = 1000;
       }
 
-      simNow = Math.max(simNow, current.meta.lastUpdatedAt) + tickDurationMs;
-
-      const previousTick = current.meta.tick;
-      const tickStartedAt = this.monotonicNow();
-      
-      const ecsBackup = current.ecs;
-
-      const result = this.pipeline.run(current, tickDurationMs, simNow);
-      const tickElapsedMs = this.monotonicNow() - tickStartedAt;
-      this.registerTickTiming(tickElapsedMs);
-      this.currentState = result.state;
-      if (ecsBackup) {
-        this.currentState.ecs = ecsBackup;
-      }
-      progressed = true;
-      this.ticksSinceAutosave += 1;
-      this.ticksSinceSnapshot += 1;
-      ticksProcessedThisCycle += 1;
-
-      for (const event of result.events) {
-        this.deps.eventBus.publish(event);
+      if (progressed) {
+        this.persistCurrent();
+        this.emitState();
       }
 
-      this.recordTickCommands(previousTick, result.state.meta.tick, result.events, simNow);
-
-      // Aumentado o fallback para 300 Ticks (5 minutos).
-      if (this.ticksSinceAutosave >= (this.deps.autosaveEveryTicks ?? 300)) {
-        this.ticksSinceAutosave = 0;
-        this.runAutosave();
+      // Re-agenda assincronamente para esvaziar a fila de 30x sem travar o React Native
+      if (this.accumulatedMs >= tickDurationMs && !this.currentState.meta.paused) {
+        setTimeout(() => this.pumpSimulationQueue(), 0);
       }
-
-      const snapshotEveryTicks = Math.max(1, this.deps.snapshotEveryTicks ?? 25);
-      while (this.ticksSinceSnapshot >= snapshotEveryTicks) {
-        this.ticksSinceSnapshot -= snapshotEveryTicks;
-        this.captureSnapshot("periodic", simNow);
-      }
-
-      this.accumulatedMs -= tickDurationMs;
+    } finally {
+      this.isPumping = false;
     }
-
-    if (!progressed) {
-      return;
-    }
-
-    this.persistCurrent();
-    this.emitState();
   }
 
   private runAutosave(): void {
@@ -2260,10 +2689,20 @@ export class GameSession {
     return 1;
   }
 
-  private emitState(): void {
+  private lastEmitTime = 0;
+  
+  public emitState(): void {
     if (!this.currentState) {
       return;
     }
+    
+    // UI Render Throttling: Max 10 FPS to prevent React Native UI thread (JS) from freezing 
+    // when simulation runs at high speed (30x / 15+ ticks per second)
+    const now = Date.now();
+    if (now - this.lastEmitTime < 100) {
+      return; // Skip UI update, let engine run freely
+    }
+    this.lastEmitTime = now;
 
     for (const listener of this.listeners) {
       listener(this.currentState);

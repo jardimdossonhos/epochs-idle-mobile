@@ -6,8 +6,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  ImageBackground,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 interface AuthScreenProps {
   onAuthenticated?: () => void;
@@ -15,6 +17,7 @@ interface AuthScreenProps {
 
 export default function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const { loginWithGoogle, loginWithMock, loginAsGuest } = useAuth();
+  const { t } = useLanguage();
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'mock' | 'guest' | null>(null);
 
   const handleGoogleLogin = async () => {
@@ -23,8 +26,11 @@ export default function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       await loginWithGoogle();
       if (onAuthenticated) onAuthenticated();
     } catch (error: any) {
-      const message = error?.message || 'Erro desconhecido ao fazer login com Google.';
-      Alert.alert('Falha no Login', message, [{ text: 'OK' }]);
+      let message = error?.message || t('auth.googleUnknownError');
+      if (message.includes('DEVELOPER_ERROR')) {
+        message = t('auth.googleSha1Error');
+      }
+      Alert.alert(t('auth.loginFailed'), message, [{ text: 'OK' }]);
     } finally {
       setLoadingProvider(null);
     }
@@ -36,7 +42,7 @@ export default function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       await loginWithMock();
       if (onAuthenticated) onAuthenticated();
     } catch (error: any) {
-      Alert.alert('Erro', error?.message || 'Falha no login de desenvolvimento.');
+      Alert.alert(t('auth.error'), error?.message || t('auth.mockFailed'));
     } finally {
       setLoadingProvider(null);
     }
@@ -48,7 +54,7 @@ export default function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       await loginAsGuest();
       if (onAuthenticated) onAuthenticated();
     } catch (error: any) {
-      Alert.alert('Erro', error?.message || 'Falha ao entrar como visitante.');
+      Alert.alert(t('auth.error'), error?.message || t('auth.guestFailed'));
     } finally {
       setLoadingProvider(null);
     }
@@ -57,81 +63,88 @@ export default function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const isAnyLoading = loadingProvider !== null;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.crownIcon}>👑</Text>
-        <Text style={styles.title}>EPOCHS IDLE</Text>
-        <Text style={styles.subtitle}>Sovereigns of History</Text>
-        <View style={styles.divider} />
+    <ImageBackground 
+      source={require('../../../assets/splash_bg.png')} 
+      style={styles.backgroundImage}
+      resizeMode="cover"
+    >
+      <View style={styles.overlay}>
+        <View style={styles.headerContainer}>
+          <Text style={styles.title}>EPOCHS</Text>
+          <Text style={styles.subtitleTitle}>IDLE</Text>
+          <Text style={styles.subtitle}>{t('auth.sovereignsOfHistory')}</Text>
+          <View style={styles.divider} />
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t('auth.enterRealms')}</Text>
+          <Text style={styles.cardDescription}>
+            {t('auth.identifyYourself')}
+          </Text>
+
+          {/* Google Login Button */}
+          <TouchableOpacity
+            style={[styles.googleButton, isAnyLoading && styles.buttonDisabled]}
+            onPress={handleGoogleLogin}
+            disabled={isAnyLoading}
+            activeOpacity={0.8}
+          >
+            {loadingProvider === 'google' ? (
+              <ActivityIndicator color="#FFFFFF" size="small" style={styles.buttonIcon} />
+            ) : (
+              <Text style={styles.googleButtonIcon}>G</Text>
+            )}
+            <Text style={styles.googleButtonText}>
+              {loadingProvider === 'google' ? t('auth.connecting') : t('auth.signInWithGoogle')}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Mock / Dev Login Button */}
+          <TouchableOpacity
+            style={[styles.mockButton, isAnyLoading && styles.buttonDisabled]}
+            onPress={handleMockLogin}
+            disabled={isAnyLoading}
+            activeOpacity={0.8}
+          >
+            {loadingProvider === 'mock' ? (
+              <ActivityIndicator color="#D4AF37" size="small" style={styles.buttonIcon} />
+            ) : null}
+            <Text style={styles.mockButtonText}>
+              {loadingProvider === 'mock' ? t('auth.signingIn') : t('auth.mockLogin')}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Guest Login Button */}
+          <TouchableOpacity
+            style={[styles.guestButton, isAnyLoading && styles.buttonDisabled]}
+            onPress={handleGuestLogin}
+            disabled={isAnyLoading}
+            activeOpacity={0.8}
+          >
+            {loadingProvider === 'guest' ? (
+              <ActivityIndicator color="#AAAAAA" size="small" style={styles.buttonIcon} />
+            ) : null}
+            <Text style={styles.guestButtonText}>
+              {loadingProvider === 'guest' ? t('auth.signingIn') : t('auth.continueAsGuest')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.footerText}>{t('auth.versionOffline')}</Text>
       </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Enter the Realms</Text>
-        <Text style={styles.cardDescription}>
-          Identify yourself, Sovereign, to forge your dynasty across eras.
-        </Text>
-
-        {/* Google Login Button */}
-        <TouchableOpacity
-          style={[styles.googleButton, isAnyLoading && styles.buttonDisabled]}
-          onPress={handleGoogleLogin}
-          disabled={isAnyLoading}
-          activeOpacity={0.8}
-        >
-          {loadingProvider === 'google' ? (
-            <ActivityIndicator color="#FFFFFF" size="small" style={styles.buttonIcon} />
-          ) : (
-            <Text style={styles.googleButtonIcon}>🌐</Text>
-          )}
-          <Text style={styles.googleButtonText}>
-            {loadingProvider === 'google' ? 'Conectando...' : 'Sign in with Google'}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Mock / Dev Login Button */}
-        <TouchableOpacity
-          style={[styles.mockButton, isAnyLoading && styles.buttonDisabled]}
-          onPress={handleMockLogin}
-          disabled={isAnyLoading}
-          activeOpacity={0.8}
-        >
-          {loadingProvider === 'mock' ? (
-            <ActivityIndicator color="#D4AF37" size="small" style={styles.buttonIcon} />
-          ) : (
-            <Text style={styles.buttonIcon}>⚔️</Text>
-          )}
-          <Text style={styles.mockButtonText}>
-            {loadingProvider === 'mock' ? 'Entrando...' : 'Dev / Mock Login'}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Guest Login Button */}
-        <TouchableOpacity
-          style={[styles.guestButton, isAnyLoading && styles.buttonDisabled]}
-          onPress={handleGuestLogin}
-          disabled={isAnyLoading}
-          activeOpacity={0.8}
-        >
-          {loadingProvider === 'guest' ? (
-            <ActivityIndicator color="#AAAAAA" size="small" style={styles.buttonIcon} />
-          ) : (
-            <Text style={styles.buttonIcon}>📜</Text>
-          )}
-          <Text style={styles.guestButtonText}>
-            {loadingProvider === 'guest' ? 'Entrando...' : 'Continue as Guest'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.footerText}>Version 1.0.0 • Offline Capable</Text>
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  backgroundImage: {
     flex: 1,
-    backgroundColor: '#121212',
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)', // Cinematic dark overlay
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -140,42 +153,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
-  crownIcon: {
-    fontSize: 48,
-    marginBottom: 8,
-  },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 56,
+    fontWeight: '900',
     color: '#D4AF37',
-    letterSpacing: 3,
+    letterSpacing: 8,
     textAlign: 'center',
+    textShadowColor: 'rgba(212, 175, 55, 0.4)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 10,
+  },
+  subtitleTitle: {
+    fontSize: 28,
+    fontWeight: '300',
+    color: '#FFFFFF',
+    letterSpacing: 16,
+    textAlign: 'center',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
     color: '#A0A0A0',
-    marginTop: 4,
+    marginTop: 12,
     fontStyle: 'italic',
+    letterSpacing: 2,
   },
   divider: {
-    width: 120,
-    height: 2,
-    backgroundColor: '#D4AF37',
-    marginTop: 16,
+    width: 60,
+    height: 1,
+    backgroundColor: 'rgba(212, 175, 55, 0.5)',
+    marginTop: 20,
   },
   card: {
     width: '100%',
-    backgroundColor: '#1A1A1A',
-    borderColor: '#2C2C2C',
+    backgroundColor: 'rgba(26, 26, 26, 0.85)',
+    borderColor: 'rgba(212, 175, 55, 0.3)',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 24,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 5,
   },
   cardTitle: {
     fontSize: 20,
@@ -200,7 +216,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   googleButtonIcon: {
-    fontSize: 18,
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#FFFFFF',
     marginRight: 10,
   },
   googleButtonText: {

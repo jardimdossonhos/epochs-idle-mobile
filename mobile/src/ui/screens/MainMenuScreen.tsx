@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import LoadGameModal from '../components/LoadGameModal';
+import { useGameState } from '../GameProvider';
+import DevModeModal from '../components/DevModeModal';
 
 interface MainMenuScreenProps {
   onNewGame: () => void;
@@ -10,12 +13,52 @@ interface MainMenuScreenProps {
 
 export default function MainMenuScreen({ onNewGame, onGameLoaded }: MainMenuScreenProps) {
   const { user, logout } = useAuth();
+  const { t } = useLanguage();
+  const { session } = useGameState();
   const [isLoadModalVisible, setIsLoadModalVisible] = useState(false);
+  const [isDevPanelVisible, setIsDevPanelVisible] = useState(false);
+
+  const [tapCount, setTapCount] = useState(0);
+  const [lastTapTime, setLastTapTime] = useState(0);
+
+  const handleTitlePress = () => {
+    const now = Date.now();
+    if (now - lastTapTime < 1000) {
+      const newCount = tapCount + 1;
+      setTapCount(newCount);
+      if (newCount >= 5) {
+        if (session) {
+          session.devModeActive = !session.devModeActive;
+          session.emitState();
+          setIsDevPanelVisible(session.devModeActive);
+        }
+        setTapCount(0);
+      }
+    } else {
+      setTapCount(1);
+    }
+    setLastTapTime(now);
+  };
+
+  const handleProfilePress = () => {
+    Alert.alert(
+      t('mainMenu.alertTitle'),
+      t('mainMenu.alertMessage'),
+      [
+        { text: t('mainMenu.cancel'), style: 'cancel' },
+        { text: t('mainMenu.signOut'), style: 'destructive', onPress: logout },
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
-      {/* User Profile Banner */}
-      <View style={styles.profileBanner}>
+      {/* User Profile Banner wrapped in TouchableOpacity */}
+      <TouchableOpacity 
+        style={styles.profileBanner} 
+        onPress={handleProfilePress}
+        activeOpacity={0.7}
+      >
         <View style={styles.avatarContainer}>
           {user?.photoUrl ? (
             <Image source={{ uri: user.photoUrl }} style={styles.userPhoto} />
@@ -24,21 +67,24 @@ export default function MainMenuScreen({ onNewGame, onGameLoaded }: MainMenuScre
           )}
         </View>
         <View style={styles.profileInfo}>
-          <Text style={styles.userName}>{user?.displayName || 'Sovereign'}</Text>
-          <Text style={styles.userEmail}>{user?.email || 'Guest Player'}</Text>
+          <Text style={styles.userName}>{user?.displayName || t('mainMenu.sovereign')}</Text>
+          <Text style={styles.userEmail}>{user?.email || t('mainMenu.guestPlayer')}</Text>
           <View style={styles.providerBadge}>
             <Text style={styles.providerText}>{(user?.provider || 'guest').toUpperCase()}</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+        {/* Changed from TouchableOpacity to View to prevent target collision */}
+        <View style={styles.logoutButton}>
           <Text style={styles.logoutText}>🚪</Text>
-        </TouchableOpacity>
-      </View>
+        </View>
+      </TouchableOpacity>
 
       {/* Title Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>EPOCHS IDLE</Text>
-        <Text style={styles.subtitle}>Main Menu</Text>
+        <TouchableOpacity onPress={handleTitlePress} activeOpacity={0.8}>
+          <Text style={styles.title}>{t('mainMenu.title')}</Text>
+        </TouchableOpacity>
+        <Text style={styles.subtitle}>{t('mainMenu.subtitle')}</Text>
         <View style={styles.divider} />
       </View>
 
@@ -46,12 +92,12 @@ export default function MainMenuScreen({ onNewGame, onGameLoaded }: MainMenuScre
       <View style={styles.menuContainer}>
         <TouchableOpacity style={styles.primaryButton} onPress={onNewGame}>
           <Text style={styles.buttonIcon}>⚔️</Text>
-          <Text style={styles.primaryButtonText}>New Game</Text>
+          <Text style={styles.primaryButtonText}>{t('mainMenu.newGame')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={() => setIsLoadModalVisible(true)}>
           <Text style={styles.buttonIcon}>📜</Text>
-          <Text style={styles.secondaryButtonText}>Load Game</Text>
+          <Text style={styles.secondaryButtonText}>{t('mainMenu.loadGame')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -63,6 +109,12 @@ export default function MainMenuScreen({ onNewGame, onGameLoaded }: MainMenuScre
           setIsLoadModalVisible(false);
           onGameLoaded();
         }}
+      />
+
+      {/* Dev Mode Modal */}
+      <DevModeModal
+        visible={isDevPanelVisible}
+        onClose={() => setIsDevPanelVisible(false)}
       />
     </View>
   );

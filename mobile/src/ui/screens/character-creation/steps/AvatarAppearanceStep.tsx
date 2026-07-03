@@ -32,16 +32,16 @@ export default function AvatarAppearanceStep({
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.stepTitle}>Royal Persona & Identity</Text>
+      <Text style={styles.stepTitle}>Identidade e Aparência Real</Text>
       <Text style={styles.stepSubtitle}>
-        Customize your sovereign's appearance, title, and royal realm name.
+        Personalize a aparência do seu soberano, título e o nome do reino real.
       </Text>
 
       {/* Avatar Preview */}
       <View style={styles.avatarPreviewCard}>
         <AvatarRenderer cultureId={cultureId} seed={portraitSeed} gender={gender} size={100} />
         <TouchableOpacity style={styles.randomAvatarBtn} onPress={handleRandomizeAvatar}>
-          <Text style={styles.randomBtnText}>🎲 Randomize Appearance</Text>
+          <Text style={styles.randomBtnText}>🎲 Aleatorizar Aparência</Text>
         </TouchableOpacity>
       </View>
 
@@ -49,20 +49,20 @@ export default function AvatarAppearanceStep({
       <View style={styles.form}>
         {/* Gender Toggle */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Gender Identity</Text>
+          <Text style={styles.label}>Gênero do Governante</Text>
           <View style={styles.genderRow}>
             <TouchableOpacity
               style={[styles.genderBtn, gender === 'male' && styles.genderBtnSelected]}
               onPress={() => onUpdateDetails({ gender: 'male' })}
             >
-              <Text style={[styles.genderBtnText, gender === 'male' && styles.selectedText]}>Male Sovereign</Text>
+              <Text style={[styles.genderBtnText, gender === 'male' && styles.selectedText]}>Soberano Masculino</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.genderBtn, gender === 'female' && styles.genderBtnSelected]}
               onPress={() => onUpdateDetails({ gender: 'female' })}
             >
-              <Text style={[styles.genderBtnText, gender === 'female' && styles.selectedText]}>Female Sovereign</Text>
+              <Text style={[styles.genderBtnText, gender === 'female' && styles.selectedText]}>Soberana Feminina</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -70,28 +70,28 @@ export default function AvatarAppearanceStep({
         {/* Ruler Name Input */}
         <View style={styles.inputGroup}>
           <View style={styles.labelRow}>
-            <Text style={styles.label}>Ruler Name</Text>
+            <Text style={styles.label}>Nome do Governante</Text>
             <TouchableOpacity onPress={handleRandomizeName}>
-              <Text style={styles.randomizeLink}>🎲 Randomize Name</Text>
+              <Text style={styles.randomizeLink}>🎲 Aleatorizar Nome</Text>
             </TouchableOpacity>
           </View>
           <TextInput
             style={styles.textInput}
             value={rulerName}
             onChangeText={(text) => onUpdateDetails({ rulerName: text })}
-            placeholder="Enter Ruler Name"
+            placeholder="Digite o nome do governante"
             placeholderTextColor="#666"
           />
         </View>
 
         {/* Kingdom Name Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Realm / Realm Name</Text>
+          <Text style={styles.label}>Nome do Reino</Text>
           <TextInput
             style={styles.textInput}
             value={kingdomName}
             onChangeText={(text) => onUpdateDetails({ kingdomName: text })}
-            placeholder="Enter Kingdom Name"
+            placeholder="Digite o nome do reino"
             placeholderTextColor="#666"
           />
         </View>

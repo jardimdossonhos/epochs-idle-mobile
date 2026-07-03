@@ -1,32 +1,22 @@
-## 2026-06-29T16:36:22Z
-
-You are the Worker for Milestone 1: Commercial Onboarding & Google Login (m1_onboarding).
-Working directory: c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_worker_m1_1
-Project directory: c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle
-Scope document: c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\orchestrator\PROJECT.md
+## 2026-07-03T12:15:17Z
+Implement the solutions designed in `C:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\orchestrator\synthesis.md` for Milestone 1 (R1 and R2).
+Your tasks:
+1. Wrap the profile banner in `mobile/src/ui/screens/MainMenuScreen.tsx` in a `TouchableOpacity`. Tap opens an alert dialog with options to log out/switch account ("Trocar de Conta"). Prevent target collision by changing the inner touchable button to a regular `View`.
+2. Enhance `mobile/src/ui/context/AuthContext.tsx` logout logic to properly call provider-specific sign-out actions (mock-auth, google-auth, guest-auth) to clean the provider login session before saving `null`.
+3. Design and implement a simple React-based i18n Context (`I18nProvider` / `useLanguage` / translation files) in the mobile app. The default language must be Brazilian Portuguese ('pt-BR'), and English ('en-US') must be supported.
+4. Replace hardcoded English and Portuguese strings with translated keys on:
+   - `MainMenuScreen.tsx`
+   - `AuthScreen.tsx`
+   - `SettingsScreen.tsx`
+   - `LoadGameModal.tsx`
+   - `TopHUD.tsx`
+   - `App.tsx` (navigation tab labels)
+   - `SplashScreen.tsx`
+5. Implement a clean language toggle UI in `SettingsScreen.tsx`.
+6. Make `GeminiService.ts` respect the selected locale from `AsyncStorage`. Dynamically select standard fallbacks and append language instruction to prompt commands.
+7. Verify your work by compiling the codebase (`npx tsc --noEmit` inside `mobile/`) and run the test suite (if any exists in `mobile/`) to ensure all tests pass. If any tests failed, fix them.
 
 MANDATORY INTEGRITY WARNING:
 DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. A Forensic Auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
 
-Task Scope & Requirements:
-Implement Milestone 1 (Commercial Onboarding & Google Login) cleanly according to the architecture designed by Explorer 1 and Explorer 3:
-1. Google Authentication & App Lifecycle Flow:
-   - Create mobile/src/application/auth/auth-types.ts, auth-service.ts, mock-auth-service.ts, google-auth-service.ts, and mobile/src/ui/context/AuthContext.tsx.
-   - Create mobile/src/ui/screens/AuthScreen.tsx with medieval UI styling for Google Sign-In, Mock Login (dev mode), and Guest option.
-   - Update mobile/App.tsx root navigation state machine (appState: 'splash' | 'auth' | 'main_menu' | 'character_creation' | 'in_game').
-2. Main Menu Overhaul & Load Game Modal:
-   - Create mobile/src/ui/screens/MainMenuScreen.tsx displaying user profile, "New Game" button, and "Load Game" button.
-   - Create mobile/src/ui/components/LoadGameModal.tsx listing save slots from session.listSaveSlots() with Kingdom Name, Culture, Year, and saved date. Clicking a slot calls session.loadSlot(slotId) and starts simulation.
-3. Character Creation Wizard & Offline Avatars:
-   - Create mobile/src/ui/screens/character-creation/CharacterCreationScreen.tsx managing a 4-step wizard.
-   - Create CultureSelectStep.tsx supporting all 9 historical cultures from culture-generator.ts (nordic, latin, eastern, desert, celtic, slavic, savanna, indigenous, vedic).
-   - Create StatPointBuyStep.tsx with base stats 3 across ADM, MAR, DIP, INT, LRN and 15 point buy budget.
-   - Create TerritorySelectStep.tsx to choose starting region playerStartRegionId.
-   - Create AvatarAppearanceStep.tsx and AvatarRenderer.tsx handling DiceBear avatar customization with robust offline SVG/emoji fallbacks.
-   - Inject chosen character parameters into initial game state boot.
-4. Unit Tests & Verification:
-   - Add unit tests in tests/auth.test.ts using InMemoryAuthRepository / mock auth services.
-   - Run npm test and verify all tests pass without errors.
-   - Verify mobile boot script via npx ts-node mobile/test-boot.ts or test runners.
-
-Produce your handoff report in c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_worker_m1_1\handoff.md with build and test results. Communicate your final status via send_message.
+Please report your findings and implementation details in `handoff.md` inside your directory `C:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_worker_m1_1`.

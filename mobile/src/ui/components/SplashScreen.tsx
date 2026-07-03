@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, Animated, Easing, ImageBackground } from 'react-native';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function SplashScreen() {
+  const { t } = useLanguage();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1.1)).current;
   const pulseAnim = useRef(new Animated.Value(0.5)).current;
@@ -54,7 +56,7 @@ export default function SplashScreen() {
           <Text style={styles.title}>EPOCHS</Text>
           <Text style={styles.subtitle}>IDLE</Text>
           <Animated.Text style={[styles.loadingText, { opacity: pulseAnim }]}>
-            Forjando a Aurora da Humanidade...
+            {t('splash.forgingDawn')}
           </Animated.Text>
         </Animated.View>
       </View>

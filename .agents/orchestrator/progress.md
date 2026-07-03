@@ -1,15 +1,24 @@
 ## Current Status
-Last visited: 2026-06-29T16:50:20Z
+Last visited: 2026-07-03T19:42:30Z
+
+- [x] Milestone 1: User Profile Switch & PT-BR i18n [done]
+- [x] Milestone 2: Clock Month Render & Auto-Save slot "auto-1" [done]
+- [x] Milestone 3: Secret Developer Mode Panel [done]
+- [x] Milestone 4: Code Audit, Performance & Validation [done]
 
 ## Iteration Status
-Current iteration: 1 / 32 (Milestone 2)
+Current iteration: 1 / 32
 
 ## Work Items
-- [x] Milestone 1: Epic 1 — Commercial Onboarding & Google Login [done]
-- [ ] Milestone 2: Epic 2 — Interactive 2D Vector Map [in-progress] (Replacing Worker M2-1 due to subagent stall)
-- [ ] Milestone 3: Epic 3 — Supreme Idle Mode [pending]
-- [ ] Milestone 4: Epic 4 — Cloud AI & Immersion [pending]
-- [ ] Milestone 5: E2E Integration, Performance & Verification Audit [pending]
+- [x] Milestone 1: User Profile Switch & PT-BR i18n [done]
+- [x] Milestone 2: Clock Month Render & Auto-Save slot "auto-1" [done]
+- [x] Milestone 3: Secret Developer Mode Panel [done]
+- [x] Milestone 4: Code Audit, Performance & Validation [done]
 
 ## Retrospective & Notes
-- Worker M2-1 failed with subagent resource error. Replacing with Worker M2-2 to resume Milestone 2.
+- Commenced the Epochs Idle Quality Sprint.
+- Decomposed quality issues into 4 milestones.
+- Initialized BRIEFING.md, PROJECT.md, plan.md, and progress.md.
+- Milestone 1 implemented by Worker M1-1; verified successfully by Reviewers M1-1 & M1-2, Challengers M1-1 & M1-2, and Forensic Auditor M1-1 (CLEAN). All 93 unit/integration tests pass.
+
+

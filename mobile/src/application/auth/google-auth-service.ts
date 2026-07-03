@@ -36,7 +36,7 @@ export class GoogleAuthService implements IAuthService {
         throw new Error('Login já em andamento. Aguarde.');
       } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         throw new Error('Google Play Services não disponível neste dispositivo.');
-      } else if (error.code === statusCodes.ONE_TAP_START_FAILED) {
+      } else if (error.code === (statusCodes as any).ONE_TAP_START_FAILED) {
         throw new Error('Falha ao iniciar o login. Tente novamente.');
       }
       throw error;

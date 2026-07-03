@@ -1,25 +1,34 @@
-# Development Plan: Epochs Idle v1.0 Master Roadmap
+# Development Plan: Epochs Idle Quality Sprint
 
-This plan details the milestone decomposition to deliver the final version 1.0 of Epochs Idle, fulfilling requirements R1 through R4 from ORIGINAL_REQUEST.md.
+This plan details the milestones to deliver the Quality Sprint, fixing bugs and implementing features R1 through R6 in ORIGINAL_REQUEST.md.
 
-## Milestones Overview
+## Milestones
 
-### Milestone 1: Epic 1 — Commercial Onboarding & Google Login (m1_onboarding)
-- **Goal**: Implement Google Sign-In authentication, full Main Menu navigation (New/Load Game), Character Creation flow with 9 cultures, Point Buy attribute system, starting territory selection, and DiceBear offline fallback for avatars.
-- **Key Deliverables**: Google Sign-In service/mock, Main Menu UI with save selection, Character Creation screens (Culture, Point Buy, Territory, Avatar fallback), integrated into GameSession initiation.
+### Milestone 1: User Profile Switch & PT-BR i18n (R1, R2)
+- **Goal**: Implement profile banner user switch on `MainMenuScreen.tsx` and i18n translation system (PT-BR default / EN-US) across screens with settings toggle.
+- **Key Deliverables**:
+  - Profile banner button click handler and dialog to log out/redirect to `AuthScreen`.
+  - Simple, robust i18n system with translation files/dictionaries.
+  - Multi-language support on all screens.
+  - Language selector in `SettingsScreen.tsx`.
 
-### Milestone 2: Epic 2 — Interactive 2D Vector Map (m2_vector_map)
-- **Goal**: Build a premium native SVG 2D interactive world map with Fog of War, clickable regions and armies, displaying real-time data driven by the underlying ECS engine (`GameSession`).
-- **Key Deliverables**: SVG Map rendering component, Fog of War overlay calculation/shader/render, clickable region/army inspect panels, dynamic state bindings to GameSession ticks.
+### Milestone 2: Clock Month Render & Auto-Save slot "auto-1" (R3, R4)
+- **Goal**: Fix HUD clock skips and resolve the empty `auto-1` auto-save slot issue.
+- **Key Deliverables**:
+  - Month/year state change reactive propagation to HUD to ensure every single month tick renders without skips.
+  - Integration of `await` inside `doCommitAutosave()` in `GameSession.ts` to guarantee disk write completion.
+  - Verify `LoadGameModal.tsx` reads from the same repository and visualizes slot "auto-1" correctly as "Auto Save".
 
-### Milestone 3: Epic 3 — Supreme Idle Mode & Government Guidelines (m3_idle_mode)
-- **Goal**: Create the Government Guidelines panel and administrative AI engine that automates kingdom macro-management based on strategic directives (e.g., Gold Focus, Expansion, Peace) via autonomous construction, diplomacy, and recruitment orders.
-- **Key Deliverables**: Government Guidelines UI panel, AI macro-controller connected to simulation loop, dynamic budget allocation and automated action execution engine.
+### Milestone 3: Secret Developer Mode Panel (R5)
+- **Goal**: Create a hidden developer menu screen/modal activated by clicking 5 times on the "EPOCHS" title of `MainMenuScreen.tsx`.
+- **Key Deliverables**:
+  - Click listener on the "EPOCHS" title in `MainMenuScreen.tsx` with a tap counter and reset timer.
+  - Dark mode panel (`#0D1117`) implementing all 9 tools (a to i) dynamically connected to the `GameSession` state.
+  - UI indication ("MODO DESENVOLVEDOR ATIVO") and closing/re-opening mechanisms.
 
-### Milestone 4: Epic 4 — Cloud AI & Immersion (m4_cloud_ai)
-- **Goal**: Integrate Gemini API for dynamic AI-generated event texts and hyper-realistic diplomatic dialogues for enemy leaders, backed by a robust 100% offline fallback system.
-- **Key Deliverables**: Gemini API service with offline fallback/caching, dynamic event text injector connected to EventBus, dynamic AI diplomatic interaction system.
-
-### Milestone 5: Epic 5 — E2E Integration, Performance & Verification Audit (m5_integration)
-- **Goal**: Comprehensive E2E testing, React Native Android build verification, zero console errors, performance optimization (preventing UI thread blocking during 1000ms engine ticks), and full forensic integrity auditing.
-- **Key Deliverables**: Passing E2E test suite, clean console logs, performance profiling verification, clean forensic audit report.
+### Milestone 4: Code Audit, Performance & Validation (R6)
+- **Goal**: Search for un-awaited async calls, adjust CPU debt parameters, fix memory leaks, clean leftover English texts, and ensure full TypeScript compilation.
+- **Key Deliverables**:
+  - Detailed Audit Report documenting bug findings and corrections.
+  - Resolved `[SYS-PERF]` debt warning by adjusting simulation queue clamping.
+  - Checked clean build (`npx tsc --noEmit` compiles successfully).

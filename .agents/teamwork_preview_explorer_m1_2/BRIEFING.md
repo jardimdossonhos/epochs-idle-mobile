@@ -1,47 +1,35 @@
-# BRIEFING — 2026-06-29T16:36:10Z
+# BRIEFING — 2026-07-03T12:13:41Z
 
 ## Mission
-Investigate existing data models in src/domain (src/core) and src/application related to player profile, culture definitions, character stats, territory IDs, and save slot integration during game session boot (createStaticWorldData or GameSession). Analyze how character creation choices feed into new game creation and state persistence.
+Analyze requirements for R2 Internationalization to PT-BR, scan main game screens for hardcoded English, and recommend a simple i18n design.
 
 ## 🔒 My Identity
 - Archetype: Teamwork explorer
-- Roles: Explorer 2 (Milestone 1)
-- Working directory: c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_explorer_m1_2
-- Original parent: 33c8d54e-64e9-48c9-b449-53df389e7781
-- Milestone: m1_onboarding
+- Roles: Read-only investigator
+- Working directory: C:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_explorer_m1_2
+- Original parent: 3c7029ad-6b46-46c6-b7a0-f58e3d110de1
+- Milestone: Internationalization Analysis
 
 ## 🔒 Key Constraints
 - Read-only investigation — do NOT implement
-- Write analysis and handoff only in own agent folder
+- Analyze requirements for R2: Internationalization to PT-BR
+- Scan main game screens and components for hardcoded English texts
+- Recommend a simple, lightweight i18n translation system that defaults to PT-BR but allows language switching
+- Propose a code change plan
+- Do NOT edit any code outside our agent directory
 
 ## Current Parent
-- Conversation ID: 33c8d54e-64e9-48c9-b449-53df389e7781
-- Updated: 2026-06-29T16:36:10Z
+- Conversation ID: 3c7029ad-6b46-46c6-b7a0-f58e3d110de1
+- Updated: 2026-07-03T12:14:50Z
 
 ## Investigation State
-- **Explored paths**:
-  - `src/core/models/character.ts` (`Character`, `CharacterStats`, `CharacterAffinity`)
-  - `src/core/models/game-state.ts` (`GameState`, `KingdomState`, `EcsState`, `GameMeta`)
-  - `src/core/models/world.ts` (`WorldState`, `RegionState`, `RegionDefinition`)
-  - `src/core/models/static-world-data.ts` (`StaticWorldData`, `ReligionDefinition`)
-  - `src/core/models/enums.ts` (`BuildingType`, `MinisterRole`, `PopulationClass`, etc.)
-  - `src/application/boot/static-world-data.ts` (`createStaticWorldData()`, religion/tenet setup)
-  - `src/application/boot/create-initial-state.ts` (`createInitialState()`, cluster spawning, ECS allocation)
-  - `src/application/game-session.ts` (`GameSession.bootstrap()`, offline progression, controls)
-  - `src/infrastructure/persistence/save-slots.ts` & `save-schema.ts` (`SaveEnvelope`, slot IDs)
-  - `mobile/src/ui/screens/MenuScreen.tsx` & `CharacterScreen.tsx` (UI usage of session and saves)
-- **Key findings**:
-  - Code directory structure uses `src/core/` instead of `src/domain/` as described in `PROJECT.md`.
-  - Culture definitions are currently absent from core models and static world data; need a new `CultureDefinition` entity.
-  - `CharacterStats` has 5 base attributes: administration, martial, diplomacy, intrigue, learning.
-  - Player starting territory (`playerStartRegionId`) is supported in `createInitialState()` but needs formal binding to character creation parameters.
-  - Save slots (`auto-1`, `manual-1`..`3`) and envelope migration system are fully operational.
-- **Unexplored areas**: None. Domain, application, persistence, and UI entry points fully examined.
+- **Explored paths**: `mobile/src/ui/screens/MainMenuScreen.tsx`, `mobile/src/ui/screens/AuthScreen.tsx`, `mobile/src/ui/screens/SettingsScreen.tsx`, `mobile/src/ui/components/LoadGameModal.tsx`, `mobile/src/ui/components/TopHUD.tsx`, `mobile/src/ui/screens/MenuScreen.tsx`, `mobile/App.tsx`, `mobile/src/ui/components/SplashScreen.tsx`, `mobile/package.json`, `package.json`
+- **Key findings**: Mixed hardcoded English and Portuguese text strings throughout the UI screens. Designed a zero-dependency translation dictionary and Context Provider to handle dynamic language switching and AsyncStorage persistence.
+- **Unexplored areas**: Core simulation files generating raw gameplay logs/events dynamically, which require a separate locale configuration hook in the engine.
 
 ## Key Decisions Made
-- Mapped full end-to-end data flow from character creation UI parameters into game session state initialization and save persistence.
+- Recommended a lightweight, zero-dependency custom React Context and hook translation engine that integrates directly with AsyncStorage for state management, avoiding runtime bundle bloat and ensuring robust compatibility with Expo.
 
 ## Artifact Index
-- ORIGINAL_REQUEST.md — Initial task parameters
-- BRIEFING.md — Working memory index
-- handoff.md — Detailed investigation handoff report
+- C:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_explorer_m1_2\analysis.md — Analysis Report
+- C:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_explorer_m1_2\handoff.md — Handoff Report

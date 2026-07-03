@@ -77,4 +77,5 @@ export interface AdministrationState {
   council: Partial<Record<MinisterRole, Minister>>;
   candidatePool: Minister[]; // Mercado de talentos: Ministros disponíveis para contratação
   activeAdvice: MinisterAdvice[];
+  directives?: Record<string, boolean>;
 }

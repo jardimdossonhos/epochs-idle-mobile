@@ -1,48 +1,42 @@
-# BRIEFING — 2026-06-29T16:36:00Z
+# BRIEFING — 2026-07-03T12:15:35Z
 
 ## Mission
-Investigate codebase for Milestone 1 (Commercial Onboarding & Google Login) and produce an architectural plan and implementation strategy handoff report.
+Analyze the requirements for R1: User Profile Switch, locate the profile banner, and identify integration points for logout/navigation.
 
 ## 🔒 My Identity
 - Archetype: Teamwork explorer
-- Roles: Read-only investigator, analyzer, architecture planner
-- Working directory: c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_explorer_m1_1
-- Original parent: 33c8d54e-64e9-48c9-b449-53df389e7781
-- Milestone: m1_onboarding
+- Roles: Read-only investigator
+- Working directory: C:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_explorer_m1_1
+- Original parent: 3c7029ad-6b46-46c6-b7a0-f58e3d110de1
+- Milestone: Milestone 1 (R1: User Profile Switch)
 
 ## 🔒 Key Constraints
-- Read-only investigation — do NOT implement code changes in project source code
-- Operate in CODE_ONLY network mode
-- Write analysis and handoff to own directory
+- Read-only investigation — do NOT implement
+- Must write findings to analysis.md and handoff.md in working directory
+- Propose code changes via plan/diff/snippets, do NOT modify any source files
 
 ## Current Parent
-- Conversation ID: 33c8d54e-64e9-48c9-b449-53df389e7781
-- Updated: 2026-06-29T16:36:00Z
+- Conversation ID: 3c7029ad-6b46-46c6-b7a0-f58e3d110de1
+- Updated: 2026-07-03T12:15:35Z
 
 ## Investigation State
 - **Explored paths**:
-  - `PROJECT.md` (Scope & Milestones)
-  - `mobile/package.json` & `package.json` (Dependencies & Scripts)
-  - `mobile/App.tsx` (App layout, Tab Navigation, Root loading)
-  - `mobile/src/ui/GameProvider.tsx` (Game engine initialization & React Context)
-  - `mobile/src/ui/screens/MenuScreen.tsx` (Current save/load & speed menu tab)
-  - `mobile/src/ui/screens/CharacterScreen.tsx` (Character cards & DiceBear avatar rendering)
-  - `mobile/src/application/boot/create-initial-state.ts` (State generation, kingdom blueprints, region setup)
-  - `mobile/src/application/game-session.ts` (GameSession lifecycle, save/load, slot operations)
-  - `mobile/src/core/simulation/systems/culture-generator.ts` (9 historical cultures, name generation)
-  - `mobile/src/infrastructure/persistence/MobileGameStateRepository.ts` & `save-slots.ts` (File system persistence)
+  - `mobile/src/ui/screens/MainMenuScreen.tsx`
+  - `mobile/src/ui/context/AuthContext.tsx`
+  - `mobile/src/ui/screens/SettingsScreen.tsx`
+  - `mobile/src/ui/screens/AuthScreen.tsx`
+  - `mobile/src/application/auth/auth-service.ts`
+  - `mobile/App.tsx`
 - **Key findings**:
-  - App currently auto-boots directly into `GameSession` without authentication or main menu.
-  - MenuScreen is currently embedded as an in-game tab instead of a true standalone launcher menu.
-  - 9 historical cultures are already fully modeled in `culture-generator.ts`.
-  - `createInitialState` supports dynamic `playerStartRegionId` injection.
-  - DiceBear avatars are currently fetched via HTTP without local caching or offline SVG fallbacks. `react-native-svg` is not yet installed in `mobile/package.json`.
-- **Unexplored areas**: None (Full exploration complete).
+  - The profile banner is rendered as a non-clickable `<View>` wrapping avatar info, user details, and a nested door icon `<TouchableOpacity>`.
+  - Wrapping the profile banner in a `TouchableOpacity` with `Alert.alert` for confirmation is the ideal clickable behavior.
+  - Changing `authStatus` to `'unauthenticated'` in `AuthContext` triggers a state-based screen change in `AppContent` (`App.tsx`) to render `AuthScreen.tsx`.
+  - The `logout` function in `AuthContext.tsx` must instantiate the active provider and invoke its `.signOut()` method (e.g. `GoogleAuthService.signOut()`) to allow switching accounts.
+- **Unexplored areas**: None.
 
 ## Key Decisions Made
-- Architected 3-part implementation plan: Google Auth Service abstraction, Navigation & Main Menu overhaul, 4-step Character Creation wizard with offline SVG avatar fallback.
+- Focus on locating the user profile banner, determining render logic, click interaction, and linking it to the authentication context/service. Completed read-only investigation and generated R1 implementation plan.
 
 ## Artifact Index
-- ORIGINAL_REQUEST.md — Original task prompt
-- BRIEFING.md — Working memory index
-- handoff.md — Comprehensive architectural and implementation handoff report
+- C:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_explorer_m1_1\analysis.md — Detailed analysis of User Profile Switch requirements
+- C:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_explorer_m1_1\handoff.md — Handoff report with findings and code change proposal

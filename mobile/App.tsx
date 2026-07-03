@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { GameProvider, useGameState } from './src/ui/GameProvider';
 import { AuthProvider, useAuth } from './src/ui/context/AuthContext';
+import { LanguageProvider, useLanguage } from './src/ui/context/LanguageContext';
 import TopHUD from './src/ui/components/TopHUD';
 import SplashScreen from './src/ui/components/SplashScreen';
 import EventPopup from './src/ui/components/EventPopup';
@@ -41,6 +42,7 @@ const EmpireTheme = {
 
 function MainTabs() {
   const { gameState } = useGameState();
+  const { t } = useLanguage();
 
   if (!gameState) return null;
 
@@ -51,11 +53,16 @@ function MainTabs() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#1A1A1A',
-          borderTopColor: '#D4AF37',
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: 'rgba(20, 20, 25, 0.85)',
+          borderTopColor: 'rgba(212, 175, 55, 0.4)',
           borderTopWidth: 1,
           paddingBottom: 5,
           height: 60,
+          elevation: 0,
         },
         tabBarActiveTintColor: '#D4AF37',
         tabBarInactiveTintColor: '#666',
@@ -68,14 +75,14 @@ function MainTabs() {
           tabBarIcon: ({ color, size }) => (
             <Text style={{ fontSize: size, color }}>💡</Text>
           ),
-          tabBarLabel: 'Saber'
+          tabBarLabel: t('tabs.knowledge')
         }}
       />
       <Tab.Screen 
         name="Map" 
         component={MapScreen} 
         options={{ 
-          tabBarLabel: isCivilizationUnocked ? 'O Mundo' : 'Tribo & Região',
+          tabBarLabel: isCivilizationUnocked ? t('tabs.world') : t('tabs.tribeAndRegion'),
           tabBarIcon: ({ color, size }) => (
             <Text style={{ fontSize: size, color }}>🌍</Text>
           )
@@ -87,7 +94,7 @@ function MainTabs() {
           name="Government" 
           component={GovScreen} 
           options={{ 
-            tabBarLabel: 'Governo',
+            tabBarLabel: t('tabs.government'),
             tabBarIcon: ({ color, size }) => (
               <Text style={{ fontSize: size, color }}>🏛️</Text>
             )
@@ -100,7 +107,7 @@ function MainTabs() {
           name="Diplomacy" 
           component={DiplomacyScreen} 
           options={{ 
-            tabBarLabel: 'Diplomacia',
+            tabBarLabel: t('tabs.diplomacy'),
             tabBarIcon: ({ color, size }) => (
               <Text style={{ fontSize: size, color }}>📜</Text>
             )
@@ -113,7 +120,7 @@ function MainTabs() {
           name="Characters" 
           component={CharacterScreen} 
           options={{ 
-            tabBarLabel: 'Corte',
+            tabBarLabel: t('tabs.court'),
             tabBarIcon: ({ color, size }) => (
               <Text style={{ fontSize: size, color }}>👑</Text>
             )
@@ -125,7 +132,7 @@ function MainTabs() {
         name="Menu" 
         component={MenuScreen} 
         options={{ 
-          tabBarLabel: 'Menu',
+          tabBarLabel: t('tabs.menu'),
           tabBarIcon: ({ color, size }) => (
             <Text style={{ fontSize: size, color }}>⚙️</Text>
           )
@@ -135,7 +142,7 @@ function MainTabs() {
         name="Settings" 
         component={SettingsScreen} 
         options={{ 
-          tabBarLabel: 'Config',
+          tabBarLabel: t('tabs.config'),
           tabBarIcon: ({ color, size }) => (
             <Text style={{ fontSize: size, color }}>🔧</Text>
           )
@@ -204,16 +211,22 @@ function AppContent() {
   );
 }
 
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
 export default function App() {
   return (
-    <SafeAreaProvider style={{ flex: 1, backgroundColor: '#121212' }}>
-      <AuthProvider>
-        <GameProvider>
-          <NavigationContainer theme={EmpireTheme}>
-            <AppContent />
-          </NavigationContainer>
-        </GameProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider style={{ flex: 1, backgroundColor: '#121212' }}>
+        <LanguageProvider>
+          <AuthProvider>
+            <GameProvider>
+              <NavigationContainer theme={EmpireTheme}>
+                <AppContent />
+              </NavigationContainer>
+            </GameProvider>
+          </AuthProvider>
+        </LanguageProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

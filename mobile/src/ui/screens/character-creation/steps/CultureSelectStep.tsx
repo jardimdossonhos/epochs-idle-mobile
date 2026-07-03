@@ -8,23 +8,23 @@ interface CultureSelectStepProps {
 }
 
 const CULTURE_DETAILS: Record<CultureId, { name: string; icon: string; desc: string; traitBonus: string }> = {
-  nordic: { name: 'Nordic Clans', icon: '⚔️', desc: 'Masters of sea navigation, cold survival, and brutal raid tactics.', traitBonus: '+2 Martial, +1 Intrigue' },
-  latin: { name: 'Latin Empire', icon: '🏛️', desc: 'Architects of law, heavy legions, and imperial administration.', traitBonus: '+2 Administration, +1 Diplomacy' },
-  eastern: { name: 'Eastern Dynasty', icon: '🐉', desc: 'Guardians of ancient wisdom, philosophy, and disciplined statecraft.', traitBonus: '+2 Learning, +1 Administration' },
-  desert: { name: 'Desert Nomads', icon: '🦅', desc: 'Sovereigns of trade routes, swift cavalry, and astronomy.', traitBonus: '+2 Diplomacy, +1 Learning' },
-  celtic: { name: 'Celtic Tribes', icon: '🌳', desc: 'Deep connection to nature, fierce warriors, and mystic bards.', traitBonus: '+2 Martial, +1 Learning' },
-  slavic: { name: 'Slavic Realms', icon: '🐻', desc: 'Resilient forest dwellers with unmatched endurance and fortitude.', traitBonus: '+2 Administration, +1 Martial' },
-  savanna: { name: 'Savanna Kingdoms', icon: '🦁', desc: 'Wealthy gold lords, ivory trade masters, and oral historians.', traitBonus: '+2 Diplomacy, +1 Administration' },
-  indigenous: { name: 'Indigenous Confederation', icon: '🐆', desc: 'Stealth ambushers, herbalists, and ritualistic leaders.', traitBonus: '+2 Intrigue, +1 Martial' },
-  vedic: { name: 'Vedic Empire', icon: '🪷', desc: 'Scholars of spiritual ascension, mathematics, and grand monuments.', traitBonus: '+2 Learning, +1 Diplomacy' },
+  nordic: { name: 'Clãs Nórdicos', icon: '⚔️', desc: 'Mestres da navegação marítima, sobrevivência no frio e táticas brutais de saque.', traitBonus: '+2 Marcial, +1 Intriga' },
+  latin: { name: 'Império Latino', icon: '🏛️', desc: 'Arquitetos da lei, legiões pesadas e administração imperial.', traitBonus: '+2 Administração, +1 Diplomacia' },
+  eastern: { name: 'Dinastia Oriental', icon: '🐉', desc: 'Guardiões da sabedoria antiga, filosofia e governança disciplinada.', traitBonus: '+2 Saber, +1 Administração' },
+  desert: { name: 'Nômades do Deserto', icon: '🦅', desc: 'Soberanos das rotas comerciais, cavalaria rápida e astronomia.', traitBonus: '+2 Diplomacia, +1 Saber' },
+  celtic: { name: 'Tribos Célticas', icon: '🌳', desc: 'Conexão profunda com a natureza, guerreiros ferozes e bardos místicos.', traitBonus: '+2 Marcial, +1 Saber' },
+  slavic: { name: 'Reinos Eslavos', icon: '🐻', desc: 'Resistentes habitantes das florestas com resistência e força inigualáveis.', traitBonus: '+2 Administração, +1 Marcial' },
+  savanna: { name: 'Reinos da Savana', icon: '🦁', desc: 'Ricos senhores do ouro, mestres do comércio de marfim e historiadores orais.', traitBonus: '+2 Diplomacia, +1 Administração' },
+  indigenous: { name: 'Confederação Indígena', icon: '🐆', desc: 'Emboscadores furtivos, herboristas e líderes ritualísticos.', traitBonus: '+2 Intriga, +1 Marcial' },
+  vedic: { name: 'Império Védico', icon: '🪷', desc: 'Estudiosos da ascensão espiritual, matemática e grandes monumentos.', traitBonus: '+2 Saber, +1 Diplomacia' },
 };
 
 export default function CultureSelectStep({ selectedCulture, onSelectCulture }: CultureSelectStepProps) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.stepTitle}>Choose Your Heritage</Text>
+      <Text style={styles.stepTitle}>Escolha sua Herança</Text>
       <Text style={styles.stepSubtitle}>
-        The origin of your dynasty shapes your traditions, martial doctrines, and ruler naming.
+        A origem de sua dinastia molda suas tradições, doutrinas marciais e nomes dos governantes.
       </Text>
 
       <View style={styles.grid}>
@@ -47,7 +47,7 @@ export default function CultureSelectStep({ selectedCulture, onSelectCulture }: 
                 </View>
               </View>
               <Text style={styles.cardDesc}>{details.desc}</Text>
-              <Text style={styles.sampleName}>Sample Name: <Text style={styles.sampleHighlight}>{sampleName}</Text></Text>
+              <Text style={styles.sampleName}>Exemplo de Nome: <Text style={styles.sampleHighlight}>{sampleName}</Text></Text>
             </TouchableOpacity>
           );
         })}

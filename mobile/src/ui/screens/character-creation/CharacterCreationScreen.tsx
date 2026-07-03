@@ -22,7 +22,7 @@ export default function CharacterCreationScreen({ onComplete, onCancel }: Charac
   const [cultureId, setCultureId] = useState<CultureId>('latin');
   const [gender, setGender] = useState<Gender>('male');
   const [rulerName, setRulerName] = useState<string>(() => generateCulturalName('latin', 'male'));
-  const [kingdomName, setKingdomName] = useState<string>('First Kingdom');
+  const [kingdomName, setKingdomName] = useState<string>('Primeiro Reino');
   const [portraitSeed, setPortraitSeed] = useState<string>(() => generatePortraitSeed());
   const [selectedRegionId, setSelectedRegionId] = useState<string>('r_hex_10286');
   const [stats, setStats] = useState<RulerStats>({
@@ -89,7 +89,7 @@ const CULTURE_STAT_BONUSES: Record<CultureId, Partial<RulerStats>> = {
       const rulerId = `char_ruler_${Date.now()}`;
       const rulerCharacter = {
         id: rulerId,
-        name: rulerName || 'Sovereign',
+        name: rulerName || 'Soberano',
         cultureId: cultureId,
         portraitSeed: portraitSeed,
         gender: gender,
@@ -103,7 +103,7 @@ const CULTURE_STAT_BONUSES: Record<CultureId, Partial<RulerStats>> = {
           intrigue: baseStats.INT + (bonuses.INT || 0),
           learning: baseStats.LRN + (bonuses.LRN || 0),
         },
-        traits: ['Ambitious', 'Visionary'],
+        traits: ['Ambicioso', 'Visionário'],
         affinity: 'standard',
         age: 25,
         loyalty: 100,
@@ -113,7 +113,7 @@ const CULTURE_STAT_BONUSES: Record<CultureId, Partial<RulerStats>> = {
       initialState.world.characters[rulerId] = rulerCharacter as any;
 
       if (initialState.kingdoms['k_player']) {
-        initialState.kingdoms['k_player'].name = kingdomName || 'Sovereign Realm';
+        initialState.kingdoms['k_player'].name = kingdomName || 'Reino Soberano';
         initialState.kingdoms['k_player'].rulerId = rulerId;
       }
 
@@ -124,7 +124,7 @@ const CULTURE_STAT_BONUSES: Record<CultureId, Partial<RulerStats>> = {
       onComplete();
     } catch (e) {
       console.error('[CharacterCreation] Error finishing character creation', e);
-      Alert.alert('Creation Error', 'Failed to initialize campaign. Please try again.');
+      Alert.alert('Erro de Criação', 'Falha ao inicializar a campanha. Por favor, tente novamente.');
     }
   };
 
@@ -132,7 +132,7 @@ const CULTURE_STAT_BONUSES: Record<CultureId, Partial<RulerStats>> = {
     <SafeAreaView style={styles.container}>
       {/* Top Wizard Navigation Steps Header */}
       <View style={styles.wizardHeader}>
-        <Text style={styles.wizardHeaderTitle}>FOUND DYNASTY</Text>
+        <Text style={styles.wizardHeaderTitle}>FUNDAR DINASTIA</Text>
         <View style={styles.stepperRow}>
           {[1, 2, 3, 4].map((s) => (
             <View key={s} style={styles.stepIndicatorContainer}>
@@ -185,11 +185,11 @@ const CULTURE_STAT_BONUSES: Record<CultureId, Partial<RulerStats>> = {
       {/* Bottom Action Bar */}
       <View style={styles.footer}>
         <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
-          <Text style={styles.backBtnText}>{step === 1 ? 'Cancel' : 'Back'}</Text>
+          <Text style={styles.backBtnText}>{step === 1 ? 'Cancelar' : 'Voltar'}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
-          <Text style={styles.nextBtnText}>{step === 4 ? 'Begin Campaign ⚔️' : 'Next Step ➔'}</Text>
+          <Text style={styles.nextBtnText}>{step === 4 ? 'Iniciar Campanha ⚔️' : 'Próximo Passo ➔'}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

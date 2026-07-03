@@ -1,18 +1,21 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import {
   View,
   StyleSheet,
   ScrollView,
   Text,
+  TouchableOpacity,
 } from 'react-native';
-import Svg, { G, Polygon, Circle } from 'react-native-svg';
+import Svg, { G, Polygon, Circle, Path } from 'react-native-svg';
 import { useGameState } from '../GameProvider';
 import { DiplomaticRelation } from '../../core/models/enums';
+import { RegionState } from '../../core/models/world';
 
 // ─── Constantes do Grid Hexagonal ─────────────────────────────────────────────
 const HEX_SIZE = 18;
 const HEX_WIDTH = HEX_SIZE * 2;
 const HEX_HEIGHT = Math.sqrt(3) * HEX_SIZE;
+const LOCAL_VIEW_RADIUS = 12 * HEX_SIZE; // Raio em pixels para a visão local (aprox 12 hexes)
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 export interface HexCell {
@@ -77,94 +80,139 @@ function getRelationColor(relation: string | undefined): string {
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
 export default function WorldMapSvg({ onRegionPress, selectedRegionId }: WorldMapSvgProps) {
-  const { gameState, playerKingdomId, staticWorldData } = useGameState();
+  const { gameState: liveGameState, playerKingdomId, staticWorldData } = useGameState();
+  const [viewMode, setViewMode] = useState<'local' | 'global'>('local');
 
-  const { cells, svgWidth, svgHeight, offsetX, offsetY } = useMemo<{
-    cells: HexCell[];
-    svgWidth: number;
-    svgHeight: number;
-    offsetX: number;
-    offsetY: number;
-  }>(() => {
-    if (!gameState || !staticWorldData) {
-      return { cells: [], svgWidth: 400, svgHeight: 300, offsetX: 0, offsetY: 0 };
+  // Throttled Game State to prevent 15 FPS React Native SVG reconciliation (which causes ANRs)
+  const [gameState, setGameState] = useState(liveGameState);
+  const liveGameStateRef = React.useRef(liveGameState);
+  liveGameStateRef.current = liveGameState;
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setGameState(liveGameStateRef.current);
+    }, 1000); // 1 update per second is enough for the visual map
+    return () => clearInterval(interval);
+  }, []);
+
+  // Static Grid Cache: Compute x,y,col,row only once
+  const staticGrid = useMemo(() => {
+    if (!staticWorldData) return [];
+    return Object.keys(staticWorldData.definitions).map((regionId) => {
+      const regionDef = staticWorldData.definitions[regionId];
+      const { col, row } = parseRegionIndex(regionId);
+      const { x, y } = hexToPixel(col, row);
+      return { regionId, col, row, x, y, isWater: regionDef?.isWater ?? false, name: regionDef?.name ?? regionId };
+    });
+  }, [staticWorldData]);
+
+  const { cellsToRender, svgWidth, svgHeight, offsetX, offsetY, globalScale } = useMemo(() => {
+    if (!gameState || !staticWorldData || staticGrid.length === 0) {
+      return { cellsToRender: [], svgWidth: 400, svgHeight: 300, offsetX: 0, offsetY: 0, globalScale: 1 };
     }
 
     const playerKingdom = gameState.kingdoms[playerKingdomId];
     const playerRelations = playerKingdom?.diplomacy?.relations ?? {};
 
-    const regionIds = Object.keys(gameState.world.regions);
-
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let playerXs: number[] = [];
+    let playerYs: number[] = [];
 
-    const builtCells: HexCell[] = regionIds.map((regionId) => {
-      const regionState = gameState.world.regions[regionId];
-      const regionDef = staticWorldData.definitions[regionId];
-      const { col, row } = parseRegionIndex(regionId);
-      const { x, y } = hexToPixel(col, row);
+    const allCells: HexCell[] = [];
 
-      if (x < minX) minX = x;
-      if (y < minY) minY = y;
-      if (x > maxX) maxX = x;
-      if (y > maxY) maxY = y;
-
-      const isPlayer = regionState?.ownerId === playerKingdomId;
-      const isWater = regionDef?.isWater ?? false;
+    for (let i = 0; i < staticGrid.length; i++) {
+      const base = staticGrid[i];
+      const regionState: RegionState | undefined = gameState.world.regions[base.regionId];
       const ownerId = regionState?.ownerId ?? '';
+      
+      const isPlayer = ownerId === playerKingdomId;
+      if (isPlayer) {
+        playerXs.push(base.x);
+        playerYs.push(base.y);
+      }
+
+      if (base.x < minX) minX = base.x;
+      if (base.y < minY) minY = base.y;
+      if (base.x > maxX) maxX = base.x;
+      if (base.y > maxY) maxY = base.y;
 
       let fillColor = '#1A1E2E';
       let strokeColor = '#2A2E3E';
 
-      if (isWater) {
-        fillColor = '#080E1A';
-        strokeColor = '#0D1A30';
+      // Estética Premium
+      if (base.isWater) {
+        fillColor = '#060B14'; // Oceano Profundo Abissal
+        strokeColor = '#0A1322'; 
       } else if (isPlayer) {
-        fillColor = '#2E2000';
-        strokeColor = '#D4AF37';
-      } else if (ownerId && ownerId !== 'unclaimed' && ownerId !== '') {
+        fillColor = '#1F1700'; // Dourado escuro de Fundo Imperial
+        strokeColor = '#E5C05C'; // Bordas Reluzentes (Ouro Vivo)
+      } else if (ownerId && ownerId !== 'unclaimed') {
         const relation = playerRelations[ownerId]?.status;
-        fillColor = getRelationColor(relation);
-        strokeColor = '#444466';
+        switch (relation) {
+          case DiplomaticRelation.Allied: 
+            fillColor = '#0A2518'; strokeColor = '#2ECC71'; break;
+          case DiplomaticRelation.Friendly: 
+            fillColor = '#091E13'; strokeColor = '#27AE60'; break;
+          case DiplomaticRelation.Hostile: 
+            fillColor = '#2D0A0A'; strokeColor = '#E74C3C'; break;
+          case DiplomaticRelation.Truce: 
+            fillColor = '#2A1B0B'; strokeColor = '#E67E22'; break;
+          default: 
+            fillColor = '#171B26'; strokeColor = '#5D6D7E'; break; // Neutro Elegante (Aço)
+        }
       } else {
-        fillColor = '#151828';
-        strokeColor = '#20243A';
+        fillColor = '#10141D'; // Terras não descobertas / Vazias
+        strokeColor = '#1F2636'; 
       }
 
-      return {
-        regionId,
-        col,
-        row,
-        x,
-        y,
+      allCells.push({
+        ...base,
         fillColor,
         strokeColor,
         isPlayer,
-        isWater,
-        ownerId,
-        name: regionDef?.name ?? regionId,
-      };
-    });
+        ownerId
+      });
+    }
 
-    const padding = HEX_SIZE * 3;
-    const ox = -minX + padding;
-    const oy = -minY + padding;
-    const w = Math.max(400, maxX - minX + padding * 2 + HEX_WIDTH);
-    const h = Math.max(300, maxY - minY + padding * 2 + HEX_HEIGHT);
+    const centerX = playerXs.length > 0 ? playerXs.reduce((a, b) => a + b, 0) / playerXs.length : (minX + maxX) / 2;
+    const centerY = playerYs.length > 0 ? playerYs.reduce((a, b) => a + b, 0) / playerYs.length : (minY + maxY) / 2;
 
-    return {
-      cells: builtCells,
-      svgWidth: Math.round(w),
-      svgHeight: Math.round(h),
-      offsetX: ox,
-      offsetY: oy,
-    };
-  }, [gameState, playerKingdomId, staticWorldData]);
+    if (viewMode === 'local') {
+      const localCells = allCells.filter(cell => {
+        const dx = cell.x - centerX;
+        const dy = cell.y - centerY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        return dist <= LOCAL_VIEW_RADIUS;
+      });
+      // Um box menor (500x500) garante que fique perfeitamente visível na tela sem precisar de scroll maluco
+      const w = 500;
+      const h = 500;
+      const ox = (w / 2) - centerX;
+      const oy = (h / 2) - centerY;
+      return { cellsToRender: localCells, svgWidth: w, svgHeight: h, offsetX: ox, offsetY: oy, globalScale: 1 };
+    } else {
+      // Global View
+      // Renderiza todas as terras (mesmo unclaimed) para não ficar vazio, mas agrupará em Paths para não travar
+      const globalCells = allCells.filter(cell => !cell.isWater);
+      const rawWidth = Math.max(1, maxX - minX + HEX_WIDTH * 2);
+      const rawHeight = Math.max(1, maxY - minY + HEX_HEIGHT * 2);
+      
+      const scale = Math.min(1000 / rawWidth, 1000 / rawHeight, 1);
+      const w = Math.round(rawWidth * scale);
+      const h = Math.round(rawHeight * scale);
+      
+      const ox = -minX + HEX_WIDTH;
+      const oy = -minY + HEX_HEIGHT;
+      
+      return { cellsToRender: globalCells, svgWidth: w, svgHeight: h, offsetX: ox, offsetY: oy, globalScale: scale };
+    }
+  }, [gameState, playerKingdomId, staticWorldData, viewMode, staticGrid]);
 
   const handleHexPress = useCallback((regionId: string) => {
     onRegionPress(regionId);
   }, [onRegionPress]);
 
-  if (!gameState || cells.length === 0) {
+  if (!gameState || cellsToRender.length === 0) {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>🗺️ Gerando mapa...</Text>
@@ -172,8 +220,47 @@ export default function WorldMapSvg({ onRegionPress, selectedRegionId }: WorldMa
     );
   }
 
+  // Agrupa celulas do modo global por cor para renderizar como um único Path super leve
+  const globalPaths = useMemo(() => {
+    if (viewMode !== 'global') return [];
+    const groups: Record<string, string> = {}; // fillColor -> path d
+    const r = (HEX_SIZE - 1) * globalScale;
+    
+    for (let i = 0; i < cellsToRender.length; i++) {
+      const cell = cellsToRender[i];
+      const cx = (cell.x + offsetX) * globalScale;
+      const cy = (cell.y + offsetY) * globalScale;
+      // Desenha um losango/quadrado simples para performance máxima
+      const rect = `M ${cx-r} ${cy} L ${cx} ${cy-r} L ${cx+r} ${cy} L ${cx} ${cy+r} Z `;
+      
+      if (!groups[cell.fillColor]) {
+        groups[cell.fillColor] = rect;
+      } else {
+        groups[cell.fillColor] += rect;
+      }
+    }
+    
+    return Object.keys(groups).map(color => ({ color, path: groups[color] }));
+  }, [cellsToRender, viewMode, offsetX, offsetY, globalScale]);
+
   return (
     <View style={styles.container}>
+      {/* ── Toggle de Visão ── */}
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity 
+          style={[styles.toggleBtn, viewMode === 'local' && styles.toggleBtnActive]}
+          onPress={() => setViewMode('local')}
+        >
+          <Text style={[styles.toggleText, viewMode === 'local' && styles.toggleTextActive]}>Reino & Arredores</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.toggleBtn, viewMode === 'global' && styles.toggleBtnActive]}
+          onPress={() => setViewMode('global')}
+        >
+          <Text style={[styles.toggleText, viewMode === 'global' && styles.toggleTextActive]}>Mundo Global</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         horizontal
         style={styles.scrollOuter}
@@ -188,61 +275,53 @@ export default function WorldMapSvg({ onRegionPress, selectedRegionId }: WorldMa
         >
           <Svg width={svgWidth} height={svgHeight}>
             <G>
-              {cells.map((cell) => {
-                const cx = cell.x + offsetX;
-                const cy = cell.y + offsetY;
-                const isSelected = selectedRegionId === cell.regionId;
-                const hexSize = HEX_SIZE - 1.5;
-                const points = getHexPoints(cx, cy, hexSize);
+              {viewMode === 'local' ? (
+                cellsToRender.map((cell) => {
+                  const cx = (cell.x + offsetX) * globalScale;
+                  const cy = (cell.y + offsetY) * globalScale;
+                  const isSelected = selectedRegionId === cell.regionId;
+                  const hexSize = HEX_SIZE - 1.5;
+                  const points = getHexPoints(cx, cy, hexSize);
 
-                return (
-                  <G key={cell.regionId} onPress={() => handleHexPress(cell.regionId)}>
-                    {/* Glow para territórios do jogador */}
-                    {cell.isPlayer && (
+                  return (
+                    <G key={cell.regionId} onPress={() => handleHexPress(cell.regionId)}>
+                      {/* Glow Exterior para regiões do jogador */}
+                      {cell.isPlayer && (
+                        <Polygon points={getHexPoints(cx, cy, HEX_SIZE + 2)} fill="none" stroke="#E5C05C" strokeWidth={3} strokeOpacity={0.15} />
+                      )}
+                      
+                      {/* Borda da seleção pulsante/dourada */}
+                      {isSelected && (
+                        <Polygon points={getHexPoints(cx, cy, HEX_SIZE + 3)} fill="none" stroke="#FFF7D6" strokeWidth={3} strokeOpacity={0.9} />
+                      )}
+                      
+                      {/* Preenchimento Principal */}
                       <Polygon
-                        points={getHexPoints(cx, cy, HEX_SIZE + 1)}
-                        fill="#D4AF37"
-                        fillOpacity={0.12}
-                        stroke="none"
+                        points={points}
+                        fill={isSelected ? '#4A3B10' : cell.fillColor}
+                        stroke={isSelected ? '#FFF7D6' : cell.strokeColor}
+                        strokeWidth={cell.isPlayer || isSelected ? 1.5 : 0.8}
+                        fillOpacity={cell.isWater ? 0.7 : 1}
                       />
-                    )}
-                    {/* Highlight para seleção */}
-                    {isSelected && (
-                      <Polygon
-                        points={getHexPoints(cx, cy, HEX_SIZE + 2)}
-                        fill="none"
-                        stroke="#FFD700"
-                        strokeWidth={2.5}
-                        strokeOpacity={0.8}
-                      />
-                    )}
-                    {/* Hexágono principal */}
-                    <Polygon
-                      points={points}
-                      fill={isSelected ? '#3D2A00' : cell.fillColor}
-                      stroke={isSelected ? '#FFD700' : cell.strokeColor}
-                      strokeWidth={isSelected ? 1.5 : 0.7}
-                      fillOpacity={cell.isWater ? 0.8 : 1}
-                    />
-                    {/* Marcador central para territórios do jogador */}
-                    {cell.isPlayer && !cell.isWater && (
-                      <Circle
-                        cx={cx}
-                        cy={cy}
-                        r={2.5}
-                        fill="#D4AF37"
-                        fillOpacity={0.95}
-                      />
-                    )}
-                  </G>
-                );
-              })}
+                      
+                      {/* Centro / Ponto vital */}
+                      {cell.isPlayer && !cell.isWater && (
+                        <Circle cx={cx} cy={cy} r={3} fill="#F9E076" fillOpacity={0.9} />
+                      )}
+                    </G>
+                  );
+                })
+              ) : (
+                // GLOBAL MODE: Renderiza os Paths super rápidos agrupados por cor, SEM interatividade no global
+                globalPaths.map((group) => (
+                  <Path key={group.color} d={group.path} fill={group.color} stroke="none" />
+                ))
+              )}
             </G>
           </Svg>
         </ScrollView>
       </ScrollView>
 
-      {/* Legenda de cores */}
       <MapLegend />
     </View>
   );
@@ -275,7 +354,37 @@ function MapLegend() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0D1117',
+    backgroundColor: '#05070A', // Fundo bem escuro para o modo global (oceano abstrato)
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#121212',
+    padding: 8,
+    justifyContent: 'center',
+    gap: 10,
+    zIndex: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
+  },
+  toggleBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#333',
+    backgroundColor: '#1A1A1A',
+  },
+  toggleBtnActive: {
+    borderColor: '#D4AF37',
+    backgroundColor: '#2E2000',
+  },
+  toggleText: {
+    color: '#888',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  toggleTextActive: {
+    color: '#D4AF37',
   },
   scrollOuter: {
     flex: 1,

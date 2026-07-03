@@ -1,4 +1,4 @@
-﻿import type { GameState, KingdomState } from "../../models/game-state";
+import type { GameState, KingdomState } from "../../models/game-state";
 import type { KingdomId } from "../../models/types";
 import { ResourceType } from "../../models/enums";
 
@@ -24,10 +24,33 @@ export function getPlayerKingdom(state: GameState): KingdomState {
   return player;
 }
 
+const ownedRegionsCache = new WeakMap<object, Map<string, string[]>>();
+
 export function getOwnedRegionIds(state: GameState, kingdomId: KingdomId): string[] {
-  return Object.keys(state.world.regions)
-    .sort()
-    .filter((regionId) => state.world.regions[regionId].ownerId === kingdomId);
+  let cache = ownedRegionsCache.get(state.world.regions);
+  if (!cache) {
+    cache = new Map<string, string[]>();
+    // Preenche o cache iterando apenas UMA VEZ por tick (O(N) em vez de O(K * N log N))
+    const regionIds = Object.keys(state.world.regions);
+    for (let i = 0; i < regionIds.length; i++) {
+      const regionId = regionIds[i];
+      const ownerId = state.world.regions[regionId].ownerId;
+      if (ownerId) {
+        let arr = cache.get(ownerId);
+        if (!arr) {
+          arr = [];
+          cache.set(ownerId, arr);
+        }
+        arr.push(regionId);
+      }
+    }
+    for (const arr of cache.values()) {
+      arr.sort();
+    }
+    ownedRegionsCache.set(state.world.regions, cache);
+  }
+  
+  return cache.get(kingdomId) || [];
 }
 
 export function ensureResourceNonNegative(kingdom: KingdomState): void {

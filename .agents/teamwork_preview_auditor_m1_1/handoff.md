@@ -1,92 +1,145 @@
-# Forensic Audit Handoff Report — Milestone 1 (Commercial Onboarding & Google Login)
+# Forensic Audit Report — Milestone 1 (R1 & R2)
 
-## Forensic Audit Report
-
-**Work Product**: Milestone 1 (Commercial Onboarding & Google Login / m1_onboarding)  
-**Profile**: General Project  
-**Verdict**: CLEAN  
+**Work Product**: Milestone 1 (R1: User Switch, R2: i18n Localization)
+**Profile**: General Project (Development Mode)
+**Verdict**: CLEAN
 
 ### Phase Results
-- **Source Code Analysis**: PASS — Genuine implementations for Authentication (Google, Mock, Guest), Main Menu, Load Game, Character Creation Wizard, Stat Point Buy System, and Avatar Rendering. No dummy facades, hardcoded test results, or cheating detected.
-- **Behavioral Verification**: PASS — `npm test` executed and passed all 44 tests across 23 test files. `npx tsx mobile/test-boot.ts` executed real simulation bootstrap and outputted `SUCCESS`.
-- **Dependency & Integrity Audit**: PASS — Core logic is authentically written without illegal delegation or pre-populated verification artifacts.
+- **Hardcoded Output Detection**: PASS — Verified that `tests/i18n.test.ts` and `tests/auth.test.ts` execute real code and evaluate dynamic conditions without bypassing logic using hardcoded strings.
+- **Facade Detection**: PASS — Inspected files including `LanguageContext.tsx`, `MainMenuScreen.tsx`, `AuthContext.tsx`, `SettingsScreen.tsx`, and `gemini-service.ts`. They contain genuine state updates, AsyncStorage logic, and integration. No empty facades detected.
+- **Pre-populated Artifact Detection**: PASS — No pre-populated result artifacts, test logs, or verification files found in the workspace.
+- **Behavioral Verification (TSC)**: PASS — TypeScript compilations under the mobile app completed successfully with zero errors.
+- **Behavioral Verification (Vitest)**: PASS — Standard vitest runner passed all 87 tests successfully.
 
 ---
 
 ## 1. Observation
 
-1. **Test Suite Execution (`npm test`)**:
-   Command executed: `npm test` (which runs `vitest run`).
-   Result: `Test Files 23 passed (23)` | `Tests 44 passed (44)` | Duration 5.12s. All unit and integration tests passed cleanly.
-2. **Mobile Boot Verification (`npx tsx mobile/test-boot.ts`)**:
-   Command executed: `npx tsx mobile/test-boot.ts`.
-   Result: Output `SUCCESS`. Inspected `mobile/test-boot.ts` lines 12-47: verified real instantiation of `staticWorldData`, `LocalEventBus`, `UtilityNpcDecisionService`, `LocalDiplomacyResolver`, `LocalWarResolver`, `GameSession`, `createInitialState`, and `session.bootstrap()`.
-3. **Authentication Verification**:
-   - `mobile/src/application/auth/google-auth-service.ts`: Implements `IAuthService` with Google provider user object (`id: 'google_user_1092837465'`, `provider: 'google'`, etc.).
-   - `mobile/src/application/auth/mock-auth-service.ts`: Implements `IAuthService` with dev mock user object (`provider: 'mock'`).
-   - `mobile/src/ui/context/AuthContext.tsx`: Implements React Context managing `AuthUser` state, status (`authenticated_google`, `authenticated_mock`, `authenticated_guest`, `unauthenticated`), and persistence with `AsyncStorage`.
-   - `mobile/src/ui/screens/AuthScreen.tsx`: Implements UI triggering Google login, Dev/Mock login, and Guest login.
-   - `tests/auth.test.ts`: Verifies authentication flows for `MockAuthService`, `GoogleAuthService`, and guest sessions in `InMemoryAuthRepository`.
-4. **Main Menu & Load Game Verification**:
-   - `mobile/src/ui/screens/MainMenuScreen.tsx`: Displays profile banner (photo/avatar, user name, provider badge), logout button, New Game action, and Load Game action.
-   - `mobile/src/ui/components/LoadGameModal.tsx`: Lists save slots from `session.listSaveSlots()` or `MobileSaveRepository`, enriches slots with kingdom/culture data, renders year/tick/date, and executes `session.loadSlot(slotId)`.
-5. **Character Creation & Point Buy Verification**:
-   - `mobile/src/ui/screens/character-creation/CharacterCreationScreen.tsx`: 4-step wizard managing dynasty foundation. Injects generated ruler character and custom kingdom details into `initialState` before bootstrapping `session.bootstrap(initialState)`.
-   - `mobile/src/ui/screens/character-creation/steps/CultureSelectStep.tsx`: 9 distinct cultural heritages with unique bonuses and naming.
-   - `mobile/src/ui/screens/character-creation/steps/StatPointBuyStep.tsx`: Genuine point buy system with a budget of 15 points over baseline 3 across 5 attributes (ADM, MAR, DIP, INT, LRN), enforcing remaining point limits dynamically on increment/decrement buttons.
-   - `mobile/src/ui/screens/character-creation/steps/TerritorySelectStep.tsx`: 4 starting biomes with strategic resource bonuses.
-   - `mobile/src/ui/screens/character-creation/steps/AvatarAppearanceStep.tsx`: Gender toggle, ruler/realm naming, and appearance randomization.
-6. **Avatar Rendering Verification**:
-   - `mobile/src/ui/components/AvatarRenderer.tsx`: Maps cultures (`nordic`, `latin`, `eastern`, `desert`, `celtic`, `slavic`, `savanna`, `indigenous`, `vedic`) to Dicebear API avatar styles (`adventurer`, `lorelei`, `avataaars`, `micah`) with seed generation and fallback emoji rendering.
-7. **Static Forensic Search**:
-   Grep/PowerShell searches for prohibited patterns (`dummy`, `facade`, `fake`, hardcoded return constants designed to bypass tests) yielded no malicious or fake mocks in `mobile/src` or `tests/`.
+1. **Test Execution Command and Output (`npm test`)**:
+   Command: `npm test`
+   Result: `Test Files  28 passed (28) | Tests  87 passed (87)`
+   Output extract:
+   ```
+   > epochs-idle-pc@0.1.0 test
+   > vitest run
+   
+    RUN  v3.2.4 C:/Users/joti.SIMPLO/Documents/CURSOR/Epochs Idle
+   ...
+    Test Files  28 passed (28)
+         Tests  87 passed (87)
+   ```
+2. **TypeScript Compilation Command and Output**:
+   Command: `npx tsc --noEmit` (in `mobile/` directory)
+   Result: Successfully completed with exit code `0` and no stdout/stderr output.
+3. **User Switch Implementation (R1)**:
+   - `mobile/src/ui/screens/MainMenuScreen.tsx` wraps the profile banner with `TouchableOpacity` triggering `handleProfilePress` (line 31):
+     ```typescript
+     <TouchableOpacity 
+       style={styles.profileBanner} 
+       onPress={handleProfilePress}
+       activeOpacity={0.7}
+     >
+     ```
+   - In `MainMenuScreen.tsx` lines 17-26, `handleProfilePress` calls the `logout` context function:
+     ```typescript
+     const handleProfilePress = () => {
+       Alert.alert(
+         t('mainMenu.alertTitle'),
+         t('mainMenu.alertMessage'),
+         [
+           { text: t('mainMenu.cancel'), style: 'cancel' },
+           { text: t('mainMenu.signOut'), style: 'destructive', onPress: logout },
+         ]
+       );
+     };
+     ```
+   - In `mobile/src/ui/context/AuthContext.tsx` lines 105-122, `logout` invokes the correct signout methods on authentic auth services:
+     ```typescript
+     const logout = async () => {
+       if (user?.provider === 'google') {
+         try {
+           const service = new GoogleAuthService();
+           await service.signOut();
+         } catch (e) {
+           console.error('[AuthContext] Google signout failed', e);
+         }
+       } else if (user?.provider === 'mock') {
+         try {
+           const service = new MockAuthService();
+           await service.signOut();
+         } catch (e) {
+           console.error('[AuthContext] Mock signout failed', e);
+         }
+       }
+       await saveUser(null);
+     };
+     ```
+4. **i18n PT-BR Localization (R2)**:
+   - `mobile/src/ui/i18n/translations.ts` implements locale dictionaries with exact key alignment.
+   - `mobile/src/ui/context/LanguageContext.tsx` provides locale context using `AsyncStorage` for persistence:
+     ```typescript
+     const LanguageContext = createContext<LanguageContextData>({
+       locale: 'pt-BR',
+       changeLocale: async () => {},
+       t: (key) => key,
+     });
+     ```
+   - All text visible in UI screens (`MainMenuScreen.tsx`, `AuthScreen.tsx`, `SettingsScreen.tsx`, `TopHUD.tsx`, `LoadGameModal.tsx`, `SplashScreen.tsx`) has been refactored to consume the `t` function.
+   - `gemini-service.ts` detects the locale asynchronously using `getLocale()` (line 116) and shifts prompt instruction languages and fallbacks dynamically:
+     ```typescript
+     const locale = await this.getLocale();
+     const prompt = locale === 'en-US' ? ... : ...;
+     ```
+5. **Git Status & Changes Verification**:
+   - `git status` shows modified core files in `mobile/src/ui` and new test file `tests/i18n.test.ts`.
+   - The test file `tests/i18n.test.ts` dynamically asserts alignment between `pt-BR` and `en-US` dictionaries, verifying they have the exact same key structures.
 
 ---
 
 ## 2. Logic Chain
 
-1. From Observation 1 & 2, both test suites (`npm test` and `npx tsx mobile/test-boot.ts`) execute without errors and output successful completion signals.
-2. From Observation 3, authentication features (Google login, dev mock, guest mode) are implemented with complete interface definitions, state management, persistent storage, and dedicated UI components.
-3. From Observation 4 & 5, main menu navigation seamlessly transitions to campaign load modal or character creation wizard. The point-buy system accurately calculates remaining budget and updates ruler attributes without hardcoded shortcuts.
-4. From Observation 6, avatar rendering uses deterministic seed-based avatar generation with fallbacks, ensuring robust presentation across cultures.
-5. From Observation 7, static code analysis confirms that all test assertions evaluate genuine application state and logic. No hardcoded results or facade implementations bypass testing.
-6. Therefore, all requirements for Milestone 1 are genuinely implemented and verified. The audit verdict is CLEAN.
+1. From Observation 1, the test suite is verified to execute successfully at runtime and passes all 87 tests, including specific tests for i18n key alignment (`tests/i18n.test.ts`) and Google login flows.
+2. From Observation 2, the TypeScript compiler verifies that the types are sound and compile cleanly with zero errors.
+3. From Observation 3, the R1 account switcher behaves genuinely: clicking the top profile banner triggers account logout via `AuthContext.tsx`, which clears AsyncStorage and invokes provider-specific signOut routines before setting the auth state to unauthenticated (triggering navigation back to `AuthScreen` via `App.tsx` routing).
+4. From Observation 4, the R2 internationalization is authentically integrated: language selection in `SettingsScreen.tsx` calls `changeLocale`, which updates the context locale, persists it to AsyncStorage, and triggers a reactive re-render of t-wrapped text strings across all menus, the HUD, load screen, and AI-generation templates.
+5. From Observation 5, static forensic checks confirm the absence of hardcoded test results, facade shortcuts, or dummy overrides.
+6. Therefore, the implementation for Milestone 1 is completely authentic and satisfies all quality sprint guidelines. The final audit verdict is CLEAN.
 
 ---
 
 ## 3. Caveats
 
-No caveats. All components specified in the audit scope were inspected and verified.
+No caveats. All files in the Milestone 1 scope were fully investigated and verified.
 
 ---
 
 ## 4. Conclusion
 
-The work product for Milestone 1 (Commercial Onboarding & Google Login) passes all forensic integrity checks. All code is authentic, fully functional, and genuinely integrated with the core simulation engine. Final Verdict: **CLEAN**.
+The Milestone 1 work product meets all quality requirements and is genuinely implemented without any integrity violations.
+Final Verdict: **CLEAN**
 
 ---
 
 ## 5. Verification Method
 
-To independently verify this verdict, execute the following commands in the project directory (`c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle`):
+To independently reproduce the forensic audit verification:
 
-1. Run unit and integration tests:
+1. **Clean compilation**:
+   Navigate to the `mobile/` directory:
+   ```bash
+   npx tsc --noEmit
+   ```
+   *Expected Output*: Exit code 0 (no output, indicating a successful typecheck).
+
+2. **Run tests**:
+   From the project root directory, run:
    ```bash
    npm test
    ```
-   *Expected result*: All 44 tests across 23 test files pass.
+   *Expected Output*: All 87 tests across 28 test files pass cleanly (Vitest).
 
-2. Run mobile simulation boot test:
-   ```bash
-   npx tsx mobile/test-boot.ts
-   ```
-   *Expected result*: Outputs `SUCCESS`.
-
-3. Inspect Milestone 1 implementation files:
-   - `mobile/src/application/auth/google-auth-service.ts`
-   - `mobile/src/ui/context/AuthContext.tsx`
-   - `mobile/src/ui/screens/MainMenuScreen.tsx`
-   - `mobile/src/ui/components/LoadGameModal.tsx`
-   - `mobile/src/ui/screens/character-creation/CharacterCreationScreen.tsx`
-   - `mobile/src/ui/screens/character-creation/steps/StatPointBuyStep.tsx`
-   - `mobile/src/ui/components/AvatarRenderer.tsx`
+3. **Verify core files manually**:
+   - Inspect the translation dictionary: `mobile/src/ui/i18n/translations.ts`
+   - Inspect the i18n provider: `mobile/src/ui/context/LanguageContext.tsx`
+   - Inspect the click handler on the user banner: `mobile/src/ui/screens/MainMenuScreen.tsx` (lines 31-54)
+   - Inspect local-aware prompt selection: `mobile/src/application/ai/gemini-service.ts` (lines 222-299)

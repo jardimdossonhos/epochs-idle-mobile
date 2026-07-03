@@ -63,7 +63,7 @@ export default function MenuScreen() {
       <View style={styles.speedControlBox}>
         <Text style={styles.speedControlTitle}>Velocidade do Tempo</Text>
         <View style={styles.speedBtnsRow}>
-          {[0.5, 1, 2, 5].map((speed) => (
+          {[1, 5, 15, 30].map((speed) => (
             <TouchableOpacity
               key={speed}
               style={[

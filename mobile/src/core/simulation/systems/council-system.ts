@@ -348,13 +348,13 @@ function generateAdvice(minister: Minister, state: GameState, kingdomId: string,
       
       // Análise Tática de Fronteira Física
       let vulnerableRegionId: string | null = null;
-      for (const rId in state.world.regions) {
-        if (state.world.regions[rId].ownerId === kingdomId) {
-          const touchesRival = staticData.definitions[rId]?.neighbors.some(nId => state.world.regions[nId]?.ownerId === worstRivalId);
-          if (touchesRival) {
-            vulnerableRegionId = rId;
-            break; // Achou o ponto de invasão mais próximo
-          }
+      const ownedRegionIds = Object.keys(state.world.regions).filter(rId => state.world.regions[rId]?.ownerId === kingdomId);
+      for (let i = 0; i < ownedRegionIds.length; i++) {
+        const rId = ownedRegionIds[i];
+        const touchesRival = staticData.definitions[rId]?.neighbors.some(nId => state.world.regions[nId]?.ownerId === worstRivalId);
+        if (touchesRival) {
+          vulnerableRegionId = rId;
+          break; // Achou o ponto de invasão mais próximo
         }
       }
 

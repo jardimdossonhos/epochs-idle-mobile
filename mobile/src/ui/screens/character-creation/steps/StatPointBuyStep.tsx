@@ -18,11 +18,11 @@ const TOTAL_BUDGET = 15;
 const BASE_STAT = 3;
 
 const STAT_INFO: Record<keyof RulerStats, { label: string; name: string; icon: string; desc: string; color: string }> = {
-  ADM: { label: 'ADM', name: 'Administration', icon: '📜', desc: 'Increases tax revenue, admin capacity, and building efficiency.', color: '#4A90E2' },
-  MAR: { label: 'MAR', name: 'Martial', icon: '⚔️', desc: 'Boosts army morale, manpower recovery, and war resolution.', color: '#E24A4A' },
-  DIP: { label: 'DIP', name: 'Diplomacy', icon: '🕊️', desc: 'Improves diplomatic relations, trust gain, and treaty negotiations.', color: '#50E3C2' },
-  INT: { label: 'INT', name: 'Intrigue', icon: '🔮', desc: 'Enhances secret plots, counter-espionage, and assassin resilience.', color: '#9013FE' },
-  LRN: { label: 'LRN', name: 'Learning', icon: '📚', desc: 'Accelerates technology research and religious authority.', color: '#F8E71C' },
+  ADM: { label: 'ADM', name: 'Administração', icon: '📜', desc: 'Aumenta a receita tributária, capacidade administrativa e eficiência de construção.', color: '#4A90E2' },
+  MAR: { label: 'MAR', name: 'Marcial', icon: '⚔️', desc: 'Aumenta o moral do exército, recuperação de manpower e resolução de guerras.', color: '#E24A4A' },
+  DIP: { label: 'DIP', name: 'Diplomacia', icon: '🕊️', desc: 'Melhora as relações diplomáticas, ganho de confiança e negociações de tratados.', color: '#50E3C2' },
+  INT: { label: 'INT', name: 'Intriga', icon: '🔮', desc: 'Melhora conspirações secretas, contra-espionagem e resiliência contra assassinos.', color: '#9013FE' },
+  LRN: { label: 'LRN', name: 'Saber', icon: '📚', desc: 'Acelera a pesquisa tecnológica e autoridade religiosa.', color: '#F8E71C' },
 };
 
 export default function StatPointBuyStep({ stats, onUpdateStats }: StatPointBuyStepProps) {
@@ -47,14 +47,14 @@ export default function StatPointBuyStep({ stats, onUpdateStats }: StatPointBuyS
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.stepTitle}>Royal Attributes</Text>
+      <Text style={styles.stepTitle}>Atributos Reais</Text>
       <Text style={styles.stepSubtitle}>
-        Allocate points to define your ruler's talents. All attributes start at baseline 3.
+        Distribua os pontos para definir os talentos de seu governante. Todos os atributos começam na base 3.
       </Text>
 
       <View style={styles.budgetBanner}>
         <Text style={styles.budgetText}>
-          Remaining Points: <Text style={styles.budgetCount}>{remainingPoints}</Text> / {TOTAL_BUDGET}
+          Pontos Restantes: <Text style={styles.budgetCount}>{remainingPoints}</Text> / {TOTAL_BUDGET}
         </Text>
       </View>
 

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+
 import { MockAuthService } from '../mobile/src/application/auth/mock-auth-service';
 import { GoogleAuthService } from '../mobile/src/application/auth/google-auth-service';
 import { AuthUser, AuthStatus } from '../mobile/src/application/auth/auth-types';

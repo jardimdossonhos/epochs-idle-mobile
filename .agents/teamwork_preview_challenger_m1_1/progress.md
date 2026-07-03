@@ -1,13 +1,10 @@
 # Progress Log
 
-Last visited: 2026-06-29T16:42:14Z
+Last visited: 2026-07-03T12:22:21Z
 
-- Explored codebase for Milestone 1: auth services, character creation steps, boot state creation, and simulation systems.
-- Ran `npm test` successfully (23 test files, 44 tests passed).
-- Created empirical verification harness `m1_verification.test.ts` and executed via `npx tsx`.
-- Confirmed findings:
-  1. Stat Point Buy lacks runtime/engine validation (client bypass vulnerable).
-  2. Culture Trait Bonuses shown in UI (+2 MAR, etc.) are phantom text strings and not applied to ruler stats.
-  3. Starting region selection biomes & bonuses in UI are misleading text strings; invalid region ID injection causes unhandled state corruption (0 capital/regions).
-  4. Google Authentication is a hardcoded mock service with no OAuth integration.
-- Preparing comprehensive `handoff.md` and sending final message to main agent.
+- Initiated dynamic i18n translation system verification.
+- Audited PC i18n implementation (`src/ui/i18n`) and Mobile i18n implementation (`mobile/src/ui/i18n` and `mobile/src/ui/context/LanguageContext.tsx`).
+- Created and wrote a comprehensive test suite `tests/i18n-dynamic.test.ts` verifying dynamic switching, template string interpolation, and missing key fallback behaviors.
+- Ran `npm test` successfully (all 30 test files and 102 tests passed, including the new dynamic i18n tests).
+- Documented key findings in `handoff.md` and updated `BRIEFING.md`.
+- Sent final message to main agent.

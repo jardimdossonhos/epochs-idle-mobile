@@ -6,20 +6,20 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGameState } from '../GameProvider';
 import { BuildingType } from '../../core/models/enums';
-import WorldMapSvg from '../components/WorldMapSvg';
+import WorldMapSkia from '../components/WorldMapSkia';
 import RegionDetailPanel from '../components/RegionDetailPanel';
 
-// ─── Tipo de aba ──────────────────────────────────────────────────────────────
-type ActiveTab = 'map' | 'regions';
-
-// ─── Componente Principal ─────────────────────────────────────────────────────
 export default function MapScreen() {
+  const insets = useSafeAreaInsets();
   const { gameState, session, playerKingdomId, staticWorldData } = useGameState();
-  const [activeTab, setActiveTab] = useState<ActiveTab>('map');
+  const [showRegionList, setShowRegionList] = useState(false);
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'owner' | 'religion' | 'economy' | 'military'>('owner');
 
   if (!gameState || !session || !staticWorldData) return null;
 
@@ -46,58 +46,68 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Domínios da Coroa</Text>
-        <Text style={styles.subtitle}>
-          {controlledRegions.length} territórios controlados
-        </Text>
+      {/* ── MAPA (Background absoluto) ── */}
+      <View style={styles.mapLayer}>
+        <WorldMapSkia
+          onRegionPress={handleRegionPress}
+          selectedRegionId={selectedRegionId}
+          viewMode={viewMode}
+        />
       </View>
 
-      {/* ── Seletor de Abas ── */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'map' && styles.tabBtnActive]}
-          onPress={() => { setActiveTab('map'); setSelectedRegionId(null); }}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.tabLabel, activeTab === 'map' && styles.tabLabelActive]}>
-            🗺️ Mapa
+      {/* ── FABS DE VIEW MODE ── */}
+      {!showRegionList && !selectedRegionId && (
+        <View style={[styles.fabColumn, { top: insets.top + 140 }]}>
+          <TouchableOpacity
+            style={[styles.fabButton, viewMode === 'owner' && styles.fabActive]}
+            onPress={() => setViewMode('owner')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.fabText, viewMode === 'owner' && styles.fabActiveText]}>👑</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.fabButton, viewMode === 'religion' && styles.fabActive]}
+            onPress={() => setViewMode('religion')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.fabText, viewMode === 'religion' && styles.fabActiveText]}>⛪</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.fabButton, viewMode === 'economy' && styles.fabActive]}
+            onPress={() => setViewMode('economy')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.fabText, viewMode === 'economy' && styles.fabActiveText]}>💰</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.fabButton, viewMode === 'military' && styles.fabActive]}
+            onPress={() => setViewMode('military')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.fabText, viewMode === 'military' && styles.fabActiveText]}>⚔️</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── HEADER FLUTUANTE ── */}
+      <View style={[styles.floatingHeader, { top: insets.top + 80 }]}>
+        <View style={styles.headerGlass}>
+          <Text style={styles.title}>{kingdom.name}</Text>
+          <Text style={styles.subtitle}>
+            {controlledRegions.length} territórios soberanos
           </Text>
-        </TouchableOpacity>
+        </View>
         <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'regions' && styles.tabBtnActive]}
-          onPress={() => { setActiveTab('regions'); setSelectedRegionId(null); }}
-          activeOpacity={0.8}
+          style={styles.btnListToggle}
+          onPress={() => setShowRegionList(!showRegionList)}
         >
-          <Text style={[styles.tabLabel, activeTab === 'regions' && styles.tabLabelActive]}>
-            📋 Regiões
-          </Text>
+          <Text style={styles.btnListText}>{showRegionList ? '🌍 Ver Mapa' : '📋 Ver Regiões'}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* ── Conteúdo ── */}
-      <View style={styles.content}>
-        {activeTab === 'map' ? (
-          <View style={styles.mapContainer}>
-            {/* Mapa SVG hexagonal */}
-            <WorldMapSvg
-              onRegionPress={handleRegionPress}
-              selectedRegionId={selectedRegionId}
-            />
-
-            {/* Painel de detalhes ao selecionar região */}
-            {selectedRegionId && (
-              <View style={styles.detailPanelWrapper}>
-                <RegionDetailPanel
-                  regionId={selectedRegionId}
-                  onClose={handleClosePanel}
-                />
-              </View>
-            )}
-          </View>
-        ) : (
-          /* ── Lista de Regiões (original preservada) ── */
+      {/* ── LISTA DE REGIÕES FLUTUANTE ── */}
+      {showRegionList && (
+        <View style={[styles.floatingListContainer, { top: insets.top + 140 }]}>
           <ScrollView contentContainerStyle={styles.list}>
             {controlledRegions.length === 0 && (
               <View style={styles.emptyState}>
@@ -126,7 +136,7 @@ export default function MapScreen() {
                   </View>
 
                   <View style={styles.buildActions}>
-                    <Text style={styles.buildTitle}>Construir:</Text>
+                    <Text style={styles.buildTitle}>Expandir Província:</Text>
                     <View style={styles.buildButtonsRow}>
                       <TouchableOpacity
                         style={[
@@ -157,76 +167,102 @@ export default function MapScreen() {
               );
             })}
           </ScrollView>
-        )}
-      </View>
+        </View>
+      )}
+
+      {/* ── PAINEL DE DETALHES DE REGIÃO ── */}
+      {selectedRegionId && !showRegionList && (
+        <View style={styles.detailPanelWrapper}>
+          <RegionDetailPanel
+            regionId={selectedRegionId}
+            onClose={handleClosePanel}
+          />
+        </View>
+      )}
     </View>
   );
 }
 
-// ─── Estilos ──────────────────────────────────────────────────────────────────
+const { height } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: '#0a0d14',
   },
-  header: {
-    padding: 14,
-    paddingBottom: 10,
-    backgroundColor: '#1A1A1A',
-    borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2C',
-  },
-  title: {
-    fontSize: 22,
-    color: '#D4AF37',
-    fontWeight: 'bold',
-  },
-  subtitle: {
-    fontSize: 13,
-    color: '#A0A0A0',
-    marginTop: 2,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#161616',
-    borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2C',
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 11,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabBtnActive: {
-    borderBottomColor: '#D4AF37',
-    backgroundColor: '#1C1800',
-  },
-  tabLabel: {
-    color: '#666',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  tabLabelActive: {
-    color: '#D4AF37',
-  },
-  content: {
-    flex: 1,
-  },
-  mapContainer: {
-    flex: 1,
-    position: 'relative',
-  },
-  detailPanelWrapper: {
+  mapLayer: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
+    top: 0,
+    bottom: 0,
   },
-  // Lista (aba Regiões)
+  floatingHeader: {
+    position: 'absolute',
+    left: 15,
+    right: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  headerGlass: {
+    backgroundColor: 'rgba(20, 25, 35, 0.85)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+  },
+  title: {
+    fontSize: 20,
+    color: '#D4AF37',
+    fontWeight: '800',
+    textShadowColor: 'rgba(212, 175, 55, 0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#8c9ab3',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  btnListToggle: {
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.5)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  btnListText: {
+    color: '#D4AF37',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  floatingListContainer: {
+    position: 'absolute',
+    left: 15,
+    right: 15,
+    bottom: 15,
+    backgroundColor: 'rgba(15, 20, 30, 0.95)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2a3245',
+    zIndex: 90,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+  },
   list: {
-    padding: 14,
+    padding: 16,
     paddingBottom: 40,
   },
   emptyState: {
@@ -238,74 +274,121 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   emptyText: {
-    color: '#666',
+    color: '#8c9ab3',
     fontSize: 15,
   },
   regionCard: {
-    backgroundColor: '#1A1A1A',
-    padding: 14,
-    borderRadius: 8,
-    marginBottom: 12,
+    backgroundColor: 'rgba(30, 38, 55, 0.7)',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#2C2C2C',
+    borderColor: 'rgba(212, 175, 55, 0.2)',
   },
   regionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   regionIcon: {
-    fontSize: 20,
-    marginRight: 8,
+    fontSize: 22,
+    marginRight: 10,
   },
   regionName: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#D4AF37',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#EAEAEA',
     flex: 1,
   },
   regionStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    marginBottom: 10,
+    paddingHorizontal: 5,
+    marginBottom: 12,
   },
   statText: {
-    color: '#A0A0A0',
+    color: '#8c9ab3',
     fontSize: 13,
+    fontWeight: '500',
   },
   buildActions: {
-    marginTop: 8,
-    paddingTop: 10,
+    marginTop: 5,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#333',
+    borderTopColor: 'rgba(255,255,255,0.05)',
   },
   buildTitle: {
     color: '#D4AF37',
-    fontSize: 13,
-    marginBottom: 8,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    fontWeight: 'bold',
+    marginBottom: 10,
+    letterSpacing: 0.5,
   },
   buildButtonsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   buildBtn: {
-    backgroundColor: '#2C1A5C',
-    paddingVertical: 8,
+    backgroundColor: 'rgba(44, 26, 92, 0.8)',
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 6,
+    borderRadius: 8,
     flex: 0.48,
     alignItems: 'center',
     borderColor: '#8A2BE2',
     borderWidth: 1,
   },
   buildBtnDisabled: {
-    backgroundColor: '#1A1A1A',
-    borderColor: '#333',
+    backgroundColor: 'rgba(20, 20, 20, 0.5)',
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   buildBtnText: {
-    color: '#E0E0E0',
-    fontWeight: 'bold',
-    fontSize: 12,
+    color: '#F0F0F0',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  detailPanelWrapper: {
+    position: 'absolute',
+    bottom: 15,
+    left: 15,
+    right: 15,
+    zIndex: 100,
+  },
+  fabColumn: {
+    position: 'absolute',
+    right: 15,
+    flexDirection: 'column',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  fabButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(20, 25, 35, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  fabActive: {
+    backgroundColor: 'rgba(212, 175, 55, 0.4)',
+    borderColor: '#D4AF37',
+  },
+  fabText: {
+    fontSize: 20,
+    textAlign: 'center',
+  },
+  fabActiveText: {
+    textShadowColor: 'rgba(212, 175, 55, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
 });

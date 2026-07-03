@@ -1,7 +1,7 @@
-# BRIEFING — 2026-06-29T16:42:00Z
+# BRIEFING — 2026-07-03T12:22:00Z
 
 ## Mission
-Adversarially challenge auth persistence, mock vs google auth provider switching, and save slot loading via LoadGameModal. Stress test edge cases in local storage, missing slots, or offline avatar rendering. Run build/tests.
+Verify that the Auth signout logic resets session states for all login providers (mock, google, guest) properly and check if edge cases (e.g. signout failures, offline signouts) are handled gracefully.
 
 ## 🔒 My Identity
 - Archetype: empirical challenger / critic / specialist
@@ -17,28 +17,25 @@ Adversarially challenge auth persistence, mock vs google auth provider switching
 - Produce empirical findings, challenge report, and send final handoff.
 
 ## Current Parent
-- Conversation ID: 33c8d54e-64e9-48c9-b449-53df389e7781
-- Updated: 2026-06-29T16:42:00Z
+- Conversation ID: 308ce39f-c261-4941-8805-fe45277ee0ae
+- Updated: 2026-07-03T12:22:00Z
 
 ## Review Scope
-- **Files to review**: Auth service/context, Auth provider switching, LoadGameModal, local storage save slots, avatar rendering components.
-- **Review criteria**: Empirical stress testing, edge case handling, robustness, bug identification.
+- **Files to review**: `AuthContext.tsx`, `GoogleAuthService.ts`, `MockAuthService.ts`.
+- **Review criteria**: Graceful signout transitions, session resetting, offline robustness, try-catch safety on provider crashes.
 
 ## Attack Surface
-- **Hypotheses tested**: Storage JSON corruption, missing save slot summaries, incomplete state objects, load slot error handling, offline avatar color formatting.
+- **Hypotheses tested**: Session cleanup on mock/google/guest signout, AsyncStorage item removal, Google SDK signout failures, Mock service signout failures, offline device timeout/refusal.
 - **Vulnerabilities found**:
-  1. `MobileSaveRepository.listSlots()` crashes `LoadGameModal` when slot JSON lacks `summary`.
-  2. `LoadGameModal` culture extraction throws `TypeError` when `snapshot.state` lacks `kingdoms`.
-  3. `LoadGameModal` swallows slot load exceptions without UI alerts or recovery.
-  4. `AvatarRenderer` produces invalid color strings (e.g. `'red33'`) on non-hex theme colors.
-  5. `AuthContext` silently degrades unknown provider types to guest status.
-- **Untested angles**: Hardware-specific biometric authentication plugins.
+  1. `GoogleAuthService.signOut` catches external library errors internally but prints them as warnings (`console.warn`) and returns `void` normally, which does not throw into `AuthContext.logout`'s catch block. This means the `console.error` inside `AuthContext.logout` is bypassed, but the local logout is still fully completed.
+- **Untested angles**: Cleanups of cache on the Google provider's side.
 
 ## Key Decisions Made
-- Executed full test suite (`npm test`) and build verification (`npm run build`).
-- Built empirical stress test suite (`tests/challenge-m1-2-stress.test.ts`).
-- Authored comprehensive 5-component handoff report.
+- Wrote mock harness for `@react-native-async-storage/async-storage` at `tests/mocks/async-storage-mock.ts`.
+- Added mock aliases for `react` and `@react-native-async-storage/async-storage` in `vite.config.ts`.
+- Created comprehensive unit tests in `tests/auth-signout-resets.test.ts` mapping each provider and error/offline condition.
+- Verified test suite and production build.
 
 ## Artifact Index
 - handoff.md — Final Handoff Report
-- tests/challenge-m1-2-stress.test.ts — Automated Empirical Challenge Suite
+- tests/auth-signout-resets.test.ts — Unit tests for Auth signout state resets

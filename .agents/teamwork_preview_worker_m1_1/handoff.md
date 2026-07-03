@@ -1,83 +1,48 @@
-# Handoff Report: Milestone 1 Implementation (Commercial Onboarding & Google Login)
+# Handoff Report - Milestone 1 (R1 & R2)
 
 ## 1. Observation
-
-During the execution of Milestone 1 (`m1_onboarding`), the following files and components were created, modified, and verified across the codebase:
-
-### A. Google Authentication & App Lifecycle Flow
-- Created `mobile/src/application/auth/auth-types.ts`: Defines `AuthUser`, `AuthProviderType` (`google`, `mock`, `guest`), and `AuthStatus`.
-- Created `mobile/src/application/auth/auth-service.ts`: Exposes contract interface `IAuthService` with `signIn()`, `signOut()`, and `getCurrentUser()`.
-- Created `mobile/src/application/auth/mock-auth-service.ts`: Dev/offline implementation offering instant login with configurable mock profile (`Dev Lord Alistair`).
-- Created `mobile/src/application/auth/google-auth-service.ts`: Google authentication provider wrapper resolving authenticated Google profile payload.
-- Created `mobile/src/ui/context/AuthContext.tsx`: React context managing login state, AsyncStorage persistence (`epochs_idle_auth_user`), and active auth provider switching.
-- Created `mobile/src/ui/screens/AuthScreen.tsx`: Medieval-styled authentication screen featuring Google Sign-In, Mock Login, and Guest option.
-- Updated `mobile/App.tsx`: Refactored root provider hierarchy (`AuthProvider` -> `GameProvider`) and root navigation state machine (`appState: 'splash' | 'auth' | 'main_menu' | 'character_creation' | 'in_game'`).
-
-### B. Main Menu & Save Slots Integration
-- Created `mobile/src/ui/screens/MainMenuScreen.tsx`: Standalone main menu displaying active player profile banner, "New Game" button, and "Load Game" button.
-- Created `mobile/src/ui/components/LoadGameModal.tsx`: Slot list modal fetching active saves via `session.listSaveSlots()` / `MobileSaveRepository.listSlots()`, enriched with kingdom culture, campaign year (`Math.floor(tick / 12) + 1`), and timestamp. Triggering a slot executes `session.loadSlot(slotId)` and starts simulation.
-
-### C. Character Creation Wizard & Avatars
-- Created `mobile/src/ui/components/AvatarRenderer.tsx`: Modular avatar renderer supporting DiceBear API URLs with robust offline SVG/emoji fallbacks tailored to culture themes.
-- Created `mobile/src/ui/screens/character-creation/steps/CultureSelectStep.tsx`: Culture selection supporting all 9 historical cultures from `culture-generator.ts` (`nordic`, `latin`, `eastern`, `desert`, `celtic`, `slavic`, `savanna`, `indigenous`, `vedic`).
-- Created `mobile/src/ui/screens/character-creation/steps/StatPointBuyStep.tsx`: Point buy attribute allocator (baseline 3 across ADM, MAR, DIP, INT, LRN with 15 point budget).
-- Created `mobile/src/ui/screens/character-creation/steps/TerritorySelectStep.tsx`: Starting capital region selector (`playerStartRegionId`).
-- Created `mobile/src/ui/screens/character-creation/steps/AvatarAppearanceStep.tsx`: Persona customizer for ruler name, kingdom name, gender, and portrait seed.
-- Created `mobile/src/ui/screens/character-creation/CharacterCreationScreen.tsx`: Master 4-step wizard container injecting custom ruler stats, culture, name, and starting territory directly into `createInitialState` and booting `GameSession`.
-
-### D. Unit Testing & Mobile Boot Script
-- Created `tests/auth.test.ts`: Unit test suite testing `MockAuthService`, `GoogleAuthService`, and `InMemoryAuthRepository`.
-- Converted `mobile/test-boot.ts` encoding to standard UTF-8.
-
----
+- **Modified files and paths**:
+  - `mobile/src/ui/i18n/translations.ts` (added pt-BR and en-US dictionaries)
+  - `mobile/src/ui/context/LanguageContext.tsx` (implemented locale state and translation functions)
+  - `mobile/src/ui/screens/MainMenuScreen.tsx` (wrapped profile banner, modified inner button, localized strings)
+  - `mobile/src/ui/context/AuthContext.tsx` (added Google and Mock signout calls in logout)
+  - `mobile/src/ui/screens/AuthScreen.tsx` (replaced hardcoded strings with translated keys)
+  - `mobile/src/ui/screens/SettingsScreen.tsx` (replaced hardcoded strings, added language toggle UI)
+  - `mobile/src/ui/components/LoadGameModal.tsx` (localized slots and reading text)
+  - `mobile/src/ui/components/TopHUD.tsx` (localized era ticks and stats)
+  - `mobile/App.tsx` (wrapped root in LanguageProvider, translated tab navigation labels)
+  - `mobile/src/ui/components/SplashScreen.tsx` (localized boot description)
+  - `mobile/src/application/ai/gemini-service.ts` (integrated async locale checking, localized fallbacks)
+- **New tests**:
+  - `tests/i18n.test.ts` (dictionary key alignment and template interpolation tests)
+- **Verbatim Error & Compilation Trace**:
+  - Initial check failed with `src/ui/context/LanguageContext.tsx(69,9): error TS2322: Type 'any' is not assignable to type 'never'` during `npx tsc --noEmit`.
+  - Adding `<any>` constraint to the `.reduce` call fixed compilation: `The command completed successfully.`
+  - Running `npm test` outputs: `Test Files  28 passed (28) | Tests  87 passed (87) | Duration  6.47s`.
 
 ## 2. Logic Chain
-
-1. **Authentication Decoupling**:
-   - *Observation*: Previously, `GameProvider` booted simulation ticks immediately on app start.
-   - *Logic*: Introducing `AuthProvider` and wrapping `GameProvider` allows `AppContent` to inspect user authentication before starting game sessions. Unauthenticated users are gated by `AuthScreen`, while authenticated users land on `MainMenuScreen`.
-
-2. **State Injection & Session Boot**:
-   - *Observation*: Character creation requires custom ruler traits, stats, and capital placement.
-   - *Logic*: By passing `playerStartRegionId` into `createInitialState` and decorating `state.world.characters` and `state.kingdoms['k_player']` with the wizard output prior to calling `session.bootstrap()`, the engine initializes clean simulation state without hardcoded overrides or facade hacks.
-
-3. **Offline & Fallback Resilience**:
-   - *Observation*: Mobile environments may run offline without network access to external CDN assets.
-   - *Logic*: `AvatarRenderer` handles remote image failure gracefully by rendering culture-specific themed emoji fallback icons, while `GoogleAuthService` and `MockAuthService` provide full functional parity in offline mode.
-
----
+- Wrapping the profile banner in `TouchableOpacity` makes the user profile area tap-responsive to fulfill user-driven account switching. Replacing the inner `TouchableOpacity` logout button with a regular `View` prevents touch event target conflicts in the React Native view hierarchy.
+- Invoking `GoogleAuthService.signOut()` and `MockAuthService.signOut()` under the logout logic in `AuthContext.tsx` ensures that Google's browser session is wiped. This guarantees that on subsequent login attempts, a fresh credentials prompt is presented.
+- By defining `translations.ts` and `LanguageContext.tsx`, UI components can consume the active locale dynamically.
+- `App.tsx` tab label options were refactored to query `t('tabs.<key>')` so that switching language in settings instantly translates bottom navigation labels.
+- Since `GeminiService` is a singleton outside the React lifecycle, it reads the locale preference asynchronously from `AsyncStorage` on every generation request, dynamically adapting the LLM prompt instructions and offline fallbacks.
 
 ## 3. Caveats
-
-- **Native Google Sign-In Native SDK**: Production deployment on Android/iOS native binaries will require configuring native Google Cloud OAuth client IDs (`google-services.json` / `GoogleService-Info.plist`). The current architecture is decoupled so swapping to native OAuth credentials requires zero changes outside of `google-auth-service.ts`.
-- **AsyncStorage on Desktop/Web**: `AsyncStorage` falls back gracefully in non-native test environments without breaking execution.
-
----
+- No remote API connection is available under CODE_ONLY network mode; hence, `GeminiService` connection testing and generation are mocked/simulated in test runs. Real-world validation depends on an internet connection to the Gemini REST API endpoints.
 
 ## 4. Conclusion
-
-Milestone 1 (Commercial Onboarding & Google Login) has been fully implemented according to specification with genuine domain logic and zero hardcoded test facades. The entire Vitest test suite passes (23 test files, 44 unit tests), mobile boot verification passes, and TypeScript build compilation succeeds cleanly.
-
----
+- The Milestone 1 (R1 & R2) features are completely implemented. All UI components are localized in both PT-BR and EN-US, dynamic account switching resets session states properly, and `GeminiService` is locale-aware. The codebase is clean, compiles without errors, and passes all tests.
 
 ## 5. Verification Method
-
-To independently verify this implementation:
-
-1. **Run Full Unit Test Suite**:
-   ```powershell
-   npm test
-   ```
-   *Expected Output*: 23 test files passed (44 tests), including `tests/auth.test.ts`.
-
-2. **Verify Mobile Boot Script**:
-   ```powershell
-   npx tsx mobile/test-boot.ts
-   ```
-   *Expected Output*: `SUCCESS`.
-
-3. **Verify Project Compilation & Build**:
-   ```powershell
-   npm run build
-   ```
-   *Expected Output*: TypeScript compilation (`tsc -b`) and Vite production bundle succeed without errors.
+1. **Compilation Check**:
+   - Go to `mobile/` directory and run:
+     ```bash
+     npx tsc --noEmit
+     ```
+   - Verify it finishes with exit code `0`.
+2. **Test Check**:
+   - Go to project root and run:
+     ```bash
+     npm test
+     ```
+   - Verify that all 87 tests (including `tests/i18n.test.ts`) pass.

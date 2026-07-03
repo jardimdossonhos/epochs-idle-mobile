@@ -1,127 +1,102 @@
-# Adversarial Challenge & Stress-Test Report: Milestone 1 (Commercial Onboarding & Google Login)
+# Dynamic i18n Translation System Verification Report
 
 ## 1. Observation
 
-During empirical stress-testing and audit of Milestone 1 (`m1_onboarding`), the following facts, file locations, line numbers, and tool outputs were directly observed:
+During empirical verification and stress-testing of the i18n translation systems in both the PC (`src/ui/i18n`) and Mobile (`mobile/src/ui/i18n`, `mobile/src/ui/context`) codebases, the following facts, file locations, line numbers, and tool outputs were directly observed:
 
-### A. Test Suite Status
-Executing `npm test` via terminal output:
+### A. Test Suite Integration
+- Created a new unit test suite `tests/i18n-dynamic.test.ts` to test dynamic locale switching, template interpolation, and fallback resolution.
+- Executed the full test suite via `npm test` (vitest run):
 ```
-> vitest run
-Test Files  23 passed (23)
-     Tests  44 passed (44)
-  Duration  5.69s
-```
-All existing 44 tests pass. However, unit tests covering character creation state validation, stat point buy limits, culture bonuses, or Google OAuth integration are absent.
+ RUN  v3.2.4 C:/Users/joti.SIMPLO/Documents/CURSOR/Epochs Idle
 
-### B. Character Creation Point Buy & Stat Bounds Validation
-- In `mobile/src/ui/screens/character-creation/steps/StatPointBuyStep.tsx` (lines 17-46), point buy allocation is controlled purely in the UI component via local state (`TOTAL_BUDGET = 15`, `BASE_STAT = 3`).
-- In `mobile/src/ui/screens/character-creation/CharacterCreationScreen.tsx` (lines 75-81):
+ ✓ tests/i18n-dynamic.test.ts (9 tests) 100ms
+ ✓ tests/auth-signout-resets.test.ts (6 tests) 119ms
+ ...
+ Test Files  30 passed (30)
+      Tests  102 passed (102)
+   Start at  09:21:59
+   Duration  5.41s
+```
+All 102 tests passed successfully.
+
+### B. Mobile App Translation Fallback Defect
+- In `mobile/src/ui/context/LanguageContext.tsx` (lines 56-73), the `t` function is defined as:
 ```typescript
-stats: {
-  administration: stats.ADM,
-  martial: stats.MAR,
-  diplomacy: stats.DIP,
-  intrigue: stats.INT,
-  learning: stats.LRN,
-}
-```
-- In `src/application/boot/create-initial-state.ts` and `mobile/src/application/boot/create-initial-state.ts`, no validation or sanitization is performed on ruler character stats when passed to `session.bootstrap()`.
-- Empirical test script (`m1_verification.test.ts`) output when injecting `{ ADM: 999, MAR: -10, DIP: 50, INT: NaN, LRN: 100 }`:
-```
-[TEST 5] Stress testing stat allocation boundaries and point buy bypass...
-Exploited Ruler Stats: { administration: 999, martial: -10, diplomacy: 50, intrigue: NaN, learning: 100 }
-=> RESULT: No runtime validation exists on ruler character creation stats; exploited stats are accepted directly into state.
-```
+  const t = (key: string, params?: Record<string, string | number>): string => {
+    const dictionary = translations[locale] || translations['pt-BR'];
+    
+    // Resolve nested keys (e.g. 'mainMenu.title')
+    const value = key.split('.').reduce<any>((obj, k) => obj?.[k], dictionary);
+    
+    if (typeof value !== 'string') {
+      return key;
+    }
 
-### C. Culture Attributes Discrepancy
-- In `mobile/src/ui/screens/character-creation/steps/CultureSelectStep.tsx` (lines 10-20), cultures advertise specific mechanical trait bonuses in the UI:
-  - `nordic`: `traitBonus: '+2 Martial, +1 Intrigue'`
-  - `latin`: `traitBonus: '+2 Administration, +1 Diplomacy'`
-  - `eastern`: `traitBonus: '+2 Learning, +1 Administration'`
-- In `CharacterCreationScreen.tsx` (lines 66-86), when creating `rulerCharacter`, `stats` are copied directly from point buy without adding any cultural bonuses.
-- Empirical test script output when selecting Nordic culture:
-```
-[TEST 4] Verifying whether Culture Trait Bonuses are applied to ruler character stats...
-Chosen Culture: nordic
-UI Promised Bonus: +2 Martial, +1 Intrigue
-Actual Stats in Character State: { administration: 5, martial: 5, diplomacy: 5, intrigue: 3, learning: 3 }
-=> RESULT: Culture trait bonuses shown in UI are fake/cosmetic text strings and NEVER applied to ruler stats.
-```
-- Furthermore, in `src/core/simulation/systems/character-system.ts` and `culture-generator.ts`, culture IDs have no mechanical simulation hooks attached in the core engine.
-
-### D. Starting Region Selection & Malformed Input Exploit
-- In `mobile/src/ui/screens/character-creation/steps/TerritorySelectStep.tsx` (lines 18-51), 4 starting regions are presented: `r_hex_10286` (Temperate Fertile Valley), `r_hex_10287` (Coastal Haven), `r_hex_10288` (Arid Mountain Frontier), `r_hex_10289` (Great Steppe Plains), promising yield bonuses like `+15% Food Production`, `+20% Tariff Income`, `+25% Iron Production`, and `+20% Cavalry Speed`.
-- Inspecting `WORLD_DEFINITIONS_V1`: all 4 hexes have `biome: "temperate"`. The biomes ("Coastal", "Arid", "Steppe") and resource yield bonuses displayed in the UI are unbacked by engine definitions.
-- In `create-initial-state.ts` (lines 393-396):
-```typescript
-function spawnCluster(kingdomId: string, centerId: string) {
-  const center = defsById[centerId];
-  if (!center || center.isWater) return;
-```
-- Empirical test script output when passing an invalid region ID (`r_hex_nonexistent_99999`):
-```
-[TEST 3] Testing exploitation of invalid/water region ID in createInitialState...
-Player Capital Region ID: 
-Player Owned Regions Count: 0
-=> RESULT: Passing an invalid region breaks player capital assignment (capitalRegionId is empty/undefined, player has 0 regions).
-```
-
-### E. Google Authentication Implementation
-- In `mobile/src/application/auth/google-auth-service.ts` (lines 7-17):
-```typescript
-async signIn(): Promise<AuthUser> {
-  this.currentUser = {
-    id: 'google_user_1092837465',
-    email: 'emperor.google@gmail.com',
-    displayName: 'Emperor Aurelius (Google)',
-    photoUrl: 'https://lh3.googleusercontent.com/a/default-avatar',
-    provider: 'google',
+    let text = value;
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        text = text.replace(new RegExp(`{${k}}`, 'g'), String(v));
+      });
+    }
+    return text;
   };
-  return this.currentUser;
+```
+- When a key is missing in `'en-US'` but present in the default `'pt-BR'`, the `value` resolved from `translations['en-US']` is `undefined`. Because `typeof value !== 'string'` evaluates to `true`, the function immediately returns the key itself (e.g., `'testOnly.missingKey'`) instead of falling back to `'pt-BR'`.
+- This behavior was verified empirically in the new unit test (`tests/i18n-dynamic.test.ts` lines 152-177) by dynamically mutating `translations` to simulate a missing key, confirming that `t` returns the raw key name rather than the default language value.
+
+### C. PC Translation System Integration Gaps
+- In `src/ui/i18n/index.ts`, `createTranslator` binds the `locale` statically at creation time:
+```typescript
+export function createTranslator(locale: Locale): Translator {
+  return (key: TranslationKey) => translate(locale, key);
 }
 ```
-- empirical test script output:
-```
-[TEST 1] Testing GoogleAuthService implementation...
-User signed in: { id: 'google_user_1092837465', email: 'emperor.google@gmail.com', ... }
-=> RESULT: GoogleAuthService is completely hardcoded/mocked. No OAuth or SDK calls occur.
-```
+- If `setLocale(newLocale)` is called, the existing translator returned by `createTranslator` does not update dynamically; it remains locked to the initial locale.
+- Crucially, a search of the entire PC source codebase (`src/` directory) revealed **zero usages** of the i18n translation functions or translators in `src/main.ts` or any UI controllers. All user-facing UI panels, menus, labels, and settings are hardcoded in Portuguese (e.g., `Nome do Monarca (Você)`, `Configurações e perfil local`). There is no language selector in the PC settings panel.
 
+### D. Template String Interpolation
+- In `mobile/src/ui/context/LanguageContext.tsx` (lines 66-72), parameters are replaced using regular expressions.
+- Verification in `tests/i18n-dynamic.test.ts` (lines 146-150) shows that if a parameter placeholder is missing from the params object (e.g., `{ year: 10 }` for `'Ano {year} (Mês {month})'`), the placeholder `{month}` is left unresolved inside the returned string instead of throwing a runtime error or replacing it with an empty/blank value.
+
+---
 
 ## 2. Logic Chain
 
-1. **Premise 1**: Security and state integrity in local-first/idle games require runtime engine validation of user-submitted initial parameters, because client UI components can be bypassed or manipulated.
-2. **Step 1 (Point Buy Validation)**: From Observation B, `StatPointBuyStep` limits points in React UI state, but `CharacterCreationScreen` passes raw values directly to `createInitialState` and `GameSession.bootstrap()`. As proven by Test 5, negative, oversized, or NaN stat values are accepted into game state without throwing errors or clamping values, leading to potential exploits in calculation systems.
-3. **Step 2 (Culture Discrepancy)**: From Observation C, `CultureSelectStep` promises stat additions (e.g. +2 Martial for Nordic). However, `CharacterCreationScreen` does not apply these additions, leaving the character with only baseline point buy stats (Test 4). This constitutes a misleading UI promise and game balance discrepancy.
-4. **Step 3 (Territory Selection Fragility)**: From Observation D, `TerritorySelectStep` presents biomes and bonuses not backed by `WORLD_DEFINITIONS_V1`. Furthermore, `spawnCluster` in `create-initial-state.ts` silently fails when given an invalid or water region ID, leaving `capitalRegionId` empty and assigning 0 regions to the player (Test 3).
-5. **Step 4 (Commercial Onboarding Status)**: From Observation E, `GoogleAuthService.signIn()` returns hardcoded mock data without any OAuth protocol or Capacitor Native Plugin integration. Thus, real commercial Google Authentication is incomplete.
+1. **Premise 1**: A robust i18n translation system must fallback gracefully to a default language (e.g., Portuguese `'pt-BR'`) when a key is missing in the user's selected language (e.g., English `'en-US'`).
+2. **Step 1 (Mobile Fallback Defect)**: From Observation B, the mobile app's `t` function only accesses the current `locale`'s dictionary. If a key is missing there, it does not attempt to query `translations['pt-BR']`. As proven by the unit test, it returns the key path name. This represents a defect in fallback resolution.
+3. **Step 2 (PC Static Limitation)**: From Observation C, the PC `createTranslator` function binds the locale parameter inside the returned closure. Changing the locale requires recreating the translator function instance.
+4. **Step 3 (PC Integration Gap)**: A search of `src/main.ts` and related files confirms that the PC i18n system is dead code. No UI elements use `translate` or `createTranslator`. The PC app remains completely monolingual (Portuguese).
+5. **Step 4 (Interpolation Safety)**: From Observation D, template interpolation is safe from runtime exceptions when params are missing, but it exposes raw placeholder brackets (`{month}`) directly to the user.
 
+---
 
 ## 3. Caveats
 
-- **Scope of UI interaction**: Tests were conducted via empirical TypeScript test harnesses interacting directly with the domain services, `createInitialState`, and React data models, rather than clicking through an active React Native app instance on device/emulator.
-- **Save file manipulation**: Save game loading validation of hacked characters was not exhaustively tested against all simulation tick systems beyond initial bootstrap.
+- **Test Environment Context**: Testing was performed using simulated hook/state loops mimicking the React context lifecycle rather than launching React Native components in an emulator or loading an Electron process.
+- **Key Alignment**: Currently, the dictionary files (`translations.ts`) have 100% key parity between `pt-BR` and `en-US` via a separate dictionary integrity test (`tests/i18n.test.ts`), so the mobile fallback defect does not present user-visible bugs in the current release. It represents a regression vulnerability if future updates introduce misaligned keys.
 
+---
 
 ## 4. Conclusion
 
-Milestone 1 code is functionally functional in standard happy-path UI usage, with all 44 test suite tests passing. However, adversarial analysis identified four key failure modes and integration gaps:
-1. **Unvalidated Character Stat Allocation**: Lack of engine-level contract validation on character stats allows client bypass and arbitrary stat injection (CRITICAL exploit potential).
-2. **Phantom Culture Bonuses**: Advertised culture trait bonuses (+2 ADM, +2 MAR, etc.) are purely cosmetic text strings and never modify ruler stats (MEDIUM UX/balance defect).
-3. **Fragile Region Assignment & Misleading Biomes**: Region selection biomes/bonuses in UI do not match engine definitions, and invalid region inputs silently corrupt player capital initialization (HIGH stability risk).
-4. **Mocked Google Login**: Commercial Google Auth is hardcoded mock data, requiring real OAuth/Capacitor implementation for production release (HIGH feature gap).
+The dynamic i18n translation verification has revealed:
+1. **Mobile Fallback Defect**: The mobile translator returns the key name rather than falling back to the default language (`pt-BR`) when keys are missing in the selected language.
+2. **PC Monolingual Hardcoding**: The PC translation system is fully implemented in `src/ui/i18n` but is completely omitted from the main application thread (`src/main.ts`), leaving the PC version hardcoded to Portuguese.
+3. **Static PC Translator**: PC translators created via `createTranslator` are static closures that do not dynamically react to locale updates without being reconstructed.
 
+---
 
 ## 5. Verification Method
 
-To independently verify all findings:
-1. Run standard unit tests:
-   `npm test`
-2. Run the empirical verification harness provided in the challenger workspace:
-   `npx tsx .agents/teamwork_preview_challenger_m1_1/m1_verification.test.ts`
-3. Inspect code references:
-   - `mobile/src/ui/screens/character-creation/CharacterCreationScreen.tsx`: lines 75-81 & 127-158
-   - `mobile/src/ui/screens/character-creation/steps/CultureSelectStep.tsx`: lines 10-20
-   - `mobile/src/application/boot/create-initial-state.ts`: lines 393-396
-   - `mobile/src/application/auth/google-auth-service.ts`: lines 7-17
+To verify these results independently:
+1. Run the entire unit test suite containing the new tests:
+   ```bash
+   npm test
+   ```
+2. Inspect the test suite file:
+   `tests/i18n-dynamic.test.ts`
+3. Inspect the mobile translator implementation:
+   `mobile/src/ui/context/LanguageContext.tsx`
+4. Inspect the PC translator factory:
+   `src/ui/i18n/index.ts`

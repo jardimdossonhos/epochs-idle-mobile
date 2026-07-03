@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import { geminiService } from '../../application/ai/gemini-service';
 import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function SettingsScreen() {
   const [apiKey, setApiKey] = useState('');
@@ -21,6 +23,16 @@ export default function SettingsScreen() {
   const [isTesting, setIsTesting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const { logout, user } = useAuth();
+  const { locale, changeLocale, t } = useLanguage();
+
+  const handleLogout = () => {
+    Alert.alert(t('settings.alertLogoutTitle'), t('settings.alertLogoutMessage'), [
+      { text: t('mainMenu.cancel'), style: 'cancel' },
+      { text: t('mainMenu.signOut'), style: 'destructive', onPress: logout },
+    ]);
+  };
 
   // Carrega configurações salvas ao focar na tela
   useFocusEffect(
@@ -44,16 +56,16 @@ export default function SettingsScreen() {
 
   const handleSaveKey = async () => {
     if (!apiKey.trim()) {
-      Alert.alert('Atenção', 'Por favor, insira uma chave de API válida.');
+      Alert.alert(t('settings.alertAttention'), t('settings.alertValidKey'));
       return;
     }
     setIsSaving(true);
     try {
       await geminiService.setApiKey(apiKey.trim());
-      Alert.alert('Salvo!', 'Chave de API do Gemini salva com sucesso.');
+      Alert.alert(t('settings.alertSavedTitle'), t('settings.alertSavedMessage'));
       setTestResult(null);
     } catch (err) {
-      Alert.alert('Erro', 'Não foi possível salvar a chave.');
+      Alert.alert(t('auth.error'), t('settings.alertSaveError'));
     } finally {
       setIsSaving(false);
     }
@@ -61,7 +73,7 @@ export default function SettingsScreen() {
 
   const handleTestConnection = async () => {
     if (!apiKey.trim()) {
-      Alert.alert('Atenção', 'Salve uma chave de API antes de testar.');
+      Alert.alert(t('settings.alertAttention'), t('settings.alertTestKeyFirst'));
       return;
     }
     // Salva antes de testar para garantir que a chave atual seja usada
@@ -72,7 +84,7 @@ export default function SettingsScreen() {
       const result = await geminiService.testConnection();
       setTestResult(result);
     } catch {
-      setTestResult({ ok: false, message: 'Erro inesperado ao testar conexão.' });
+      setTestResult({ ok: false, message: t('settings.testUnexpectedError') });
     } finally {
       setIsTesting(false);
     }
@@ -92,28 +104,27 @@ export default function SettingsScreen() {
         {/* Cabeçalho */}
         <View style={styles.header}>
           <Text style={styles.headerIcon}>⚙️</Text>
-          <Text style={styles.headerTitle}>Configurações</Text>
-          <Text style={styles.headerSubtitle}>Epochs Idle</Text>
+          <Text style={styles.headerTitle}>{t('settings.title')}</Text>
+          <Text style={styles.headerSubtitle}>{t('settings.headerSubtitle')}</Text>
         </View>
 
         {/* ── Seção: IA Gemini ────────────────────────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionIcon}>🤖</Text>
-            <Text style={styles.sectionTitle}>Inteligência Artificial Gemini</Text>
+            <Text style={styles.sectionTitle}>{t('settings.geminiTitle')}</Text>
           </View>
           <Text style={styles.sectionDescription}>
-            Use a IA do Google para gerar mensagens diplomáticas, narrativas de eventos e pensamentos
-            dos governantes em tempo real. Obtenha sua chave gratuita em{' '}
-            <Text style={styles.link}>aistudio.google.com</Text>.
+            {t('settings.geminiDescription')}
+            <Text style={styles.link}>{t('settings.linkText')}</Text>.
           </Text>
 
           {/* Toggle IA */}
           <View style={styles.toggleRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.toggleLabel}>Ativar Modo IA</Text>
+              <Text style={styles.toggleLabel}>{t('settings.enableAi')}</Text>
               <Text style={styles.toggleDesc}>
-                Quando desativado, usa textos pré-escritos de alta qualidade.
+                {t('settings.toggleDesc')}
               </Text>
             </View>
             <Switch
@@ -125,7 +136,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* Input da API Key */}
-          <Text style={styles.inputLabel}>Chave de API do Gemini</Text>
+          <Text style={styles.inputLabel}>{t('settings.apiKeyLabel')}</Text>
           <TextInput
             style={styles.input}
             value={apiKey}
@@ -138,7 +149,7 @@ export default function SettingsScreen() {
             multiline={false}
           />
           <Text style={styles.inputHint}>
-            A chave é armazenada localmente no dispositivo e nunca é enviada a terceiros.
+            {t('settings.apiKeyHint')}
           </Text>
 
           {/* Botões */}
@@ -152,7 +163,7 @@ export default function SettingsScreen() {
               {isSaving ? (
                 <ActivityIndicator color="#121212" size="small" />
               ) : (
-                <Text style={styles.saveButtonText}>💾 Salvar Chave</Text>
+                <Text style={styles.saveButtonText}>{t('settings.saveKey')}</Text>
               )}
             </TouchableOpacity>
 
@@ -165,7 +176,7 @@ export default function SettingsScreen() {
               {isTesting ? (
                 <ActivityIndicator color="#D4AF37" size="small" />
               ) : (
-                <Text style={styles.testButtonText}>🔌 Testar Conexão</Text>
+                <Text style={styles.testButtonText}>{t('settings.testConnection')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -187,29 +198,29 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionIcon}>📖</Text>
-            <Text style={styles.sectionTitle}>Como Funciona</Text>
+            <Text style={styles.sectionTitle}>{t('settings.howItWorks')}</Text>
           </View>
           <View style={styles.featureCard}>
             {[
               {
                 icon: '🏰',
-                title: 'Mensagens Diplomáticas',
-                desc: 'Cada proposta de aliança ou declaração de guerra ganha uma mensagem única e épica.',
+                title: t('settings.featureDiplomatic'),
+                desc: t('settings.featureDiplomaticDesc'),
               },
               {
                 icon: '📜',
-                title: 'Narrativas de Eventos',
-                desc: 'Eventos do mundo são narrados com riqueza histórica e dramatismo medieval.',
+                title: t('settings.featureNarratives'),
+                desc: t('settings.featureNarrativesDesc'),
               },
               {
                 icon: '👑',
-                title: 'Pensamentos do Governante',
-                desc: 'Seu soberano reflete sobre situações críticas com profundidade e caráter.',
+                title: t('settings.featureThoughts'),
+                desc: t('settings.featureThoughtsDesc'),
               },
               {
                 icon: '🔴',
-                title: 'Fallback Offline',
-                desc: 'Sem internet ou sem chave? O jogo usa textos pré-escritos de alta qualidade.',
+                title: t('settings.featureFallback'),
+                desc: t('settings.featureFallbackDesc'),
               },
             ].map((item) => (
               <View key={item.title} style={styles.featureRow}>
@@ -223,34 +234,94 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* ── Seção: Idioma ────────────────────────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionIcon}>🌐</Text>
+            <Text style={styles.sectionTitle}>{t('settings.languageTitle')}</Text>
+          </View>
+          <Text style={styles.sectionDescription}>
+            {t('settings.languageDescription')}
+          </Text>
+          <View style={styles.languageButtonRow}>
+            <TouchableOpacity
+              style={[
+                styles.languageButton,
+                locale === 'pt-BR' && styles.languageButtonActive,
+              ]}
+              onPress={() => changeLocale('pt-BR')}
+            >
+              <Text
+                style={[
+                  styles.languageButtonText,
+                  locale === 'pt-BR' && styles.languageButtonTextActive,
+                ]}
+              >
+                Português (PT-BR)
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.languageButton,
+                locale === 'en-US' && styles.languageButtonActive,
+              ]}
+              onPress={() => changeLocale('en-US')}
+            >
+              <Text
+                style={[
+                  styles.languageButtonText,
+                  locale === 'en-US' && styles.languageButtonTextActive,
+                ]}
+              >
+                English (EN-US)
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ── Seção: Conta ────────────────────────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionIcon}>👤</Text>
+            <Text style={styles.sectionTitle}>{t('settings.accountSection')}</Text>
+          </View>
+          <Text style={styles.sectionDescription}>
+            {t('settings.loggedInAs')}<Text style={{ color: '#D4AF37' }}>{user?.displayName || t('settings.guest')}</Text>
+          </Text>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutButtonText}>{t('settings.signOutBtn')}</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* ── Seção: Informações do Jogo ──────────────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionIcon}>ℹ️</Text>
-            <Text style={styles.sectionTitle}>Sobre o Jogo</Text>
+            <Text style={styles.sectionTitle}>{t('settings.aboutSection')}</Text>
           </View>
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Versão</Text>
+              <Text style={styles.infoLabel}>{t('settings.aboutVersion')}</Text>
               <Text style={styles.infoValue}>1.0.0</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Motor</Text>
+              <Text style={styles.infoLabel}>{t('settings.aboutEngine')}</Text>
               <Text style={styles.infoValue}>React Native + Expo</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>IA</Text>
+              <Text style={styles.infoLabel}>{t('settings.aboutIa')}</Text>
               <Text style={styles.infoValue}>Google Gemini 2.0 Flash</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Modo Offline</Text>
-              <Text style={[styles.infoValue, { color: '#50E3C2' }]}>✅ Disponível</Text>
+              <Text style={styles.infoLabel}>{t('settings.aboutOffline')}</Text>
+              <Text style={[styles.infoValue, { color: '#50E3C2' }]}>{t('settings.offlineAvailable')}</Text>
             </View>
           </View>
         </View>
 
         <Text style={styles.footer}>
-          Epochs Idle © 2025 • Todos os direitos reservados
+          {t('settings.footer')}
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -412,8 +483,22 @@ const styles = StyleSheet.create({
   },
   testResultText: {
     color: '#E0E0E0',
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  logoutButton: {
+    backgroundColor: '#3A1515',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#E74C3C',
+  },
+  logoutButtonText: {
+    color: '#E74C3C',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   featureCard: {
     gap: 14,
@@ -462,5 +547,31 @@ const styles = StyleSheet.create({
     color: '#333333',
     fontSize: 11,
     marginTop: 10,
+  },
+  languageButtonRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  languageButton: {
+    flex: 1,
+    backgroundColor: '#222222',
+    borderColor: '#3A3A3A',
+    borderWidth: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  languageButtonActive: {
+    borderColor: '#D4AF37',
+    backgroundColor: '#2A2515',
+  },
+  languageButtonText: {
+    color: '#888888',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  languageButtonTextActive: {
+    color: '#D4AF37',
   },
 });

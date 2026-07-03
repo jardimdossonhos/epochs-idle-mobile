@@ -1,25 +1,25 @@
-## 2026-06-29T16:47:47Z
-You are the Worker for Milestone 2: Interactive 2D Vector Map (m2_vector_map).
-Working directory: c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_worker_m2_1
-Project directory: c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle
-Scope document: c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\orchestrator\PROJECT.md
+## 2026-07-02T18:59:27Z
+You are the Worker agent (Worker M2-1) for the Epochs Idle map overhaul project.
+Your working directory is `c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_worker_m2_1`.
 
-MANDATORY INTEGRITY WARNING:
+Your task is to implement the Map View Modes and the Fog of War system in the game's Skia map.
+Please perform the following steps:
+1. Read the synthesis architecture and design document at `c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\orchestrator\synthesis.md`.
+2. Modify `mobile/src/ui/screens/MapScreen.tsx` to:
+   - Add a `viewMode` state (using the values `'owner'`, `'religion'`, `'economy'`, `'war'` / `'military'`).
+   - Add visual Floating Action Buttons (FABs) in a column on the right side of the screen to toggle between these modes.
+   - Pass the `viewMode` state down to `WorldMapSkia`.
+3. Modify `mobile/src/ui/components/WorldMapSkia.tsx` to:
+   - Accept the new `viewMode` prop.
+   - Update the batched path coloring calculation in the `useMemo` block to dynamically color the regions based on the selected mode:
+     - Political (`'owner'`): Color regions by owner's banner color or diplomatic relations status relative to the player.
+     - Religion (`'religion'`): Color regions by their dominant faith's color (`dominantFaith` mapped to `gameState.world.religions`).
+     - Economy (`'economy'`): Color regions using a productivity gradient based on unrest, devastation, autonomy, and assimilation.
+     - Military (`'war'`): Color regions by highlighting contested war fronts in crimson, or showing troop concentrations (looking up stationed army manpower).
+   - Implement the Fog of War visibility pre-calculation using an efficient $O(N)$ Set in the `useMemo` block. A region is visible if it belongs to the player, belongs to an ally, or is adjacent to a region owned/controlled by the player or an ally.
+   - Implement HSL desaturation (reduce Saturation to 25%) and darkening (reduce Lightness to 35%) for non-visible regions on the CPU when generating the Skia paths to ensure zero rendering overhead during interactions.
+4. Ensure the React Native build succeeds and there are no syntax/type check errors.
+5. Run the existing tests using `npm run test` to verify no regressions were introduced.
+6. Write a summary of your changes, the modified files, and the output of your build and test runs to `c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_worker_m2_1\handoff.md`.
+
 DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. A Forensic Auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
-
-Task Scope & Requirements:
-Implement Milestone 2 (Interactive 2D Vector Map) cleanly according to the architecture designed by Explorers M2-1, M2-2, and M2-3:
-1. Native Vector Map Components (mobile/src/ui/components/map/):
-   - Create map-path-converter.ts: Utility converting GeoJSON features (world-countries-v1.geojson / world-definitions-v1.ts) into memoized SVG path objects (viewBox="0 0 1000 600" or matching coordinates).
-   - Create WorldMapContainer.tsx and WorldSvgViewport.tsx: Interactive SVG map canvas with zoom/pan gesture handling, layer stacking, and filters.
-   - Create rendering layers: LayerBackground.tsx, LayerRegions.tsx (with RegionPath.tsx), LayerBorders.tsx (political realm borders), LayerCapitals.tsx (crown markers at capital centroids), LayerArmies.tsx (army stacks with manpower & morale), and LayerFogOfWar.tsx (fog of war overlay representing explored/unexplored/visible regions).
-2. Inspection Modals & Engine Bindings (mobile/src/ui/components/map/overlays/ or modals/):
-   - Create RegionDetailModal.tsx / Bottom Sheet: Inspect region stats (autonomy, unrest, development, buildings) and trigger building construction / regional actions via session.executeBuildStructure / session.executeRegionAction.
-   - Create KingdomInspectModal.tsx: View ruler details, kingdom culture, and diplomatic relation metrics via session.executeDiplomaticAction.
-   - Create ArmyDetailModal.tsx: View army manpower, morale, and unit composition.
-   - Update mobile/src/ui/screens/MapScreen.tsx to mount WorldMapContainer as the primary interface, backed by dynamic GameSession state.
-3. Unit Testing & Verification:
-   - Create tests/vector-map.test.ts to verify map data conversion, fog of war calculations, and region selection state.
-   - Run npm test and verify all tests pass.
-
-Produce your handoff report in c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_worker_m2_1\handoff.md. Communicate your final status via send_message.

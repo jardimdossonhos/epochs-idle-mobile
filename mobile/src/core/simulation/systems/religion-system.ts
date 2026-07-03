@@ -81,16 +81,21 @@ function listFrontierRegionIds(
   context: Parameters<SimulationSystem["run"]>[0]
 ): string[] {
   const frontier: string[] = [];
-  const allRegionIds = Object.keys(context.nextState.world.regions).sort();
+  const ownedRegionIds = getOwnedRegionIds(context.nextState, ownerId);
 
-  for (const regionId of allRegionIds) {
-    const region = context.nextState.world.regions[regionId];
-    if (region.ownerId !== ownerId) {
-      continue;
-    }
-
+  for (let i = 0; i < ownedRegionIds.length; i++) {
+    const regionId = ownedRegionIds[i];
     const neighbors = context.staticData.neighborsByRegionId[regionId] ?? [];
-    const touchesRival = neighbors.some((neighborId) => context.nextState.world.regions[neighborId]?.ownerId === rivalId);
+    
+    // Checks if any neighbor touches the rival
+    let touchesRival = false;
+    for (let j = 0; j < neighbors.length; j++) {
+      if (context.nextState.world.regions[neighbors[j]]?.ownerId === rivalId) {
+        touchesRival = true;
+        break;
+      }
+    }
+    
     if (touchesRival) {
       frontier.push(regionId);
     }

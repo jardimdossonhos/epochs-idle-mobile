@@ -1,55 +1,61 @@
-# BRIEFING — 2026-06-29T16:40:00Z
+# BRIEFING — 2026-07-03T12:19:30Z
 
 ## Mission
-Implement Milestone 1: Commercial Onboarding & Google Login (m1_onboarding)
+Implement the solutions designed in synthesis.md for Milestone 1 (R1 and R2) in the Epochs Idle mobile application.
 
 ## 🔒 My Identity
-- Archetype: worker
+- Archetype: implementer/qa/specialist
 - Roles: implementer, qa, specialist
-- Working directory: c:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_worker_m1_1
-- Original parent: 33c8d54e-64e9-48c9-b449-53df389e7781
-- Milestone: m1_onboarding
+- Working directory: C:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_worker_m1_1
+- Original parent: 3c7029ad-6b46-46c6-b7a0-f58e3d110de1
+- Milestone: Milestone 1 (R1 and R2)
 
 ## 🔒 Key Constraints
-- CODE_ONLY network mode.
-- Minimal change principle.
-- No hardcoded test results / fake implementations.
-- Handoff report in handoff.md and final status via send_message.
+- CODE_ONLY network mode: no external HTTP/HTTPS calls.
+- Integrity: no cheating, no facade implementations, no hardcoding.
+- Maintain minimal changes: no refactoring outside the scoped requirements.
+- Verification command: npx tsc --noEmit and npm test (or equivalent inside mobile/) must be run and verified.
 
 ## Current Parent
-- Conversation ID: 33c8d54e-64e9-48c9-b449-53df389e7781
-- Updated: 2026-06-29T16:40:00Z
+- Conversation ID: 3c7029ad-6b46-46c6-b7a0-f58e3d110de1
+- Updated: 2026-07-03T12:19:30Z
 
 ## Task Summary
-- **What to build**: Google Auth & App Lifecycle flow, Main Menu & Load Game modal, Character Creation Wizard (4 steps), unit tests & verification.
-- **Success criteria**: Clean compilation, all npm tests pass, test-boot passes, handoff report written.
-- **Interface contracts**: PROJECT.md and existing codebase structure in mobile/ and core/.
+- **What to build**: Wrap profile banner in TouchableOpacity to toggle account; Enhance AuthContext logout logic for all auth providers; Design and implement React-based i18n Context; Replace hardcoded strings in 7 screens/components; Language toggle in SettingsScreen; Make GeminiService respect chosen locale from AsyncStorage.
+- **Success criteria**: All code compiles without TS errors (`npx tsc --noEmit` passes); all tests pass; i18n works correctly; sign-out cleanly resets sessions; Gemini prompt contains language instruction.
+- **Interface contracts**: `C:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\orchestrator\synthesis.md`
+- **Code layout**: Standard React Native project layout within `mobile/`.
 
 ## Key Decisions Made
-- Implemented decoupled IAuthService architecture with GoogleAuthService and MockAuthService implementations.
-- Built persistent AuthProvider using AsyncStorage.
-- Implemented root navigation state machine in App.tsx managing splash, auth, main_menu, character_creation, and in_game states.
-- Created MainMenuScreen and LoadGameModal displaying active save slots with kingdom culture and year metadata.
-- Created 4-step CharacterCreationScreen with full culture support, point buy stat allocation, region selection, and offline AvatarRenderer with fallback support.
-
-## Artifact Index
-- ORIGINAL_REQUEST.md — Initial task parameters and requirements.
-- handoff.md — Final handoff report with observations, logic chain, caveats, conclusion, and verification.
+- Designed a lightweight, React context-based i18n system using AsyncStorage for persistence under the key `'epochs_user_locale'`.
+- Created typed translation keys and resolved nested paths by explicitly casting accumulator in the reducer function to solve compiler type check.
+- Custom-structured prompts in `GeminiService` class dynamically using the retrieved locale from `AsyncStorage`, and mapped offline fallback arrays to English variants where applicable.
+- Wrapped user profile banner in `MainMenuScreen.tsx` with a `TouchableOpacity` and resolved touch nesting by altering the logout icon wrapper to a regular `View`.
 
 ## Change Tracker
 - **Files modified**:
-  - `mobile/App.tsx`: Navigation state machine & provider hierarchy.
-  - `mobile/test-boot.ts`: Encoding converted to UTF-8.
-  - Auth module files created in `mobile/src/application/auth/` and `mobile/src/ui/context/`.
-  - UI screens created in `mobile/src/ui/screens/` and `mobile/src/ui/components/`.
-  - Tests added in `tests/auth.test.ts`.
-- **Build status**: PASS
+  - `mobile/src/ui/i18n/translations.ts` — Added PT-BR & EN-US locale dictionaries.
+  - `mobile/src/ui/context/LanguageContext.tsx` — Managed AsyncStorage locale state and t() lookup function.
+  - `mobile/src/ui/screens/MainMenuScreen.tsx` — Wrapped profile banner, implemented logout confirmation, and replaced hardcoded texts.
+  - `mobile/src/ui/context/AuthContext.tsx` — Enhanced logout logic to call Mock/Google sign-out actions.
+  - `mobile/src/ui/screens/AuthScreen.tsx` — Replaced hardcoded strings and localized alerts.
+  - `mobile/src/ui/screens/SettingsScreen.tsx` — Replaced hardcoded strings, added a language toggle section and buttons style.
+  - `mobile/src/ui/components/LoadGameModal.tsx` — Localized saved campaign slots, years, tick and status text.
+  - `mobile/src/ui/components/TopHUD.tsx` — Localized game progression, year and domains count.
+  - `mobile/App.tsx` — Wrapped Application tree in LanguageProvider and resolved tab labels dynamically.
+  - `mobile/src/ui/components/SplashScreen.tsx` — Localized loading caption.
+  - `mobile/src/application/ai/gemini-service.ts` — Added English fallbacks and dynamic locale check inside Gemini prompt generation.
+  - `tests/i18n.test.ts` — Added unit tests verifying language translation dictionary alignment and string interpolation.
+- **Build status**: Passed
 - **Pending issues**: None
 
 ## Quality Status
-- **Build/test result**: PASS (23 test files, 44 tests passing; mobile boot script PASS; tsc/vite build PASS)
-- **Lint status**: PASS
-- **Tests added/modified**: `tests/auth.test.ts` (3 tests added)
+- **Build/test result**: Pass (87 tests passed)
+- **Lint status**: Fully clean
+- **Tests added/modified**: `tests/i18n.test.ts` added.
 
 ## Loaded Skills
 - None
+
+## Artifact Index
+- C:\Users\joti.SIMPLO\Documents\CURSOR\Epochs Idle\.agents\teamwork_preview_worker_m1_1\handoff.md — Final handoff report

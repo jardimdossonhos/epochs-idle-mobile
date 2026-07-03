@@ -103,6 +103,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    if (user?.provider === 'google') {
+      try {
+        const service = new GoogleAuthService();
+        await service.signOut();
+      } catch (e) {
+        console.error('[AuthContext] Google signout failed', e);
+      }
+    } else if (user?.provider === 'mock') {
+      try {
+        const service = new MockAuthService();
+        await service.signOut();
+      } catch (e) {
+        console.error('[AuthContext] Mock signout failed', e);
+      }
+    }
     await saveUser(null);
   };
 

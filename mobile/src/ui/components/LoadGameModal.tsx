@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity, FlatList, ActivityIndi
 import { useGameState } from '../GameProvider';
 import { SaveSlotId, SaveSummary } from '../../core/contracts/game-ports';
 import { MobileSaveRepository } from '../../infrastructure/persistence/MobileGameStateRepository';
+import { useLanguage } from '../context/LanguageContext';
 
 interface LoadGameModalProps {
   visible: boolean;
@@ -11,12 +12,14 @@ interface LoadGameModalProps {
 }
 
 interface EnrichedSlot {
-  summary: SaveSummary;
+  slotId: SaveSlotId;
+  summary: SaveSummary | null;
   culture: string;
 }
 
 export default function LoadGameModal({ visible, onClose, onLoadSuccess }: LoadGameModalProps) {
   const { session } = useGameState();
+  const { t } = useLanguage();
   const [slots, setSlots] = useState<EnrichedSlot[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,15 +27,17 @@ export default function LoadGameModal({ visible, onClose, onLoadSuccess }: LoadG
     setLoading(true);
     try {
       const repo = new MobileSaveRepository();
-      const rawSlots = session ? await session.listSaveSlots() : await repo.listSlots();
-      
       const enriched: EnrichedSlot[] = [];
-      for (const slot of rawSlots) {
+      const knownSlots: SaveSlotId[] = ["auto-1", "manual-1", "manual-2", "manual-3"];
+      
+      for (const slotId of knownSlots) {
+        let summary: SaveSummary | null = null;
         let culture = 'latin';
         try {
-          const snapshot = session ? await session.peekSaveSlot(slot.slotId) : await repo.loadFromSlot(slot.slotId);
+          const snapshot = await repo.loadFromSlot(slotId);
           if (snapshot) {
-            const gameState: any = 'state' in snapshot ? snapshot.state : snapshot;
+            summary = snapshot.summary;
+            const gameState = snapshot.state;
             const playerKingdom = gameState?.kingdoms?.['k_player'];
             const rulerId = playerKingdom?.rulerId;
             const stateWorld = gameState?.world;
@@ -40,8 +45,10 @@ export default function LoadGameModal({ visible, onClose, onLoadSuccess }: LoadG
               culture = stateWorld.characters[rulerId].cultureId || 'latin';
             }
           }
-        } catch (e) {}
-        enriched.push({ summary: slot, culture });
+        } catch (e) {
+          console.error(`[LoadGameModal] Error loading slot ${slotId}`, e);
+        }
+        enriched.push({ slotId, summary, culture });
       }
       setSlots(enriched);
     } catch (e) {
@@ -65,30 +72,48 @@ export default function LoadGameModal({ visible, onClose, onLoadSuccess }: LoadG
       onLoadSuccess();
     } catch (e) {
       console.error(`[LoadGameModal] Error loading slot ${slotId}`, e);
-      Alert.alert('Erro ao Carregar', 'Não foi possível carregar a partida salva selecionada.');
+      Alert.alert(t('loadGame.errorTitle'), t('loadGame.errorMessage'));
     }
   };
 
   const renderSlotItem = ({ item }: { item: EnrichedSlot }) => {
-    const { summary, culture } = item;
+    const { slotId, summary, culture } = item;
+
+    if (!summary) {
+      return (
+        <View style={[styles.slotCard, styles.emptyCard]}>
+          <View style={styles.slotHeader}>
+            <Text style={styles.kingdomName}>
+              {slotId === 'auto-1' ? t('loadGame.autoSave') : `${t('loadGame.emptySlot')} (${slotId.toUpperCase()})`}
+            </Text>
+            <Text style={styles.slotBadge}>{slotId.toUpperCase()}</Text>
+          </View>
+          <View style={styles.slotDetails}>
+            <Text style={styles.detailText}>{t('loadGame.noCampaigns')}</Text>
+          </View>
+        </View>
+      );
+    }
+
     const dateStr = new Date(summary.savedAt).toLocaleDateString();
     const year = Math.floor(summary.tick / 12) + 1;
+    const displayName = slotId === 'auto-1' ? t('loadGame.autoSave') : (summary.playerKingdomName || t('loadGame.kingdomOfOld'));
 
     return (
-      <TouchableOpacity style={styles.slotCard} onPress={() => handleSelectSlot(summary.slotId)}>
+      <TouchableOpacity style={styles.slotCard} onPress={() => handleSelectSlot(slotId)}>
         <View style={styles.slotHeader}>
-          <Text style={styles.kingdomName}>{summary.playerKingdomName || 'Kingdom of Old'}</Text>
-          <Text style={styles.slotBadge}>{summary.slotId.toUpperCase()}</Text>
+          <Text style={styles.kingdomName}>{displayName}</Text>
+          <Text style={styles.slotBadge}>{slotId.toUpperCase()}</Text>
         </View>
         
         <View style={styles.slotDetails}>
-          <Text style={styles.detailText}>👑 Culture: <Text style={styles.highlight}>{culture.toUpperCase()}</Text></Text>
-          <Text style={styles.detailText}>⏳ Year: <Text style={styles.highlight}>{year}</Text> (Tick {summary.tick})</Text>
-          <Text style={styles.detailText}>📅 Saved: {dateStr}</Text>
+          <Text style={styles.detailText}>👑 {t('loadGame.culture')}: <Text style={styles.highlight}>{culture.toUpperCase()}</Text></Text>
+          <Text style={styles.detailText}>⏳ {t('loadGame.year')}: <Text style={styles.highlight}>{year}</Text> ({t('loadGame.tick')} {summary.tick})</Text>
+          <Text style={styles.detailText}>📅 {t('loadGame.savedAt')}: {dateStr}</Text>
         </View>
 
         <View style={styles.loadButtonContainer}>
-          <Text style={styles.loadButtonText}>⚔️ Resume Campaign</Text>
+          <Text style={styles.loadButtonText}>{t('loadGame.resumeCampaign')}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -99,7 +124,7 @@ export default function LoadGameModal({ visible, onClose, onLoadSuccess }: LoadG
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>📜 Saved Chronicles</Text>
+            <Text style={styles.modalTitle}>{t('loadGame.savedChronicles')}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
@@ -108,16 +133,16 @@ export default function LoadGameModal({ visible, onClose, onLoadSuccess }: LoadG
           {loading ? (
             <View style={styles.centerContainer}>
               <ActivityIndicator size="large" color="#D4AF37" />
-              <Text style={styles.loadingText}>Reading archives...</Text>
+              <Text style={styles.loadingText}>{t('loadGame.readingArchives')}</Text>
             </View>
           ) : slots.length === 0 ? (
             <View style={styles.centerContainer}>
-              <Text style={styles.emptyText}>No saved campaigns found.</Text>
+              <Text style={styles.emptyText}>{t('loadGame.noCampaigns')}</Text>
             </View>
           ) : (
             <FlatList
               data={slots}
-              keyExtractor={(item) => item.summary.slotId}
+              keyExtractor={(item) => item.slotId}
               renderItem={renderSlotItem}
               contentContainerStyle={styles.listContent}
             />
@@ -191,6 +216,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     marginBottom: 12,
+  },
+  emptyCard: {
+    opacity: 0.65,
+    borderStyle: 'dashed',
+    borderColor: '#555',
   },
   slotHeader: {
     flexDirection: 'row',
