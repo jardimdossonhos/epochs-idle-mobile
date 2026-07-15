@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { useGameState } from '../GameProvider';
 import { DiplomaticRelation } from '../../core/models/enums';
+import AvatarRenderer from '../components/AvatarRenderer';
+import { SOVEREIGN_TRAITS } from '../../core/models/character';
 
 export type DiplomaticActionType = "alliance" | "non_aggression" | "peace" | "tribute" | "embargo" | "war" | "demand_vassalage";
 
@@ -18,6 +20,9 @@ const RELATION_LABELS: Record<DiplomaticRelation, string> = {
 export default function DiplomacyScreen() {
   const { gameState, session, playerKingdomId } = useGameState();
   const [selectedKingdom, setSelectedKingdom] = useState<string | null>(null);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
 
   if (!gameState || !playerKingdomId) {
     return (
@@ -36,7 +41,7 @@ export default function DiplomacyScreen() {
     : [];
   
   const formattedRelations = knownRelations
-    .filter(([_, rel]) => rel && rel.status)
+    .filter(([id, rel]) => rel && rel.status && id !== playerKingdomId)
     .map(([id, rel]) => ({
       id,
       name: gameState.kingdoms[id]?.name || "Nação Desconhecida",
@@ -48,7 +53,31 @@ export default function DiplomacyScreen() {
     if (!session) return;
     const result = (session as any).executeDiplomaticAction(targetId, action);
     if (result && !result.ok) {
-      console.warn("Diplomacy Action Failed:", result.message);
+      Alert.alert("Ação Recusada", result.message);
+    } else if (result && result.ok) {
+      Alert.alert("Sucesso", "Tratado enviado com sucesso.");
+    }
+  };
+
+  const handleSelectKingdom = (id: string) => {
+    setSelectedKingdom(selectedKingdom === id ? null : id);
+    setChatInput('');
+    setChatLoading(false);
+    setChatError(null);
+  };
+
+  const handleSendChatMessage = async (targetId: string, customMessage?: string) => {
+    const msgToSend = customMessage !== undefined ? customMessage : chatInput;
+    if (!session || !msgToSend.trim()) return;
+    setChatLoading(true);
+    setChatError(null);
+    try {
+      await session.sendPlayerChatMessage(targetId, msgToSend.trim());
+      setChatInput('');
+    } catch (err: any) {
+      setChatError(err?.message || "Falha na conexão com o Gemini.");
+    } finally {
+      setChatLoading(false);
     }
   };
 
@@ -69,15 +98,21 @@ export default function DiplomacyScreen() {
         ) : (
           formattedRelations.map(({ id, name, rel }) => {
             const isSelected = selectedKingdom === id;
+            const targetKingdom = gameState.kingdoms[id];
+            const ruler = targetKingdom?.rulerId ? gameState.world.characters?.[targetKingdom.rulerId] : null;
+
             return (
               <View key={id} style={[styles.card, isSelected && styles.cardSelected]}>
                 <TouchableOpacity 
                   style={styles.cardHeader} 
-                  onPress={() => setSelectedKingdom(isSelected ? null : id)}
+                  onPress={() => handleSelectKingdom(id)}
                 >
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarText}>{name.charAt(0)}</Text>
-                  </View>
+                  <AvatarRenderer 
+                    cultureId={ruler?.cultureId} 
+                    seed={ruler?.portraitSeed} 
+                    gender={ruler?.gender} 
+                    size={48} 
+                  />
                   <View style={styles.cardTitleArea}>
                     <Text style={styles.charName}>{name}</Text>
                     <Text style={[styles.charStatus, { color: getStatusColor(rel.status) }]}>
@@ -89,6 +124,55 @@ export default function DiplomacyScreen() {
 
                 {isSelected && (
                   <View style={styles.detailsPanel}>
+                    {ruler && (
+                      <View style={styles.rulerProfile}>
+                        <View style={styles.rulerHeader}>
+                          <AvatarRenderer 
+                            cultureId={ruler.cultureId} 
+                            seed={ruler.portraitSeed} 
+                            gender={ruler.gender} 
+                            size={48} 
+                          />
+                          <View style={styles.rulerTitleArea}>
+                            <Text style={styles.rulerNameText}>{ruler.name}</Text>
+                            <Text style={styles.rulerTitleText}>{ruler.title || 'Soberano'}</Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.rulerTraitsArea}>
+                          <Text style={styles.subsectionTitle}>Traços do Soberano</Text>
+                          <Text style={styles.rulerTraitsText}>
+                            {ruler.traits && ruler.traits.length > 0
+                              ? ruler.traits
+                                  .map(tId => SOVEREIGN_TRAITS.find(t => t.id === tId)?.name || tId)
+                                  .join(', ')
+                              : 'Nenhum traço notável'}
+                          </Text>
+                        </View>
+
+                        <View style={styles.rulerStatsArea}>
+                          <Text style={styles.subsectionTitle}>Atributos do Soberano</Text>
+                          <View style={styles.rulerStatsGrid}>
+                            <View style={styles.rulerStatItem}>
+                              <Text style={styles.rulerStatLabel}>Admin: <Text style={styles.rulerStatValue}>{ruler.stats?.administration ?? 0}</Text></Text>
+                            </View>
+                            <View style={styles.rulerStatItem}>
+                              <Text style={styles.rulerStatLabel}>Marcial: <Text style={styles.rulerStatValue}>{ruler.stats?.martial ?? 0}</Text></Text>
+                            </View>
+                            <View style={styles.rulerStatItem}>
+                              <Text style={styles.rulerStatLabel}>Diplo: <Text style={styles.rulerStatValue}>{ruler.stats?.diplomacy ?? 0}</Text></Text>
+                            </View>
+                            <View style={styles.rulerStatItem}>
+                              <Text style={styles.rulerStatLabel}>Intriga: <Text style={styles.rulerStatValue}>{ruler.stats?.intrigue ?? 0}</Text></Text>
+                            </View>
+                            <View style={styles.rulerStatItem}>
+                              <Text style={styles.rulerStatLabel}>Estudo: <Text style={styles.rulerStatValue}>{ruler.stats?.learning ?? 0}</Text></Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
                     <Text style={styles.sectionTitle}>Métricas Relacionais</Text>
                     <View style={styles.statsRow}>
                       <StatBox label="Confiança" value={(rel.score.trust * 100).toFixed(0)} color="#50E3C2" />
@@ -130,6 +214,70 @@ export default function DiplomacyScreen() {
                           danger
                         />
                       )}
+                    </View>
+
+                    {/* Chat Panel */}
+                    <View style={styles.chatPanel}>
+                      <Text style={styles.sectionTitle}>Mensagens com o Soberano</Text>
+                      <ScrollView 
+                        style={styles.chatScroll} 
+                        nestedScrollEnabled={true} 
+                        contentContainerStyle={styles.chatScrollContent}
+                      >
+                        {(!rel.chatHistory || rel.chatHistory.length === 0) ? (
+                          <Text style={styles.noChatText}>Inicie uma conversa diplomática com o governante.</Text>
+                        ) : (
+                          rel.chatHistory.map((msg: any, idx: number) => {
+                            const isPlayer = msg.sender === 'player';
+                            return (
+                              <View 
+                                key={idx} 
+                                style={[
+                                  styles.chatBubble, 
+                                  isPlayer ? styles.chatBubblePlayer : styles.chatBubbleNpc
+                                ]}
+                              >
+                                <Text style={styles.chatSenderText}>{isPlayer ? 'Você' : (ruler?.name || 'Soberano')}</Text>
+                                <Text style={styles.chatMessageText}>{msg.text}</Text>
+                              </View>
+                            );
+                          })
+                        )}
+                      </ScrollView>
+
+                      {chatError && (
+                        <View style={styles.errorArea}>
+                          <Text style={styles.errorText}>Erro: {chatError}</Text>
+                          <TouchableOpacity 
+                            style={styles.retryBtn} 
+                            onPress={() => handleSendChatMessage(id, chatInput)}
+                          >
+                            <Text style={styles.retryBtnText}>Tentar Novamente</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      <View style={styles.chatInputRow}>
+                        <TextInput
+                          style={styles.chatInput}
+                          value={chatInput}
+                          onChangeText={setChatInput}
+                          placeholder="Digite uma mensagem..."
+                          placeholderTextColor="#666"
+                          editable={!chatLoading}
+                        />
+                        <TouchableOpacity 
+                          style={[styles.chatSendBtn, (!chatInput.trim() || chatLoading) && styles.chatSendBtnDisabled]}
+                          onPress={() => handleSendChatMessage(id)}
+                          disabled={!chatInput.trim() || chatLoading}
+                        >
+                          {chatLoading ? (
+                            <ActivityIndicator size="small" color="#121212" />
+                          ) : (
+                            <Text style={styles.chatSendBtnText}>Enviar</Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 )}
@@ -263,5 +411,180 @@ const styles = StyleSheet.create({
   actionBtnText: {
     color: '#FFF',
     fontSize: 12,
+  },
+  rulerProfile: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 6,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  rulerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  rulerTitleArea: {
+    marginLeft: 12,
+  },
+  rulerNameText: {
+    color: '#E0E0E0',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  rulerTitleText: {
+    color: '#D4AF37',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  rulerTraitsArea: {
+    marginBottom: 10,
+  },
+  subsectionTitle: {
+    color: '#888',
+    fontSize: 11,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  rulerTraitsText: {
+    color: '#DDD',
+    fontSize: 13,
+  },
+  rulerStatsArea: {
+    marginTop: 4,
+  },
+  rulerStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  rulerStatItem: {
+    backgroundColor: '#2A2A2A',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  rulerStatLabel: {
+    color: '#A0A0A0',
+    fontSize: 11,
+  },
+  rulerStatValue: {
+    color: '#FFF',
+    fontWeight: 'bold',
+  },
+  chatPanel: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 6,
+    padding: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  chatScroll: {
+    height: 150,
+    backgroundColor: '#121212',
+    borderRadius: 4,
+    padding: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+  },
+  chatScrollContent: {
+    paddingBottom: 8,
+  },
+  noChatText: {
+    color: '#666',
+    fontSize: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  chatBubble: {
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+    maxWidth: '85%',
+  },
+  chatBubblePlayer: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#2C3E50',
+    borderBottomRightRadius: 0,
+  },
+  chatBubbleNpc: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#2A2A2A',
+    borderBottomLeftRadius: 0,
+    borderWidth: 1,
+    borderColor: '#3C3C3C',
+  },
+  chatSenderText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#D4AF37',
+    marginBottom: 2,
+  },
+  chatMessageText: {
+    color: '#FFF',
+    fontSize: 12,
+  },
+  chatInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  chatInput: {
+    flex: 1,
+    backgroundColor: '#121212',
+    borderColor: '#2A2A2A',
+    borderWidth: 1,
+    borderRadius: 4,
+    color: '#FFF',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 13,
+  },
+  chatSendBtn: {
+    backgroundColor: '#D4AF37',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    borderRadius: 4,
+  },
+  chatSendBtnDisabled: {
+    backgroundColor: '#555',
+    opacity: 0.5,
+  },
+  chatSendBtnText: {
+    color: '#121212',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  errorArea: {
+    backgroundColor: '#4A1C1C',
+    borderRadius: 4,
+    padding: 8,
+    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#FF9999',
+    fontSize: 11,
+    flex: 1,
+  },
+  retryBtn: {
+    backgroundColor: '#FF3B30',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 3,
+    marginLeft: 8,
+  },
+  retryBtnText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });

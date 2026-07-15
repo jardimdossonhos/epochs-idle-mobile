@@ -1,4 +1,4 @@
-﻿import { ArmyPosture, AutomationLevel, BuildingType, ResourceType, TechnologyDomain } from "../../models/enums";
+import { ArmyPosture, AutomationLevel, BuildingType, ResourceType, TechnologyDomain } from "../../models/enums";
 import { selectDefaultResearchNode, selectResearchNodeTowardsTarget } from "../../data/technology-tree";
 import type { BudgetPriority } from "../../models/economy";
 import type { EcsState, GameState, KingdomState } from "../../models/game-state";
@@ -120,6 +120,10 @@ function getKingdomEcsResource(state: GameState, kingdomId: string, resource: Re
     }
   }
   return total;
+}
+
+export function getKingdomCapitalIndex(kingdom: KingdomState, orderedDefinitions: RegionDefinition[]): number {
+  return orderedDefinitions.findIndex(def => def.id === kingdom.capitalRegionId);
 }
 
 function canAfford(state: GameState, kingdomId: string, cost: Partial<Record<ResourceType, number>>, orderedDefinitions: RegionDefinition[]): boolean {
@@ -342,6 +346,118 @@ export function createAutomationSystem(orderedDefinitions: RegionDefinition[]): 
             relation.score.rivalry = roundTo(clamp(relation.score.rivalry - 0.02, 0, 1));
             relation.score.borderTension = roundTo(clamp(relation.score.borderTension - 0.015, 0, 1));
             relation.score.trust = roundTo(clamp(relation.score.trust + 0.01, 0, 1));
+          }
+        }
+
+        if (kingdom.administration.directives?.religious_mission) {
+          const ownedRegions = getOwnedRegionIds(state, kingdom.id);
+          const borderKingdomIds = new Set<string>();
+          for (const regionId of ownedRegions) {
+            const definition = definitions[regionId];
+            if (!definition) continue;
+            for (const neighborId of definition.neighbors) {
+              const neighborRegion = state.world.regions[neighborId];
+              if (neighborRegion && neighborRegion.ownerId && neighborRegion.ownerId !== kingdom.id && neighborRegion.ownerId !== "k_nature") {
+                borderKingdomIds.add(neighborRegion.ownerId);
+              }
+            }
+          }
+          const sortedBorderTargets = Array.from(borderKingdomIds).sort();
+
+          let missionSeq = 0;
+          for (const targetKingdomId of sortedBorderTargets) {
+            const targetKingdom = state.kingdoms[targetKingdomId];
+            if (!targetKingdom) continue;
+
+            const relation = kingdom.diplomacy.relations[targetKingdomId];
+            if (!relation) continue;
+
+            const cooldownKey = "religion:send_missionaries";
+            const cooldownUntil = relation.actionCooldowns?.[cooldownKey] ?? 0;
+            if (cooldownUntil > context.now) {
+              continue;
+            }
+
+            const goldCost = 18;
+            const faithCost = 26;
+            const legitimacyCost = 2;
+
+            const cost = {
+              [ResourceType.Gold]: goldCost,
+              [ResourceType.Faith]: faithCost,
+              [ResourceType.Legitimacy]: legitimacyCost
+            };
+
+            if (!canAfford(state, kingdom.id, cost, orderedDefinitions)) {
+              continue;
+            }
+
+            if (
+              (kingdom.economy.stock[ResourceType.Gold] ?? 0) < goldCost ||
+              (kingdom.economy.stock[ResourceType.Faith] ?? 0) < faithCost ||
+              (kingdom.economy.stock[ResourceType.Legitimacy] ?? 0) < legitimacyCost
+            ) {
+              continue;
+            }
+
+            const capitalIndex = getKingdomCapitalIndex(kingdom, orderedDefinitions);
+            if (capitalIndex !== -1 && state.ecs) {
+              if (state.ecs.gold && capitalIndex < state.ecs.gold.length) {
+                state.ecs.gold[capitalIndex] = roundTo(Math.max(0, state.ecs.gold[capitalIndex] - goldCost));
+              }
+              if (state.ecs.faith && capitalIndex < state.ecs.faith.length) {
+                state.ecs.faith[capitalIndex] = roundTo(Math.max(0, state.ecs.faith[capitalIndex] - faithCost));
+              }
+              if (state.ecs.legitimacy && capitalIndex < state.ecs.legitimacy.length) {
+                state.ecs.legitimacy[capitalIndex] = roundTo(Math.max(0, state.ecs.legitimacy[capitalIndex] - legitimacyCost));
+              }
+            }
+
+            kingdom.economy.stock[ResourceType.Gold] = roundTo(Math.max(0, (kingdom.economy.stock[ResourceType.Gold] ?? 0) - goldCost));
+            kingdom.economy.stock[ResourceType.Faith] = roundTo(Math.max(0, (kingdom.economy.stock[ResourceType.Faith] ?? 0) - faithCost));
+            kingdom.economy.stock[ResourceType.Legitimacy] = roundTo(Math.max(0, (kingdom.economy.stock[ResourceType.Legitimacy] ?? 0) - legitimacyCost));
+
+            relation.actionCooldowns = relation.actionCooldowns ?? {};
+            relation.actionCooldowns[cooldownKey] = context.now + 90_000;
+            const reverseRelation = targetKingdom.diplomacy.relations[kingdom.id];
+            if (reverseRelation) {
+              reverseRelation.actionCooldowns = reverseRelation.actionCooldowns ?? {};
+              reverseRelation.actionCooldowns[cooldownKey] = context.now + 90_000;
+            }
+
+            const actorMissionaryPower = clamp(kingdom.religion.authority * 0.5 + kingdom.religion.missionaryBudget * 0.5, 0, 1);
+            const targetResistance = clamp(targetKingdom.religion.authority * 0.45 + targetKingdom.religion.tolerance * 0.35 + (targetKingdom.stability / 100) * 0.2, 0, 1);
+            const chance = clamp(0.2 + actorMissionaryPower * 0.55 - targetResistance * 0.32, 0.08, 0.9);
+            const pressureGain = clamp(0.2 + actorMissionaryPower * 0.18, 0.16, 0.42);
+
+            const roll = Math.random();
+            const success = roll <= chance;
+
+            if (success) {
+              const currentInfluence = targetKingdom.religion.externalInfluenceIn[kingdom.id] ?? 0;
+              const boostedInfluence = clamp(currentInfluence + pressureGain, 0, 1);
+              targetKingdom.religion.externalInfluenceIn[kingdom.id] = roundTo(boostedInfluence, 4);
+
+              context.events.push({
+                id: createEventId({
+                  prefix: "evt_religion",
+                  tick: state.meta.tick,
+                  systemId: "automation",
+                  actorId: kingdom.id,
+                  sequence: missionSeq++
+                }),
+                type: "religion.mission_started",
+                actorKingdomId: kingdom.id,
+                targetKingdomId: targetKingdom.id,
+                payload: {
+                  influence: roundTo(boostedInfluence, 4),
+                  pressure: roundTo(pressureGain, 4)
+                },
+                occurredAt: context.now
+              });
+            } else {
+              kingdom.stability = roundTo(clamp(kingdom.stability - 0.25, 0, 100));
+            }
           }
         }
       }

@@ -24,13 +24,13 @@ export default function CharacterCreationScreen({ onComplete, onCancel }: Charac
   const [rulerName, setRulerName] = useState<string>(() => generateCulturalName('latin', 'male'));
   const [kingdomName, setKingdomName] = useState<string>('Primeiro Reino');
   const [portraitSeed, setPortraitSeed] = useState<string>(() => generatePortraitSeed());
-  const [selectedRegionId, setSelectedRegionId] = useState<string>('r_hex_10286');
+  const [selectedRegionId, setSelectedRegionId] = useState<string>('r_hex_38160');
   const [stats, setStats] = useState<RulerStats>({
-    ADM: 3,
-    MAR: 3,
-    DIP: 3,
-    INT: 3,
-    LRN: 3,
+    ADM: 1,
+    MAR: 1,
+    DIP: 1,
+    INT: 1,
+    LRN: 1,
   });
 
   const handleCultureChange = (newCulture: CultureId) => {
@@ -73,8 +73,8 @@ const CULTURE_STAT_BONUSES: Record<CultureId, Partial<RulerStats>> = {
       // 1. Generate initial game state for chosen starting region
       const initialState = createInitialState(staticWorldData, selectedRegionId, WORLD_DEFINITIONS_V1);
 
-      // Clamp point buy stats within [3, 10] range
-      const clampStat = (val: number) => Math.max(3, Math.min(10, typeof val === 'number' ? val : 3));
+      // Clamp point buy stats within [1, 10] range
+      const clampStat = (val: number) => Math.max(1, Math.min(10, typeof val === 'number' ? val : 1));
       const baseStats = {
         ADM: clampStat(stats.ADM),
         MAR: clampStat(stats.MAR),
@@ -117,9 +117,9 @@ const CULTURE_STAT_BONUSES: Record<CultureId, Partial<RulerStats>> = {
         initialState.kingdoms['k_player'].rulerId = rulerId;
       }
 
-      // 3. Bootstrap game session with custom state
-      await session.bootstrap(initialState);
-      session.start();
+      // 3. Reset game session with custom state
+      await session.resetToNewGame(initialState);
+      session.markWorkerReady();
 
       onComplete();
     } catch (e) {

@@ -1,4 +1,4 @@
-﻿import type { WarResolver } from "../../core/contracts/services";
+import type { WarResolver } from "../../core/contracts/services";
 import type { Treaty } from "../../core/models/diplomacy";
 import { DiplomaticRelation, TreatyType } from "../../core/models/enums";
 import type { GameState, KingdomState, WarFront, WarState } from "../../core/models/game-state";
@@ -366,6 +366,10 @@ function applyConquest(
   region.assimilation = roundTo(clamp(Math.min(region.assimilation, 0.36), 0, 1));
   region.unrest = roundTo(clamp(region.unrest + 0.3, 0, 1));
   region.devastation = roundTo(clamp(region.devastation + 0.12, 0, 1));
+
+  for (const kid of Object.keys(state.kingdoms)) {
+    state.kingdoms[kid].ownedRegionIds = undefined;
+  }
 
   return {
     regionId: targetRegionId,

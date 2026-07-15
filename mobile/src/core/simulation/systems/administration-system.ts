@@ -1,4 +1,4 @@
-﻿﻿import type { RegionalControl } from "../../models/administration";
+﻿import type { RegionalControl } from "../../models/administration";
 import type { SimulationSystem } from "../tick-pipeline";
 import { clamp, createEventId, getOwnedRegionIds, roundTo } from "./utils";
 
@@ -41,6 +41,33 @@ export function createAdministrationSystem(): SimulationSystem {
 
           if (!region || !definition) {
             continue;
+          }
+
+          if (region.construction) {
+            region.construction.progress += context.tickScale ?? 1;
+            if (region.construction.progress >= region.construction.targetTicks) {
+              region.buildings = region.buildings || [];
+              region.buildings.push(region.construction.buildingType);
+
+              context.events.push({
+                id: createEventId({
+                  prefix: "evt_build",
+                  tick: state.meta.tick,
+                  systemId: "administration",
+                  actorId: kingdom.id,
+                  sequence: eventSeq++
+                }),
+                type: "region.building_completed",
+                actorKingdomId: kingdom.id,
+                payload: {
+                  regionId,
+                  buildingType: region.construction.buildingType
+                },
+                occurredAt: context.now
+              });
+
+              delete region.construction;
+            }
           }
 
           const control = controlsByRegion.get(regionId) ?? createRegionalControl(regionId);

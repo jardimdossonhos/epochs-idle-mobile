@@ -13,13 +13,14 @@ import { useGameState } from '../GameProvider';
 import { BuildingType } from '../../core/models/enums';
 import WorldMapSkia from '../components/WorldMapSkia';
 import RegionDetailPanel from '../components/RegionDetailPanel';
-
+import TopHUD from '../components/TopHUD';
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const { gameState, session, playerKingdomId, staticWorldData } = useGameState();
   const [showRegionList, setShowRegionList] = useState(false);
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'owner' | 'religion' | 'economy' | 'military'>('owner');
+  const [isMergedView, setIsMergedView] = useState(false);
 
   if (!gameState || !session || !staticWorldData) return null;
 
@@ -46,12 +47,14 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
+      <TopHUD />
       {/* ── MAPA (Background absoluto) ── */}
       <View style={styles.mapLayer}>
         <WorldMapSkia
           onRegionPress={handleRegionPress}
           selectedRegionId={selectedRegionId}
           viewMode={viewMode}
+          isMergedView={isMergedView}
         />
       </View>
 
@@ -85,6 +88,13 @@ export default function MapScreen() {
             activeOpacity={0.7}
           >
             <Text style={[styles.fabText, viewMode === 'military' && styles.fabActiveText]}>⚔️</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.fabButton, isMergedView && styles.fabActive]}
+            onPress={() => setIsMergedView(!isMergedView)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.fabText, isMergedView && styles.fabActiveText]}>{isMergedView ? '🧩' : '⬡'}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -176,6 +186,7 @@ export default function MapScreen() {
           <RegionDetailPanel
             regionId={selectedRegionId}
             onClose={handleClosePanel}
+            isMergedView={isMergedView}
           />
         </View>
       )}

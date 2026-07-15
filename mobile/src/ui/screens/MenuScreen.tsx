@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useGameState } from '../GameProvider';
 import { AILogger } from '../../infrastructure/telemetry/AILogger';
+import { AutomationLevel } from '../../core/models/enums';
 import type { SaveSummary, SaveSlotId } from '../../core/contracts/game-ports';
 import { AUTOSAVE_SLOT_ID, MANUAL_SLOT_ID, MANUAL_SLOT_2, MANUAL_SLOT_3 } from '../../infrastructure/persistence/save-slots';
 import { createInitialState } from '../../application/boot/create-initial-state';
@@ -15,8 +16,41 @@ const SLOTS: { id: SaveSlotId; label: string; canSave: boolean }[] = [
 ];
 
 export default function MenuScreen() {
-  const { gameState, session, staticWorldData } = useGameState();
+  const { gameState, session, staticWorldData, playerKingdomId } = useGameState();
   const [summaries, setSummaries] = useState<SaveSummary[]>([]);
+
+  const kingdom = gameState?.kingdoms?.[playerKingdomId];
+  const auto = kingdom?.administration?.automation;
+  const directives = kingdom?.administration?.directives;
+
+  const isMasterActive = !!auto?.globalToggleActive;
+  const isEconomyActive = !!auto && auto.economy !== AutomationLevel.Manual;
+  const isDefenseActive = !!auto && auto.defense !== AutomationLevel.Manual;
+  const isReligionActive = !!directives?.religious_mission;
+
+  const toggleMaster = () => {
+    if (!session) return;
+    session.toggleGlobalAutomation(!isMasterActive);
+  };
+
+  const toggleEconomy = () => {
+    if (!session) return;
+    session.setEconomyAutomation(
+      isEconomyActive ? AutomationLevel.Manual : AutomationLevel.NearlyAutomatic
+    );
+  };
+
+  const toggleDefense = () => {
+    if (!session) return;
+    session.setDefenseAutomation(
+      isDefenseActive ? AutomationLevel.Manual : AutomationLevel.NearlyAutomatic
+    );
+  };
+
+  const toggleReligion = () => {
+    if (!session) return;
+    session.updateAutomationDirective('religious_mission', !isReligionActive);
+  };
 
   const loadSummaries = async () => {
     if (!session) return;
@@ -82,6 +116,62 @@ export default function MenuScreen() {
               ]}>{speed}x</Text>
             </TouchableOpacity>
           ))}
+        </View>
+      </View>
+
+      <View style={styles.automationBox}>
+        <Text style={styles.speedControlTitle}>Modo Idle (Automação)</Text>
+        
+        <View style={styles.autoRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.autoLabel}>Mestre</Text>
+            <Text style={styles.autoDesc}>Ativa/desativa automação total de todos os sistemas</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.autoBtn, isMasterActive ? styles.autoBtnActive : styles.autoBtnManual]}
+            onPress={toggleMaster}
+          >
+            <Text style={styles.autoBtnText}>{isMasterActive ? 'ATIVADO' : 'MANUAL'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.autoRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.autoLabel}>Automatizar Economia</Text>
+            <Text style={styles.autoDesc}>Gerenciamento automático de recursos e taxas</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.autoBtn, isEconomyActive ? styles.autoBtnActive : styles.autoBtnManual]}
+            onPress={toggleEconomy}
+          >
+            <Text style={styles.autoBtnText}>{isEconomyActive ? 'ATIVADO' : 'MANUAL'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.autoRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.autoLabel}>Automatizar Defesa Militar</Text>
+            <Text style={styles.autoDesc}>Recrutamento e guarnições automáticas</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.autoBtn, isDefenseActive ? styles.autoBtnActive : styles.autoBtnManual]}
+            onPress={toggleDefense}
+          >
+            <Text style={styles.autoBtnText}>{isDefenseActive ? 'ATIVADO' : 'MANUAL'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.autoRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.autoLabel}>Automatizar Religião</Text>
+            <Text style={styles.autoDesc}>Envio automático de missionários</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.autoBtn, isReligionActive ? styles.autoBtnActive : styles.autoBtnManual]}
+            onPress={toggleReligion}
+          >
+            <Text style={styles.autoBtnText}>{isReligionActive ? 'ATIVADO' : 'MANUAL'}</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -176,4 +266,13 @@ const styles = StyleSheet.create({
   menuBtnText: { color: '#E0E0E0', fontSize: 16, fontWeight: 'bold' },
   dangerBtn: { borderColor: '#8B0000', marginTop: 10 },
   dangerText: { color: '#E24A4A' },
+
+  automationBox: { width: '100%', maxWidth: 400, backgroundColor: '#1A1A1A', padding: 16, borderRadius: 8, borderWidth: 1, borderColor: '#2C2C2C', marginBottom: 20 },
+  autoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#2C2C2C' },
+  autoLabel: { color: '#E0E0E0', fontSize: 15, fontWeight: 'bold' },
+  autoDesc: { color: '#888', fontSize: 12, marginTop: 2 },
+  autoBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6, borderWidth: 1, minWidth: 90, alignItems: 'center' },
+  autoBtnActive: { backgroundColor: '#50E3C2', borderColor: '#50E3C2' },
+  autoBtnManual: { backgroundColor: '#2A2A2A', borderColor: '#444' },
+  autoBtnText: { color: '#E0E0E0', fontSize: 12, fontWeight: 'bold' },
 });

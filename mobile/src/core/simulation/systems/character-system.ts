@@ -1,6 +1,7 @@
 import type { SimulationSystem, TickContext } from "../tick-pipeline";
 import { createEventId } from "./utils";
 import type { Character } from "../../models/character";
+import { SOVEREIGN_TRAITS } from "../../models/character";
 import { CultureId, generateCulturalName, generatePortraitSeed, getRandomGender } from "./culture-generator";
 
 // Títulos para geração de herdeiros (mantemos os títulos de realeza)
@@ -17,15 +18,24 @@ function generateHeir(ruler: Character, kingdomId: string, currentTick: number):
   const title = gender === 'male' ? "Príncipe" : "Princesa";
   const fullName = `${baseName} ${ruler.name.split(' ').slice(1).join(' ') || 'da Casa Real'}`;
 
-
-  // Herdeiros herdam stats similares ao pai/mãe com alguma variação
-  const inheritedStats = {
-    administration: Math.max(1, ruler.stats.administration + Math.floor(Math.random() * 6) - 3),
-    martial: Math.max(1, ruler.stats.martial + Math.floor(Math.random() * 6) - 3),
-    diplomacy: Math.max(1, ruler.stats.diplomacy + Math.floor(Math.random() * 6) - 3),
-    intrigue: Math.max(1, ruler.stats.intrigue + Math.floor(Math.random() * 6) - 3),
-    learning: Math.max(1, ruler.stats.learning + Math.floor(Math.random() * 6) - 3),
+  const baseStats = {
+    administration: Math.max(1, Math.min(20, ruler.stats.administration + Math.floor(Math.random() * 6) - 3)),
+    martial: Math.max(1, Math.min(20, ruler.stats.martial + Math.floor(Math.random() * 6) - 3)),
+    diplomacy: Math.max(1, Math.min(20, ruler.stats.diplomacy + Math.floor(Math.random() * 6) - 3)),
+    intrigue: Math.max(1, Math.min(20, ruler.stats.intrigue + Math.floor(Math.random() * 6) - 3)),
+    learning: Math.max(1, Math.min(20, ruler.stats.learning + Math.floor(Math.random() * 6) - 3)),
   };
+
+  const trait = SOVEREIGN_TRAITS[Math.floor(Math.random() * SOVEREIGN_TRAITS.length)];
+  const stats = { ...baseStats };
+  if (trait.statModifiers) {
+    for (const [stat, mod] of Object.entries(trait.statModifiers)) {
+      const currentVal = stats[stat as keyof typeof stats] ?? 10;
+      stats[stat as keyof typeof stats] = Math.max(1, Math.min(20, currentVal + mod));
+    }
+  }
+
+  const traits = ["nobre", "herdeiro", trait.id];
 
   return {
     id: `heir_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -37,8 +47,8 @@ function generateHeir(ruler: Character, kingdomId: string, currentTick: number):
     isLegendary: false,
     birthTick: currentTick,
     deathTick: null,
-    stats: inheritedStats,
-    traits: ["nobre", "herdeiro"],
+    stats,
+    traits,
     status: "ruler", // Herdeiros são considerados governantes em potencial
     locationKingdomId: kingdomId,
     employerKingdomId: kingdomId,
@@ -48,7 +58,10 @@ function generateHeir(ruler: Character, kingdomId: string, currentTick: number):
     },
     personalWealth: 100 + Math.floor(Math.random() * 200),
     influence: 50 + Math.floor(Math.random() * 100),
-    memory: [`Nascido como herdeiro do trono no ano ${Math.floor(currentTick / 12) + 1}.`]
+    memory: [`Nascido como herdeiro do trono no ano ${Math.floor(currentTick / 12) + 1}.`],
+    level: 1,
+    experience: 0,
+    unspentTalentPoints: 0
   };
 }
 
@@ -84,6 +97,24 @@ function processSuccession(kingdom: any, deadRuler: Character, state: any, conte
     kingdom.rulerId = newRulerId;
     newRuler.status = "ruler";
     newRuler.title = "Soberano";
+
+    if (kingdom.npc) {
+      const sovereignTraitId = newRuler.traits.find((t: string) => t !== "nobre" && t !== "herdeiro");
+      const trait = SOVEREIGN_TRAITS.find(t => t.id === sovereignTraitId);
+      
+      const personality = kingdom.npc.personality;
+      const keys: Array<keyof Omit<typeof personality, 'archetype'>> = ['ambition', 'caution', 'greed', 'zeal', 'honor', 'betrayalTendency'];
+      for (const key of keys) {
+        let val = personality[key] + (Math.random() * 0.24 - 0.12);
+        if (trait?.npcModifiers) {
+          const mod = (trait.npcModifiers as Record<string, number | undefined>)[key as string];
+          if (mod !== undefined) {
+            val += mod;
+          }
+        }
+        personality[key] = Math.max(0.0, Math.min(1.0, val));
+      }
+    }
 
     // Remove o novo monarca da lista de herdeiros
     kingdom.heirs.shift();
@@ -136,7 +167,8 @@ export function createCharacterSystem(): SimulationSystem {
       const state = context.nextState;
 
       // Roda a cada 12 ciclos (Exatamente 1 Ano de Simulação)
-      if (state.meta.tick === 0 || state.meta.tick % 12 !== 0) return;
+      const crossedYear = Math.floor(state.meta.tick / 12) !== Math.floor((state.meta.tick + (context.tickScale ?? 1)) / 12);
+      if (state.meta.tick === 0 || !crossedYear) return;
       if (!state.world.characters) return;
 
       // Jogo Eterno (Imortalidade) Ativada: O tempo passa, mas a biologia congela.

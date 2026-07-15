@@ -14,8 +14,8 @@ interface StatPointBuyStepProps {
   onUpdateStats: (stats: RulerStats) => void;
 }
 
-const TOTAL_BUDGET = 15;
-const BASE_STAT = 3;
+const TOTAL_BUDGET = 25;
+const BASE_STAT = 1;
 
 const STAT_INFO: Record<keyof RulerStats, { label: string; name: string; icon: string; desc: string; color: string }> = {
   ADM: { label: 'ADM', name: 'Administração', icon: '📜', desc: 'Aumenta a receita tributária, capacidade administrativa e eficiência de construção.', color: '#4A90E2' },
@@ -49,7 +49,7 @@ export default function StatPointBuyStep({ stats, onUpdateStats }: StatPointBuyS
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.stepTitle}>Atributos Reais</Text>
       <Text style={styles.stepSubtitle}>
-        Distribua os pontos para definir os talentos de seu governante. Todos os atributos começam na base 3.
+        Distribua os pontos para definir os talentos de seu governante. Todos os atributos começam na base 1.
       </Text>
 
       <View style={styles.budgetBanner}>

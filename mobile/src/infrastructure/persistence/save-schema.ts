@@ -146,9 +146,32 @@ export function migrateStateToCurrent(state: GameState): GameState {
     if (!kingdom.rulerId) {
       const rulerId = `char_${kingdomId}_ruler`;
       kingdom.rulerId = rulerId;
+      // Generate culture and properties based on kingdom id or name
+      let cultureId = 'latin';
+      let title = 'Rei';
+      let gender: 'male' | 'female' = Math.random() > 0.5 ? 'male' : 'female';
+      
+      if (kingdomId === 'k_npc_1' || kingdom.name.includes('Uruk')) {
+        cultureId = 'desert';
+        title = 'Rei-Sacerdote';
+      } else if (kingdomId === 'k_npc_2' || kingdom.name.includes('Nilo')) {
+        cultureId = 'savanna';
+        title = 'Faraó';
+      } else if (kingdomId === 'k_npc_3' || kingdom.name.includes('Harappa')) {
+        cultureId = 'vedic';
+        title = 'Rajá';
+      } else if (kingdomId === 'k_npc_4' || kingdom.name.includes('Xia')) {
+        cultureId = 'eastern';
+        title = 'Imperador';
+      }
+
       migrated.world.characters[rulerId] = {
         id: rulerId,
         name: `Soberano de ${kingdom.name}`,
+        title: title,
+        cultureId: cultureId,
+        gender: gender,
+        portraitSeed: kingdomId + '_' + Math.floor(Math.random() * 1000),
         birthTick: 0,
         deathTick: null,
         isLegendary: false,
@@ -160,8 +183,11 @@ export function migrateStateToCurrent(state: GameState): GameState {
         influence: 50,
         memory: [],
         stats: { administration: 5, martial: 5, diplomacy: 5, intrigue: 5, learning: 5 },
-        traits: []
-      };
+        traits: [],
+        level: 1,
+        experience: 0,
+        unspentTalentPoints: 0
+      } as any;
     }
 
     // Safety for newer milestone fields (like administration, diplomacy, economy fields)
@@ -174,6 +200,28 @@ export function migrateStateToCurrent(state: GameState): GameState {
       };
       kingdom.economy.corruption = kingdom.economy.corruption || 0.0;
     }
+  }
+
+  // R1 Bugfix: Garante que todos os personagens tenham imagens diferentes mesmo em saves antigos
+  if (migrated.world.characters) {
+    for (const charId in migrated.world.characters) {
+      const char = migrated.world.characters[charId] as any;
+      if (!char.cultureId || !char.portraitSeed) {
+        let cultureId = 'latin';
+        if (char.employerKingdomId === 'k_npc_1') cultureId = 'desert';
+        else if (char.employerKingdomId === 'k_npc_2') cultureId = 'savanna';
+        else if (char.employerKingdomId === 'k_npc_3') cultureId = 'vedic';
+        else if (char.employerKingdomId === 'k_npc_4') cultureId = 'eastern';
+        
+        char.cultureId = char.cultureId || cultureId;
+        char.portraitSeed = char.portraitSeed || (char.id + '_' + Math.floor(Math.random() * 1000));
+        char.gender = char.gender || (Math.random() > 0.5 ? 'male' : 'female');
+      }
+    }
+  }
+
+  for (const kingdomId of Object.keys(migrated.kingdoms).sort()) {
+    const kingdom = migrated.kingdoms[kingdomId];
     
     if (!kingdom.economy.budgetPriority) {
       kingdom.economy.budgetPriority = { military: 20, economy: 50, religion: 10, administration: 10, technology: 10 };

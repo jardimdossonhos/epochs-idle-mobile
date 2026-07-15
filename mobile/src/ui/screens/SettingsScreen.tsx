@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,13 +16,39 @@ import { geminiService } from '../../application/ai/gemini-service';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useGameState } from '../GameProvider';
 
 export default function SettingsScreen() {
+  const { session } = useGameState();
   const [apiKey, setApiKey] = useState('');
   const [aiEnabled, setAiEnabled] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const tapCountRef = useRef(0);
+  const lastTapTimeRef = useRef(0);
+
+  const handleDevModePress = () => {
+    const now = Date.now();
+    if (now - lastTapTimeRef.current < 2000) {
+      tapCountRef.current += 1;
+      if (tapCountRef.current >= 5) {
+        if (session) {
+          session.devModeActive = !session.devModeActive;
+          session.emitState(true);
+          Alert.alert(
+            'Modo Desenvolvedor',
+            session.devModeActive ? 'Modo Desenvolvedor ATIVADO' : 'Modo Desenvolvedor DESATIVADO'
+          );
+        }
+        tapCountRef.current = 0;
+      }
+    } else {
+      tapCountRef.current = 1;
+    }
+    lastTapTimeRef.current = now;
+  };
 
   const { logout, user } = useAuth();
   const { locale, changeLocale, t } = useLanguage();
@@ -105,6 +131,11 @@ export default function SettingsScreen() {
         <View style={styles.header}>
           <Text style={styles.headerIcon}>⚙️</Text>
           <Text style={styles.headerTitle}>{t('settings.title')}</Text>
+          <TouchableOpacity onPress={handleDevModePress} activeOpacity={0.8}>
+            <Text style={{ color: '#D4AF37', fontSize: 18, fontWeight: 'bold', marginVertical: 4 }}>
+              Epochs Idle
+            </Text>
+          </TouchableOpacity>
           <Text style={styles.headerSubtitle}>{t('settings.headerSubtitle')}</Text>
         </View>
 

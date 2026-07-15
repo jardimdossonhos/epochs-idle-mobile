@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, FlatList, Alert, Image } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, FlatList, Alert, Image, SafeAreaView, Platform, StatusBar } from 'react-native';
 import { useGameState } from '../GameProvider';
 import type { Character } from '../../core/models/character';
 import type { Minister } from '../../core/models/administration';
@@ -7,7 +7,7 @@ import { MinisterRole } from '../../core/models/enums';
 
 export default function CharacterScreen() {
   const { gameState, session, playerKingdomId } = useGameState();
-  const [activeTab, setActiveTab] = useState<'ruler' | 'council' | 'court'>('ruler');
+  const [activeTab, setActiveTab] = useState<'court' | 'candidates'>('court');
 
   if (!gameState || !session) return null;
 
@@ -17,16 +17,21 @@ export default function CharacterScreen() {
   // Filter based on tab
   const getTabCharacters = () => {
     switch (activeTab) {
-      case 'ruler':
+      case 'court': {
+        const chars: any[] = [];
         if (kingdom.rulerId && gameState.world.characters?.[kingdom.rulerId]) {
-          return [gameState.world.characters[kingdom.rulerId]];
+          chars.push(gameState.world.characters[kingdom.rulerId]);
+        } else {
+          const fallback = Object.values(gameState.world.characters || {}).filter(
+            c => c.status === 'ruler' && c.employerKingdomId === playerKingdomId
+          );
+          chars.push(...fallback);
         }
-        return Object.values(gameState.world.characters || {}).filter(
-          c => c.status === 'ruler' && c.employerKingdomId === playerKingdomId
-        );
-      case 'council':
-        return Object.values(kingdom.administration?.council || {}).filter((m): m is Minister => !!m);
-      case 'court':
+        const council = Object.values(kingdom.administration?.council || {}).filter((m): m is Minister => !!m);
+        chars.push(...council);
+        return chars;
+      }
+      case 'candidates':
         return kingdom.administration?.candidatePool || [];
       default:
         return [];
@@ -72,21 +77,22 @@ export default function CharacterScreen() {
   };
 
   const renderItem = ({ item }: { item: any }) => {
-    if (activeTab === 'ruler') {
-      return <CharacterCard character={item} />;
-    } else if (activeTab === 'council') {
-      // Find the role of this minister in the council
-      const roleEntry = Object.entries(kingdom.administration?.council || {}).find(([_, m]) => m && m.id === item.id);
-      const role = roleEntry ? (roleEntry[0] as MinisterRole) : MinisterRole.Wildcard;
-      return (
-        <CouncilCard 
-          minister={item} 
-          role={role} 
-          onFire={handleFire} 
-          onReassign={handleReassign} 
-          onInteract={handleInteract} 
-        />
-      );
+    if (activeTab === 'court') {
+      if (item.status === 'ruler') {
+        return <CharacterCard character={item} />;
+      } else {
+        const roleEntry = Object.entries(kingdom.administration?.council || {}).find(([_, m]) => m && m.id === item.id);
+        const role = roleEntry ? (roleEntry[0] as MinisterRole) : MinisterRole.Wildcard;
+        return (
+          <CouncilCard 
+            minister={item} 
+            role={role} 
+            onFire={handleFire} 
+            onReassign={handleReassign} 
+            onInteract={handleInteract} 
+          />
+        );
+      }
     } else {
       const occupiedRoles = Object.keys(kingdom.administration?.council || {}) as MinisterRole[];
       return (
@@ -100,28 +106,33 @@ export default function CharacterScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }]}>
       {/* Tabs */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'ruler' && styles.activeTab]}
-          onPress={() => setActiveTab('ruler')}
-        >
-          <Text style={[styles.tabText, activeTab === 'ruler' && styles.activeTabText]}>Soberano</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'council' && styles.activeTab]}
-          onPress={() => setActiveTab('council')}
-        >
-          <Text style={[styles.tabText, activeTab === 'council' && styles.activeTabText]}>Conselho</Text>
-        </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.tab, activeTab === 'court' && styles.activeTab]}
           onPress={() => setActiveTab('court')}
         >
           <Text style={[styles.tabText, activeTab === 'court' && styles.activeTabText]}>Corte</Text>
         </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'candidates' && styles.activeTab]}
+          onPress={() => setActiveTab('candidates')}
+        >
+          <Text style={[styles.tabText, activeTab === 'candidates' && styles.activeTabText]}>Candidatos</Text>
+        </TouchableOpacity>
       </View>
+
+      {activeTab === 'court' && (
+        <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+          <TouchableOpacity 
+            style={{ backgroundColor: '#D4AF37', padding: 12, borderRadius: 8, alignItems: 'center' }}
+            onPress={() => setActiveTab('candidates')}
+          >
+            <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 16 }}>+ Recrutar Novo Ministro</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Content */}
       <FlatList
@@ -135,7 +146,7 @@ export default function CharacterScreen() {
         }
         renderItem={renderItem}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -188,7 +199,7 @@ function CharacterCard({ character }: { character: Character }) {
         <View style={styles.cardTitleArea}>
           <Text style={styles.charName}>{character.name}</Text>
           <Text style={styles.charStatus}>
-            {character.status.toUpperCase()} | Cultura: {cultureId?.toUpperCase() || 'LOCAL'} {character.isLegendary ? '⭐ LENDÁRIO' : ''}
+            {character.status.toUpperCase()} | Nível {(character as any).level || 1} | Cultura: {cultureId?.toUpperCase() || 'LOCAL'} {character.isLegendary ? '⭐ LENDÁRIO' : ''}
           </Text>
           <Text style={styles.charEra}>Traje da Era: Tradicional / Manto Real</Text>
         </View>

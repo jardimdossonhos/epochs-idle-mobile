@@ -49,6 +49,14 @@ export class TickPipeline {
     };
   }
 
+  runMutating(state: GameState, deltaMs: number, now: number): TickResult {
+    const events = this.runInPlace(state, deltaMs, now, 1);
+    return {
+      state,
+      events
+    };
+  }
+
   runBatch(previousState: GameState, tickCount: number, deltaMs: number, startNow: number, options: TickBatchOptions = {}): TickResult {
     const ticks = Math.max(0, Math.trunc(tickCount));
     if (ticks === 0) {

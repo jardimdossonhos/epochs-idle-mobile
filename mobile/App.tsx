@@ -7,7 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GameProvider, useGameState } from './src/ui/GameProvider';
 import { AuthProvider, useAuth } from './src/ui/context/AuthContext';
 import { LanguageProvider, useLanguage } from './src/ui/context/LanguageContext';
-import TopHUD from './src/ui/components/TopHUD';
+
 import SplashScreen from './src/ui/components/SplashScreen';
 import EventPopup from './src/ui/components/EventPopup';
 
@@ -204,7 +204,6 @@ function AppContent() {
 
   return (
     <>
-      <TopHUD />
       <MainTabs />
       <EventPopup />
     </>

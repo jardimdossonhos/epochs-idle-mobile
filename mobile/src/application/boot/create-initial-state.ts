@@ -27,6 +27,7 @@ interface KingdomBlueprint {
   preferredCapitalRegionId: string;
   archetype?: NpcArchetype;
   strategicGoal?: string;
+  color?: string;
 }
 
 const KINGDOM_BLUEPRINTS: KingdomBlueprint[] = [
@@ -44,7 +45,8 @@ const KINGDOM_BLUEPRINTS: KingdomBlueprint[] = [
     isPlayer: false,
     preferredCapitalRegionId: "",
     archetype: NpcArchetype.Expansionist,
-    strategicGoal: "dominar_rios"
+    strategicGoal: "dominar_rios",
+    color: "#E74C3C"
   },
   {
     id: "k_npc_2",
@@ -53,7 +55,8 @@ const KINGDOM_BLUEPRINTS: KingdomBlueprint[] = [
     isPlayer: false,
     preferredCapitalRegionId: "",
     archetype: NpcArchetype.Defensive,
-    strategicGoal: "proteger_deserto"
+    strategicGoal: "proteger_deserto",
+    color: "#F39C12"
   },
   {
     id: "k_npc_3",
@@ -62,7 +65,8 @@ const KINGDOM_BLUEPRINTS: KingdomBlueprint[] = [
     isPlayer: false,
     preferredCapitalRegionId: "",
     archetype: NpcArchetype.Mercantile,
-    strategicGoal: "rotas_comerciais"
+    strategicGoal: "rotas_comerciais",
+    color: "#27AE60"
   },
   {
     id: "k_npc_4",
@@ -71,7 +75,8 @@ const KINGDOM_BLUEPRINTS: KingdomBlueprint[] = [
     isPlayer: false,
     preferredCapitalRegionId: "",
     archetype: NpcArchetype.Diplomatic,
-    strategicGoal: "mandato_do_ceu"
+    strategicGoal: "mandato_do_ceu",
+    color: "#9B59B6"
   }
 ];
 
@@ -282,6 +287,7 @@ function createKingdom(
     name: blueprint.name,
     adjective: blueprint.adjective,
     isPlayer: blueprint.isPlayer,
+    color: blueprint.color,
     capitalRegionId,
     heirs: [], // Inicialmente sem herdeiros - serão gerados quando o monarca for definido
     economy: createBaseEconomy(),

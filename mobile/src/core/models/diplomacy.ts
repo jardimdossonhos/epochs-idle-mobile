@@ -1,4 +1,4 @@
-﻿import { DiplomaticRelation, TreatyType } from "./enums";
+import { DiplomaticRelation, TreatyType } from "./enums";
 import type { KingdomId, TreatyId, TimestampMs } from "./types";
 
 export interface Treaty {
@@ -26,6 +26,7 @@ export interface BilateralRelation {
   grievance: number;
   allianceStrength: number;
   actionCooldowns: Record<string, TimestampMs>;
+  chatHistory?: Array<{ sender: 'player' | 'npc' | 'narrator'; text: string; timestamp: number }>;
 }
 
 export interface DiplomacyState {

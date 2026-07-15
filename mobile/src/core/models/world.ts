@@ -44,6 +44,7 @@ export interface RegionState {
   faithUnrest: number;
   actionCooldowns?: Record<string, number>;
   buildings?: BuildingType[]; // Matriz de edificios construidos nos Slots locais
+  construction?: { buildingType: BuildingType; progress: number; targetTicks: number };
 }
 
 export interface StrategicRoute {

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import type { RegionActionType } from '../../application/game-session';
 interface RegionDetailPanelProps {
   regionId: string;
   onClose: () => void;
+  isMergedView?: boolean;
 }
 
 // ─── Mapeamento de Edificios ──────────────────────────────────────────────────
@@ -91,10 +92,87 @@ const statBarStyles = StyleSheet.create({
 });
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
-export default function RegionDetailPanel({ regionId, onClose }: RegionDetailPanelProps) {
+export default function RegionDetailPanel({ regionId, onClose, isMergedView = false }: RegionDetailPanelProps) {
   const { gameState, session, playerKingdomId, staticWorldData } = useGameState();
 
   if (!gameState || !session || !staticWorldData) return null;
+
+  const regionIndexMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const sortedIds = Object.keys(staticWorldData.definitions).sort();
+    sortedIds.forEach((id, idx) => {
+      map.set(id, idx);
+    });
+    return map;
+  }, [staticWorldData]);
+
+  const getContiguousRegions = useCallback((startRegionId: string): string[] => {
+    const startRegionState = gameState.world.regions[startRegionId];
+    if (!startRegionState) return [startRegionId];
+    const ownerId = startRegionState.ownerId;
+    if (!ownerId || ownerId === 'unclaimed' || ownerId === 'k_nature' || ownerId === 'nature') {
+      return [startRegionId];
+    }
+    
+    const visited = new Set<string>([startRegionId]);
+    const queue = [startRegionId];
+    
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      const currentDef = staticWorldData.definitions[currentId];
+      if (!currentDef) continue;
+      
+      const neighbors = currentDef.neighbors || [];
+      for (const neighborId of neighbors) {
+        if (!visited.has(neighborId)) {
+          const neighborState = gameState.world.regions[neighborId];
+          if (neighborState && neighborState.ownerId === ownerId) {
+            visited.add(neighborId);
+            queue.push(neighborId);
+          }
+        }
+      }
+    }
+    
+    return Array.from(visited);
+  }, [gameState, staticWorldData]);
+
+  const getRegionDefense = useCallback((rId: string) => {
+    let defense = 0;
+    Object.values(gameState.kingdoms).forEach(kingdom => {
+      if (kingdom.military?.armies) {
+        kingdom.military.armies.forEach(army => {
+          if (army.stationedRegionId === rId) {
+            defense += army.manpower ?? 0;
+          }
+        });
+      }
+    });
+    return defense;
+  }, [gameState]);
+
+  const { totalGold, totalPopulation, totalDefense } = useMemo(() => {
+    const targets = isMergedView ? getContiguousRegions(regionId) : [regionId];
+    
+    let goldSum = 0;
+    let popSum = 0;
+    let defenseSum = 0;
+    
+    targets.forEach(rId => {
+      const idx = regionIndexMap.get(rId);
+      if (idx !== undefined && gameState.ecs) {
+        goldSum += gameState.ecs.gold[idx] || 0;
+        popSum += gameState.ecs.populationTotal[idx] || 0;
+      }
+      defenseSum += getRegionDefense(rId);
+    });
+    
+    return {
+      totalGold: goldSum,
+      totalPopulation: popSum,
+      totalDefense: defenseSum
+    };
+  }, [regionId, isMergedView, getContiguousRegions, regionIndexMap, gameState, getRegionDefense]);
 
   const regionState = gameState.world.regions[regionId];
   const regionDef = staticWorldData.definitions[regionId];
@@ -103,12 +181,55 @@ export default function RegionDetailPanel({ regionId, onClose }: RegionDetailPan
 
   const handleBuild = useCallback(
     (buildingType: BuildingType) => {
-      const result = session.executeBuildStructure(regionId, buildingType);
+      let targetRegionId = regionId;
+      if (isMergedView) {
+        const targets = getContiguousRegions(regionId);
+        const candidates = targets.filter(rId => {
+          const rState = gameState.world.regions[rId];
+          if (!rState) return false;
+          const bList = rState.buildings || [];
+          const hasConst = !!rState.construction;
+          return !hasConst && bList.length < 2 && !bList.includes(buildingType);
+        });
+
+        if (candidates.length > 0) {
+          candidates.sort((a, b) => {
+            const aState = gameState.world.regions[a];
+            const bState = gameState.world.regions[b];
+            const aCount = (aState?.buildings?.length || 0) + (aState?.construction ? 1 : 0);
+            const bCount = (bState?.buildings?.length || 0) + (bState?.construction ? 1 : 0);
+            
+            if (aCount !== bCount) {
+              return aCount - bCount;
+            }
+            
+            const aDef = staticWorldData.definitions[a];
+            const bDef = staticWorldData.definitions[b];
+            
+            if (buildingType === BuildingType.Market) {
+              const aVal = aDef?.economyValue ?? 0;
+              const bVal = bDef?.economyValue ?? 0;
+              return bVal - aVal;
+            } else if (buildingType === BuildingType.Fortress || buildingType === BuildingType.Barracks) {
+              const aVal = aDef?.militaryValue ?? 0;
+              const bVal = bDef?.militaryValue ?? 0;
+              return bVal - aVal;
+            } else {
+              const aVal = aDef?.strategicValue ?? 0;
+              const bVal = bDef?.strategicValue ?? 0;
+              return bVal - aVal;
+            }
+          });
+          targetRegionId = candidates[0];
+        }
+      }
+
+      const result = session.executeBuildStructure(targetRegionId, buildingType);
       if (!result.ok) {
         Alert.alert('Construção', result.message);
       }
     },
-    [session, regionId],
+    [session, regionId, isMergedView, getContiguousRegions, gameState, staticWorldData],
   );
 
   const handleRegionAction = useCallback(
@@ -173,6 +294,35 @@ export default function RegionDetailPanel({ regionId, onClose }: RegionDetailPan
             color="#E67E22"
             label="Devastação"
           />
+          {regionState?.construction && (
+            <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: '#2C3E50', paddingTop: 8 }}>
+              <Text style={{ color: '#F1C40F', fontSize: 13, fontWeight: 'bold', marginBottom: 4 }}>
+                🔨 Em Construção: {BUILDING_META[regionState.construction.buildingType]?.label ?? regionState.construction.buildingType}
+              </Text>
+              <StatBar
+                value={regionState.construction.progress / regionState.construction.targetTicks}
+                color="#F1C40F"
+                label="Progresso"
+              />
+            </View>
+          )}
+        </View>
+
+        {/* ── Atributos Consolidados ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>💎 Atributos Consolidados</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoKey}>Ouro:</Text>
+            <Text style={styles.infoVal}>{totalGold.toFixed(2)}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoKey}>População:</Text>
+            <Text style={styles.infoVal}>{totalPopulation.toLocaleString()}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoKey}>Defesa:</Text>
+            <Text style={styles.infoVal}>{totalDefense.toLocaleString()}</Text>
+          </View>
         </View>
 
         {/* ── Edificios existentes ── */}
@@ -202,19 +352,30 @@ export default function RegionDetailPanel({ regionId, onClose }: RegionDetailPan
               {Object.entries(BUILDING_META).map(([bType, meta]) => {
                 const bt = bType as BuildingType;
                 const alreadyBuilt = buildings.includes(bt);
+                const isUnderConstruction = !!regionState?.construction;
+                const isThisBuildingUnderConstruction = regionState?.construction?.buildingType === bt;
+                const isDisabled = alreadyBuilt || isUnderConstruction;
                 return (
                   <TouchableOpacity
                     key={bt}
-                    style={[styles.actionBtn, alreadyBuilt && styles.actionBtnDisabled]}
+                    style={[styles.actionBtn, isDisabled && styles.actionBtnDisabled]}
                     onPress={() => handleBuild(bt)}
-                    disabled={alreadyBuilt}
+                    disabled={isDisabled}
                     activeOpacity={0.75}
                   >
                     <Text style={styles.actionBtnIcon}>{meta.icon}</Text>
-                    <Text style={[styles.actionBtnLabel, alreadyBuilt && styles.actionBtnLabelDisabled]}>
+                    <Text style={[styles.actionBtnLabel, isDisabled && styles.actionBtnLabelDisabled]}>
                       {meta.label}
                     </Text>
-                    <Text style={styles.actionBtnDesc}>{alreadyBuilt ? '✅ Construído' : meta.desc}</Text>
+                    <Text style={styles.actionBtnDesc}>
+                      {alreadyBuilt
+                        ? '✅ Construído'
+                        : isThisBuildingUnderConstruction
+                        ? '🔨 Construindo...'
+                        : isUnderConstruction
+                        ? 'Em andamento'
+                        : meta.desc}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}

@@ -70,6 +70,62 @@ const RULER_THOUGHT_FALLBACKS_EN: string[] = [
   'There are times when the crown weighs more than iron. But {ruler} knows their duty — and will fulfill it until the last breath.',
 ];
 
+const OFFLINE_CHAT_FALLBACKS: Record<string, string[]> = {
+  Hostile: [
+    "Eu não tenho nada a dizer a um inimigo declarado. Nossos exércitos decidirão o destino das nossas nações no campo de batalha.",
+    "Palavras são inúteis entre nós. Que suas muralhas sejam fortes, pois a guerra está próxima.",
+    "Você ousa falar comigo depois de nossas disputas? Retire-se da minha presença antes que eu ordene sua execução."
+  ],
+  Allied: [
+    "Saudações, meu estimado aliado. Nossos povos prosperarão sob a luz de nossa união inquebrável.",
+    "É sempre uma honra receber mensagens de um parceiro tão valoroso. Como posso ajudar nosso pacto hoje?",
+    "Nossas forças unidas são invencíveis. Que nossa cooperação traga glória e riqueza a ambos os reinos."
+  ],
+  Friendly: [
+    "Bem-vindo, nobre vizinho. As relações amigáveis entre nossos reinos são a chave para a paz na região.",
+    "Sua mensagem é muito bem-vinda. Que possamos continuar trilhando o caminho da harmonia comercial e diplomática.",
+    "Fico feliz em ouvi-lo. Propostas que fortaleçam nossos laços de amizade sempre serão consideradas com atenção."
+  ],
+  Truce: [
+    "Um tratado de paz nos une temporariamente. Que este tempo de trégua serve para acalmar os ânimos exaltados.",
+    "Nossas espadas estão guardadas por hora, mas os olhos dos meus generais continuam atentos. O que deseja?",
+    "A trégua deve ser respeitada. Evitemos provocações desnecessárias enquanto o sangue das feridas passadas seca."
+  ],
+  Neutral: [
+    "Saudações. Os negócios de estado exigem moderação. O que propõe o governante do reino vizinho?",
+    "Ouço suas palavras com atenção neutra. Diga-me claramente quais são suas intenções comerciais ou políticas.",
+    "Em tempos incertos, a cautela é a melhor conselheira. O que traz sua mensagem à minha corte?"
+  ]
+};
+
+const OFFLINE_CHAT_FALLBACKS_EN: Record<string, string[]> = {
+  Hostile: [
+    "I have nothing to say to a declared enemy. Our armies will decide the fate of our nations on the battlefield.",
+    "Words are useless between us. May your walls be strong, for war is near.",
+    "You dare speak to me after our disputes? Leave my presence before I order your execution."
+  ],
+  Allied: [
+    "Greetings, my esteemed ally. Our peoples will prosper under the light of our unbreakable union.",
+    "It is always an honor to receive messages from such a valued partner. How can I assist our pact today?",
+    "Our united forces are invincible. May our cooperation bring glory and wealth to both kingdoms."
+  ],
+  Friendly: [
+    "Welcome, noble neighbor. Friendly relations between our kingdoms are the key to peace in the region.",
+    "Your message is most welcome. May we continue to walk the path of commercial and diplomatic harmony.",
+    "I am glad to hear from you. Proposals that strengthen our bonds of friendship will always be carefully considered."
+  ],
+  Truce: [
+    "A peace treaty binds us temporarily. May this time of truce serve to calm heated spirits.",
+    "Our swords are sheathed for now, but my generals' eyes remain watchful. What is it you desire?",
+    "The truce must be respected. Let us avoid unnecessary provocations while the blood of past wounds dries."
+  ],
+  Neutral: [
+    "Greetings. Affairs of state demand moderation. What does the ruler of the neighboring kingdom propose?",
+    "I listen to your words with neutral attention. Tell me clearly what your commercial or political intentions are.",
+    "In uncertain times, caution is the best advisor. What brings your message to my court?"
+  ]
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function pickRandom<T>(arr: T[]): T {
@@ -300,6 +356,137 @@ O tom deve ser sombrio, épico e introspectivo. Responda apenas com o pensamento
       ruler: rulerName,
       situation,
     });
+  }
+
+  async chatWithSovereign(
+    rulerName: string,
+    rulerTitle: string,
+    cultureId: string,
+    traits: string[],
+    stats: any,
+    personality: any,
+    relation: any,
+    message: string,
+    chatHistory: any[],
+  ): Promise<{
+    dialogue: string;
+    action: 'DECLARE_WAR' | 'MAKE_PEACE' | 'MAKE_COOPERATION_AGREEMENT' | 'NO_ACTION';
+  }> {
+    const locale = await this.getLocale();
+    const apiKey = await this.getApiKey();
+    const enabled = await this.isAiEnabled();
+
+    if (apiKey && enabled) {
+      try {
+        const historyText = chatHistory
+          .map((m: any) => `[${m.sender.toUpperCase()}]: ${m.text}`)
+          .join('\n');
+
+        const prompt = `You are a medieval sovereign in a strategy game called Epochs Idle.
+Act as this sovereign and output a reply in the appropriate medieval tone, matching your personality, traits, and diplomatic relations.
+
+YOUR PROFILE:
+- Name: ${rulerName}
+- Title: ${rulerTitle}
+- Culture ID: ${cultureId}
+- Traits: ${traits.join(', ')}
+- Personality:
+  * Greed: ${personality?.greed ?? 0.5} (higher means values gold/trade)
+  * Honor: ${personality?.honor ?? 0.5} (higher means respects treaties and loyalty)
+  * Caution: ${personality?.caution ?? 0.5} (higher means avoids risky wars)
+  * Zeal: ${personality?.zeal ?? 0.5} (higher means religious fanaticism)
+  * Ambition: ${personality?.ambition ?? 0.5} (higher means desires empire expansion)
+  * Betrayal Tendency: ${personality?.betrayalTendency ?? 0.2} (higher means likely to break alliances)
+- Stats:
+  * Administration: ${stats?.administration ?? 10}
+  * Martial: ${stats?.martial ?? 10}
+  * Diplomacy: ${stats?.diplomacy ?? 10}
+  * Intrigue: ${stats?.intrigue ?? 10}
+  * Learning: ${stats?.learning ?? 10}
+
+DIPLOMATIC RELATION WITH PLAYER:
+- Status: ${relation?.status ?? 'Neutral'}
+- Trust: ${relation?.score?.trust ?? 0.4}
+- Fear: ${relation?.score?.fear ?? 0.2}
+- Rivalry: ${relation?.score?.rivalry ?? 0.2}
+
+CONVERSATION HISTORY:
+${historyText || 'No prior conversation.'}
+
+NEW PLAYER MESSAGE:
+"${message}"
+
+Based on the message and the state, write your dialogue response as this sovereign (in the medieval tone matching your personality/profile, and matching the user's language/locale: ${locale}).
+Also, decide on an immediate diplomatic action. You can only choose one of the following:
+- "DECLARE_WAR": If you are highly hostile, feel rivaled, or betrayed, and want to initiate war immediately (only if not already at war/hostile).
+- "MAKE_PEACE": If you are currently in a war (Hostile status) and the player's message or situation convinces you to make peace/truce.
+- "MAKE_COOPERATION_AGREEMENT": If you trust the player and wish to form a trade agreement, defensive pact, or alliance.
+- "NO_ACTION": If the conversation continues normally without a major status change.
+
+Output ONLY a JSON object with this exact structure:
+{
+  "dialogue": "your response here",
+  "action": "DECLARE_WAR" | "MAKE_PEACE" | "MAKE_COOPERATION_AGREEMENT" | "NO_ACTION"
+}`;
+
+        const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.8,
+              maxOutputTokens: 500,
+              responseMimeType: 'application/json',
+            },
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            let cleanText = text.trim();
+            if (cleanText.startsWith('```json')) {
+              cleanText = cleanText.substring(7);
+            } else if (cleanText.startsWith('```')) {
+              cleanText = cleanText.substring(3);
+            }
+            if (cleanText.endsWith('```')) {
+              cleanText = cleanText.substring(0, cleanText.length - 3);
+            }
+            cleanText = cleanText.trim();
+
+            const parsed = JSON.parse(cleanText);
+            const dialogue = parsed.dialogue;
+            const action = parsed.action;
+            if (
+              dialogue &&
+              ['DECLARE_WAR', 'MAKE_PEACE', 'MAKE_COOPERATION_AGREEMENT', 'NO_ACTION'].includes(action)
+            ) {
+              return { dialogue, action };
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('[GeminiService] chatWithSovereign request failed, using fallback:', error);
+      }
+    }
+
+    // Offline fallback
+    const status = relation?.status || 'Neutral';
+    const fallbacks = locale === 'en-US'
+      ? (OFFLINE_CHAT_FALLBACKS_EN[status] || OFFLINE_CHAT_FALLBACKS_EN['Neutral'])
+      : (OFFLINE_CHAT_FALLBACKS[status] || OFFLINE_CHAT_FALLBACKS['Neutral']);
+
+    let selectedDialogue = pickRandom(fallbacks);
+    selectedDialogue = selectedDialogue.replace('{rulerName}', rulerName).replace('{rulerTitle}', rulerTitle);
+
+    return {
+      dialogue: selectedDialogue,
+      action: 'NO_ACTION',
+    };
   }
 }
 

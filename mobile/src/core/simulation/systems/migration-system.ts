@@ -143,6 +143,10 @@ export function createMigrationSystem(staticData: StaticWorldData, orderedDefini
           occurredAt: context.now
         });
       }
+
+      for (const kid of Object.keys(state.kingdoms)) {
+        state.kingdoms[kid].ownedRegionIds = undefined;
+      }
     }
   };
 }

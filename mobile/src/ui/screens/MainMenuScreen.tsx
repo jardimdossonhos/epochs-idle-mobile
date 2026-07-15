@@ -18,28 +18,6 @@ export default function MainMenuScreen({ onNewGame, onGameLoaded }: MainMenuScre
   const [isLoadModalVisible, setIsLoadModalVisible] = useState(false);
   const [isDevPanelVisible, setIsDevPanelVisible] = useState(false);
 
-  const [tapCount, setTapCount] = useState(0);
-  const [lastTapTime, setLastTapTime] = useState(0);
-
-  const handleTitlePress = () => {
-    const now = Date.now();
-    if (now - lastTapTime < 1000) {
-      const newCount = tapCount + 1;
-      setTapCount(newCount);
-      if (newCount >= 5) {
-        if (session) {
-          session.devModeActive = !session.devModeActive;
-          session.emitState();
-          setIsDevPanelVisible(session.devModeActive);
-        }
-        setTapCount(0);
-      }
-    } else {
-      setTapCount(1);
-    }
-    setLastTapTime(now);
-  };
-
   const handleProfilePress = () => {
     Alert.alert(
       t('mainMenu.alertTitle'),
@@ -81,9 +59,7 @@ export default function MainMenuScreen({ onNewGame, onGameLoaded }: MainMenuScre
 
       {/* Title Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleTitlePress} activeOpacity={0.8}>
-          <Text style={styles.title}>{t('mainMenu.title')}</Text>
-        </TouchableOpacity>
+        <Text style={styles.title}>{t('mainMenu.title')}</Text>
         <Text style={styles.subtitle}>{t('mainMenu.subtitle')}</Text>
         <View style={styles.divider} />
       </View>

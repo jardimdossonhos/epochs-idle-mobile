@@ -1,8 +1,9 @@
-﻿import { ResourceType } from "../../models/enums";
+import { ResourceType } from "../../models/enums";
 import type { SimulationSystem } from "../tick-pipeline";
 import { clamp, createEventId, roundTo } from "./utils";
+import type { RegionDefinition } from "../../models/world";
 
-export function createPopulationSystem(): SimulationSystem {
+export function createPopulationSystem(orderedDefinitions: RegionDefinition[]): SimulationSystem {
   return {
     id: "population",
     run(context): void {
@@ -49,6 +50,30 @@ export function createPopulationSystem(): SimulationSystem {
             },
             occurredAt: context.now
           });
+        }
+      }
+
+      // Grow region populations
+      if (context.nextState.ecs && context.nextState.ecs.populationTotal && context.nextState.ecs.populationGrowthRate) {
+        const tickScale = context.tickScale ?? 1;
+        for (let i = 0; i < orderedDefinitions.length; i++) {
+          const def = orderedDefinitions[i];
+          const regionState = context.nextState.world.regions[def.id];
+          if (!regionState || regionState.ownerId === "k_nature") continue;
+
+          const kingdom = context.nextState.kingdoms[regionState.ownerId];
+          if (!kingdom) continue;
+
+          const foodStock = kingdom.economy.stock[ResourceType.Food];
+          const requiredFood = kingdom.population.total / 7_000;
+          const foodPressure = requiredFood <= 0 ? 0 : clamp((requiredFood - foodStock) / requiredFood, 0, 1);
+          const growthPenalty = 1 - foodPressure * 1.6 - kingdom.population.pressure.warWeariness * 0.2;
+
+          const currentPop = context.nextState.ecs.populationTotal[i];
+          const growthRate = context.nextState.ecs.populationGrowthRate[i];
+          const delta = currentPop * growthRate * growthPenalty * tickScale;
+
+          context.nextState.ecs.populationTotal[i] = Math.max(0, currentPop + delta);
         }
       }
     }

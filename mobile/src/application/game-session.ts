@@ -21,9 +21,11 @@ import { buildTreatyId, sortUniqueIds } from "../core/models/identifiers";
 import type { StaticWorldData } from "../core/models/static-world-data";
 import { buildStateHash } from "../core/utils/state-fingerprint";
 import { hashDeterministic } from "../core/utils/stable-hash";
+import { cloneGameStateForSimulation } from "../core/utils/clone-game-state";
 import { TickPipeline, type SimulationSystem } from "../core/simulation/tick-pipeline";
 import { generateRoutineAdvice } from "../core/simulation/systems/council-system";
 import { AUTOSAVE_SLOT_ID, MANUAL_SLOT_ID } from "../infrastructure/persistence/save-slots";
+import { geminiService } from "./ai/gemini-service";
 
 export interface GameSessionDeps {
   gameStateRepository: GameStateRepository;
@@ -225,7 +227,13 @@ export class GameSession {
     // Notifica o sistema que um estado de jogo está pronto (seja novo ou recuperado)
     (this.deps.eventBus as any).publish({ type: "game.loaded", payload: this.currentState });
 
-    await this.deps.gameStateRepository.saveCurrent(this.currentState);
+    // R1 FIX: Só persiste automaticamente se havia um save anterior.
+    // Se é um jogo totalmente novo (recovered == null), aguardamos o wizard de criação
+    // chamar resetToNewGame() com a região escolhida pelo jogador.
+    // Isso evita que o estado padrão (spawn na Europa) seja salvo antes do jogador configurar.
+    if (recovered !== null) {
+      await this.deps.gameStateRepository.saveCurrent(this.currentState);
+    }
 
     if (this.deps.snapshotRepository) {
       const latestSnapshot = await this.deps.snapshotRepository.latest();
@@ -234,7 +242,10 @@ export class GameSession {
       }
     }
 
-    this.emitState();
+    this.emitState(true);
+    if (this.deps.clock && typeof this.deps.clock.start === "function") {
+      this.start();
+    }
     return this.currentState;
   }
 
@@ -308,7 +319,7 @@ export class GameSession {
     state.meta.paused = paused;
     this.recordPlayerCommand("session.pause", { paused });
     this.persistCurrent();
-    this.emitState();
+    this.emitState(true);
   }
 
   setDisastersEnabled(enabled: boolean): void {
@@ -350,7 +361,7 @@ export class GameSession {
     }
     this.recordPlayerCommand("session.speed", { speedMultiplier: state.meta.speedMultiplier, tickDurationMs: state.meta.tickDurationMs });
     this.persistCurrent();
-    this.emitState();
+    this.emitState(true);
   }
 
   setExpansionAutomation(level: AutomationLevel): void {
@@ -371,6 +382,30 @@ export class GameSession {
 
     this.appendActionLog("Automação de construções atualizada", `Nível definido para ${level}.`, "info");
     this.recordPlayerCommand("construction.automation", { level });
+    this.persistCurrent();
+    this.emitState();
+  }
+
+  setEconomyAutomation(level: AutomationLevel): void {
+    const state = this.requireState();
+    const player = this.getPlayerKingdom(state);
+    player.administration.automation.economy = level;
+    player.administration.automation.construction = level;
+
+    this.appendActionLog("Automação de economia e construções atualizada", `Nível definido para ${level}.`, "info");
+    this.recordPlayerCommand("economy.automation", { level });
+    this.persistCurrent();
+    this.emitState();
+  }
+
+  setDefenseAutomation(level: AutomationLevel): void {
+    const state = this.requireState();
+    const player = this.getPlayerKingdom(state);
+    player.administration.automation.defense = level;
+    player.administration.automation.expansion = level;
+
+    this.appendActionLog("Automação de defesa e expansão atualizada", `Nível definido para ${level}.`, "info");
+    this.recordPlayerCommand("defense.automation", { level });
     this.persistCurrent();
     this.emitState();
   }
@@ -401,6 +436,9 @@ export class GameSession {
     } else if (auto.previousState) {
       Object.assign(auto, auto.previousState);
     }
+
+    player.administration.directives = player.administration.directives ?? {};
+    player.administration.directives.religious_mission = active;
 
     this.appendActionLog("Modo Automático Total", active ? "Ativado" : "Desativado", "info");
     this.persistCurrent();
@@ -985,6 +1023,147 @@ export class GameSession {
     };
   }
 
+  async sendPlayerChatMessage(targetKingdomId: string, message: string): Promise<string> {
+    let state = this.requireState();
+    const player = this.getPlayerKingdom(state);
+    const target = state.kingdoms[targetKingdomId];
+
+    if (!target) {
+      throw new Error("Target kingdom not found.");
+    }
+    if (!target.rulerId) {
+      throw new Error("Target kingdom has no sovereign ruler.");
+    }
+
+    const ruler = state.world.characters?.[target.rulerId];
+    if (!ruler) {
+      throw new Error("Sovereign ruler not found.");
+    }
+
+    let relation = player.diplomacy.relations[target.id];
+    if (!relation) {
+      relation = {
+        withKingdomId: target.id,
+        status: DiplomaticRelation.Neutral,
+        score: {
+          trust: 0.4,
+          fear: 0.2,
+          rivalry: 0.2,
+          religiousTension: 0.2,
+          borderTension: 0.2,
+          tradeValue: 0.2
+        },
+        grievance: 0.08,
+        allianceStrength: 0,
+        actionCooldowns: {}
+      };
+      player.diplomacy.relations[target.id] = relation;
+    }
+
+    if (!relation.chatHistory) {
+      relation.chatHistory = [];
+    }
+
+    // Append the player's message
+    relation.chatHistory.push({
+      sender: 'player',
+      text: message,
+      timestamp: Date.now()
+    });
+
+    try {
+      // Request the response from Gemini
+      const response = await geminiService.chatWithSovereign(
+        ruler.name,
+        ruler.title || "Soberano",
+        ruler.cultureId || "unknown",
+        ruler.traits || [],
+        ruler.stats || {},
+        target.npc?.personality || {},
+        relation,
+        message,
+        relation.chatHistory
+      );
+
+      // Append NPC response
+      relation.chatHistory.push({
+        sender: 'npc',
+        text: response.dialogue,
+        timestamp: Date.now()
+      });
+
+      // Limit chatHistory size to 10
+      if (relation.chatHistory.length > 10) {
+        relation.chatHistory = relation.chatHistory.slice(-10);
+      }
+
+      // Parse and trigger diplomatic action
+      if (response.action && response.action !== 'NO_ACTION') {
+        if (response.action === 'DECLARE_WAR') {
+          if (target.id !== player.id) {
+            if (this.deps.diplomacyResolver) {
+              state = this.deps.diplomacyResolver.applyDecision(state, {
+                actorKingdomId: target.id,
+                actionType: "declarar_guerra",
+                priority: 1,
+                targetKingdomId: player.id,
+                payload: { source: "llm_chat" }
+              });
+            }
+            if (this.deps.warResolver) {
+              state = this.deps.warResolver.declareWar(state, target.id, player.id);
+            }
+            this.appendActionLog(
+              "Guerra declarada",
+              `${ruler.name} declarou guerra a ${player.name} por meio de diplomacia LLM.`,
+              "critical"
+            );
+          }
+        } else if (response.action === 'MAKE_PEACE') {
+          if (this.deps.diplomacyResolver) {
+            state = this.deps.diplomacyResolver.applyDecision(state, {
+              actorKingdomId: target.id,
+              actionType: "proposta_paz",
+              priority: 1,
+              targetKingdomId: player.id,
+              payload: { source: "llm_chat" }
+            });
+          }
+          this.resolvePlayerPeace(state, player.id, target.id);
+          this.appendActionLog(
+            "Tratado de Paz assinado",
+            `Paz estabelecida entre ${player.name} e ${ruler.name} via diplomacia LLM.`,
+            "info"
+          );
+        } else if (response.action === 'MAKE_COOPERATION_AGREEMENT') {
+          if (this.deps.diplomacyResolver) {
+            state = this.deps.diplomacyResolver.applyDecision(state, {
+              actorKingdomId: target.id,
+              actionType: "oferta_alianca",
+              priority: 1,
+              targetKingdomId: player.id,
+              payload: { source: "llm_chat" }
+            });
+          }
+          this.appendActionLog(
+            "Acordo de Cooperação assinado",
+            `Acordo diplomático selado entre ${player.name} e ${ruler.name} via diplomacia LLM.`,
+            "info"
+          );
+        }
+      }
+
+      this.currentState = state;
+      this.persistCurrent();
+      this.emitState();
+
+      return response.dialogue;
+    } catch (error) {
+      console.error('[GameSession] Error in sendPlayerChatMessage:', error);
+      throw error;
+    }
+  }
+
   public getBuildingConfig(building: BuildingType): { label: string; effectStr: string; cost: Partial<Record<ResourceType, number>> } {
     switch (building) {
       case BuildingType.Market:
@@ -1006,6 +1185,7 @@ export class GameSession {
     const region = state.world.regions[regionId];
 
     if (!region || region.ownerId !== player.id) return { ok: false, message: "Você só pode construir em seus próprios territórios." };
+    if (region.construction) return { ok: false, message: "Já existe uma construção em andamento nesta região." };
     
     region.buildings = region.buildings || [];
     if (region.buildings.length >= 2) return { ok: false, message: "Esta região já atingiu o limite de infraestruturas (2)." };
@@ -1015,14 +1195,37 @@ export class GameSession {
     if (!this.canAfford(config.cost)) return { ok: false, message: "Recursos insuficientes para a construção." };
 
     this.applyCost(config.cost);
-    region.buildings.push(buildingType);
 
-    this.appendActionLog("Nova Infraestrutura", `${config.label} construído com sucesso em uma de suas províncias.`, "info");
+    let targetTicks = 10;
+    switch (buildingType) {
+      case BuildingType.Market:
+        targetTicks = 10;
+        break;
+      case BuildingType.Barracks:
+        targetTicks = 12;
+        break;
+      case BuildingType.Monastery:
+        targetTicks = 15;
+        break;
+      case BuildingType.Fortress:
+        targetTicks = 20;
+        break;
+      case BuildingType.University:
+        targetTicks = 25;
+        break;
+    }
+
+    region.construction = {
+      buildingType,
+      progress: 0,
+      targetTicks
+    };
+
+    this.appendActionLog("Nova Infraestrutura", `${config.label} iniciada com sucesso em uma de suas províncias.`, "info");
     this.recordPlayerCommand("region.build", { regionId, buildingType });
     this.persistCurrent();
     this.emitState();
-    this.deps.eventBus.publish({ type: "region.building_completed", payload: { regionId, buildingType } } as any);
-    return { ok: true, message: `${config.label} construído com sucesso!` };
+    return { ok: true, message: `${config.label} iniciada com sucesso!` };
   }
 
   executeRegionAction(regionId: string, actionType: RegionActionType): PlayerActionResult {
@@ -1155,6 +1358,10 @@ export class GameSession {
         break;
     }
 
+    for (const kid of Object.keys(state.kingdoms)) {
+      state.kingdoms[kid].ownedRegionIds = undefined;
+    }
+
     this.appendActionLog("Ação regional executada", `${config.label} aplicada em ${regionDef.name}.`, "info");
     this.recordPlayerCommand("region.action", { regionId, actionType });
     this.persistCurrent();
@@ -1210,7 +1417,7 @@ export class GameSession {
     // Notifica o sistema que um estado de jogo foi carregado
     (this.deps.eventBus as any).publish({ type: "game.loaded", payload: this.currentState });
 
-    this.emitState();
+    this.emitState(true);
     
     // No Mobile, como roda síncrono, a simulação já está liberada
     this.markWorkerReady();
@@ -1240,7 +1447,7 @@ export class GameSession {
     
     // Notifica a interface para recarregar
     (this.deps.eventBus as any).publish({ type: "game.loaded", payload: this.currentState });
-    this.emitState();
+    this.emitState(true);
     
     this.start();
   }
@@ -1292,7 +1499,7 @@ export class GameSession {
 
   public toggleFogOfWar(): void {
     this.fogOfWarDisabled = !this.fogOfWarDisabled;
-    this.emitState();
+    this.emitState(true);
   }
 
   public addResourcesDev(resource: string): void {
@@ -2378,15 +2585,11 @@ export class GameSession {
         const previousTick = this.currentState.meta.tick;
         const tickStartedAt = this.monotonicNow();
         
-        const ecsBackup = this.currentState.ecs;
-        const result = this.pipeline.run(this.currentState, tickDurationMs, simNow);
+        const result = this.pipeline.runMutating(this.currentState, tickDurationMs, simNow);
         const tickElapsedMs = this.monotonicNow() - tickStartedAt;
         this.registerTickTiming(tickElapsedMs);
         
         this.currentState = result.state;
-        if (ecsBackup) {
-          this.currentState.ecs = ecsBackup;
-        }
         
         progressed = true;
         this.ticksSinceAutosave += 1;
@@ -2421,6 +2624,11 @@ export class GameSession {
       }
 
       if (progressed) {
+        const ecsBackup = this.currentState.ecs;
+        this.currentState = cloneGameStateForSimulation(this.currentState);
+        if (ecsBackup) {
+          this.currentState.ecs = ecsBackup;
+        }
         this.persistCurrent();
         this.emitState();
       }
@@ -2691,18 +2899,18 @@ export class GameSession {
 
   private lastEmitTime = 0;
   
-  public emitState(): void {
+  public emitState(force = false): void {
     if (!this.currentState) {
       return;
     }
     
-    // UI Render Throttling: Max 10 FPS to prevent React Native UI thread (JS) from freezing 
-    // when simulation runs at high speed (30x / 15+ ticks per second)
     const now = Date.now();
-    if (now - this.lastEmitTime < 100) {
+    if (!force && (now - this.lastEmitTime < 100)) {
       return; // Skip UI update, let engine run freely
     }
-    this.lastEmitTime = now;
+    if (!force) {
+      this.lastEmitTime = now;
+    }
 
     for (const listener of this.listeners) {
       listener(this.currentState);

@@ -520,7 +520,8 @@ export function createCouncilSystem(): SimulationSystem {
       player.administration.council = player.administration.council || {};
 
       // 1. Manutenção do Mercado de Trabalho (A cada ~1 Mês de jogo)
-      if (state.meta.tick % 12 === 0) {
+      const crossedYear = Math.floor(state.meta.tick / 12) !== Math.floor((state.meta.tick + (context.tickScale ?? 1)) / 12);
+      if (state.meta.tick === 0 || crossedYear) {
         // Demite candidatos velhos aleatoriamente
         if (player.administration.candidatePool.length > 6) {
           player.administration.candidatePool.shift(); 

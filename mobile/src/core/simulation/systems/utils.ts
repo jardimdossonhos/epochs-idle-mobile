@@ -24,33 +24,30 @@ export function getPlayerKingdom(state: GameState): KingdomState {
   return player;
 }
 
-const ownedRegionsCache = new WeakMap<object, Map<string, string[]>>();
-
 export function getOwnedRegionIds(state: GameState, kingdomId: KingdomId): string[] {
-  let cache = ownedRegionsCache.get(state.world.regions);
-  if (!cache) {
-    cache = new Map<string, string[]>();
-    // Preenche o cache iterando apenas UMA VEZ por tick (O(N) em vez de O(K * N log N))
+  const kingdom = state.kingdoms[kingdomId];
+  if (!kingdom) return [];
+
+  if (!kingdom.ownedRegionIds) {
     const regionIds = Object.keys(state.world.regions);
+    for (const kid of Object.keys(state.kingdoms)) {
+      state.kingdoms[kid].ownedRegionIds = [];
+    }
+
     for (let i = 0; i < regionIds.length; i++) {
       const regionId = regionIds[i];
       const ownerId = state.world.regions[regionId].ownerId;
-      if (ownerId) {
-        let arr = cache.get(ownerId);
-        if (!arr) {
-          arr = [];
-          cache.set(ownerId, arr);
-        }
-        arr.push(regionId);
+      if (ownerId && state.kingdoms[ownerId]) {
+        state.kingdoms[ownerId].ownedRegionIds!.push(regionId);
       }
     }
-    for (const arr of cache.values()) {
-      arr.sort();
+
+    for (const kid of Object.keys(state.kingdoms)) {
+      state.kingdoms[kid].ownedRegionIds!.sort();
     }
-    ownedRegionsCache.set(state.world.regions, cache);
   }
-  
-  return cache.get(kingdomId) || [];
+
+  return kingdom.ownedRegionIds || [];
 }
 
 export function ensureResourceNonNegative(kingdom: KingdomState): void {

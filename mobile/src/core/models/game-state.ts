@@ -1,4 +1,4 @@
-﻿import type { AdministrationState } from "./administration";
+import type { AdministrationState } from "./administration";
 import type { DiplomacyState } from "./diplomacy";
 import type { EconomyState } from "./economy";
 import type { EventLogEntry } from "./events";
@@ -31,6 +31,7 @@ export interface KingdomState {
   capitalRegionId: string;
   rulerId?: string; // NOVO: O ID do Personagem que governa o império
   heirs: string[]; // IDs dos herdeiros em ordem de sucessão
+  ownedRegionIds?: string[]; // Cached list of owned region IDs
   economy: EconomyState;
   population: PopulationState;
   technology: TechnologyState;

@@ -37,7 +37,7 @@ export function createDefaultSimulationSystems(services: SimulationServices): Si
     createEventChainSystem(),
     createAutomationSystem(services.orderedDefinitions),
     createEconomySystem(),
-    createPopulationSystem(),
+    createPopulationSystem(services.orderedDefinitions),
     createMilitarySystem(services.orderedDefinitions),
     createReligionSystem(),
     createAdministrationSystem(),

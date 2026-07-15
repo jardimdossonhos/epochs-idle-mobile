@@ -1,4 +1,4 @@
-﻿﻿﻿﻿import type { DiplomacyResolver, NpcDecision } from "../../core/contracts/services";
+﻿﻿﻿import type { DiplomacyResolver, NpcDecision } from "../../core/contracts/services";
 import type { BilateralRelation, Treaty } from "../../core/models/diplomacy";
 import { DiplomaticRelation, TreatyType, ResourceType } from "../../core/models/enums";
 import type { GameState, KingdomState } from "../../core/models/game-state";
@@ -175,9 +175,29 @@ export class LocalDiplomacyResolver implements DiplomacyResolver {
         const hostilityBias = relation.status === DiplomaticRelation.Hostile ? 0.012 : 0;
         const alliedBias = relation.status === DiplomaticRelation.Allied ? 0.009 : 0;
 
-        relation.score.trust = roundTo(clamp(relation.score.trust + alliedBias - hostilityBias - relation.grievance * 0.008 + 0.002, 0, 1));
+        const personality = kingdom.npc?.personality ?? {
+          ambition: 0.5,
+          caution: 0.5,
+          greed: 0.5,
+          zeal: 0.5,
+          honor: 0.5,
+          betrayalTendency: 0.2
+        };
+
+        const seedStr = `${kingdom.id}->${relationId}`;
+        let charCodeSum = 0;
+        for (let i = 0; i < seedStr.length; i++) {
+          charCodeSum += seedStr.charCodeAt(i);
+        }
+        const trustWave = Math.sin((state.meta.tick + charCodeSum) * 0.15) * 0.003;
+        const rivalryWave = Math.cos((state.meta.tick + charCodeSum) * 0.12) * 0.003;
+
+        const trustAdjustment = (personality.honor * 0.003) - (personality.betrayalTendency * 0.002) + trustWave;
+        const rivalryAdjustment = (personality.ambition * 0.003) - (personality.honor * 0.002) + rivalryWave;
+
+        relation.score.trust = roundTo(clamp(relation.score.trust + alliedBias - hostilityBias - relation.grievance * 0.008 + 0.002 + trustAdjustment, 0, 1));
         relation.score.rivalry = roundTo(
-          clamp(relation.score.rivalry + relation.score.borderTension * 0.004 + hostilityBias * 0.7 - alliedBias * 0.5, 0, 1)
+          clamp(relation.score.rivalry + relation.score.borderTension * 0.004 + hostilityBias * 0.7 - alliedBias * 0.5 + rivalryAdjustment, 0, 1)
         );
         relation.score.fear = roundTo(clamp(relation.score.fear + relation.score.rivalry * 0.003 - relation.score.trust * 0.002, 0, 1));
         relation.score.tradeValue = roundTo(clamp(relation.score.tradeValue + relation.score.trust * 0.003 - relation.score.rivalry * 0.003, 0, 1));
