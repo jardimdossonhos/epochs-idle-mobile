@@ -1,4 +1,4 @@
-﻿import type { GameState } from "./game-state";
+import type { GameState } from "./game-state";
 import type { TickId, TimestampMs } from "./types";
 
 export type CommandIssuerType = "player" | "npc" | "system";

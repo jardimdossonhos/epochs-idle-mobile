@@ -1,4 +1,4 @@
-﻿﻿import { TechnologyDomain } from "./enums";
+import { TechnologyDomain } from "./enums";
 
 export type ModifierTarget =
   | "economy.food_production_multiplier"

@@ -26,7 +26,7 @@ export default function AvatarAppearanceStep({
   };
 
   const handleRandomizeAvatar = () => {
-    const newSeed = generatePortraitSeed();
+    const newSeed = generatePortraitSeed(cultureId, gender);
     onUpdateDetails({ portraitSeed: newSeed });
   };
 

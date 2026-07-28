@@ -1,4 +1,4 @@
-﻿import type { DiplomacyResolver } from "../../contracts/services";
+import type { DiplomacyResolver } from "../../contracts/services";
 import type { SimulationSystem } from "../tick-pipeline";
 
 export function createDiplomacySystem(diplomacyResolver: DiplomacyResolver): SimulationSystem {

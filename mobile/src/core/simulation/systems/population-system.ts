@@ -1,3 +1,4 @@
+import { buildEvent } from "../../ecs/event-pool";
 import { ResourceType } from "../../models/enums";
 import type { SimulationSystem } from "../tick-pipeline";
 import { clamp, createEventId, roundTo } from "./utils";
@@ -34,22 +35,14 @@ export function createPopulationSystem(orderedDefinitions: RegionDefinition[]): 
         kingdom.stability = roundTo(clamp(kingdom.stability + stabilityShift, 0, 100));
 
         if (kingdom.population.unrest > 0.75 && context.nextState.meta.tick % 7 === 0) {
-          context.events.push({
-            id: createEventId({
-              prefix: "evt_unrest",
-              tick: context.nextState.meta.tick,
-              systemId: "population",
-              actorId: kingdom.id,
-              sequence: eventSeq++
-            }),
-            type: "population.unrest_warning",
-            actorKingdomId: kingdom.id,
-            payload: {
+          const evt = buildEvent("population.unrest_warning", context.now, {
               unrest: kingdom.population.unrest,
               stability: kingdom.stability
-            },
-            occurredAt: context.now
-          });
+            }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_unrest", tick: context.nextState.meta.tick, systemId: "population", actorId: kingdom.id, sequence: eventSeq++ });
+            context.events.push(evt);
+          }
         }
       }
 

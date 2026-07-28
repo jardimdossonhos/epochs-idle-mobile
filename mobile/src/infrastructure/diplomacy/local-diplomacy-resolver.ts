@@ -1,4 +1,4 @@
-﻿﻿﻿import type { DiplomacyResolver, NpcDecision } from "../../core/contracts/services";
+import type { DiplomacyResolver, NpcDecision } from "../../core/contracts/services";
 import type { BilateralRelation, Treaty } from "../../core/models/diplomacy";
 import { DiplomaticRelation, TreatyType, ResourceType } from "../../core/models/enums";
 import type { GameState, KingdomState } from "../../core/models/game-state";

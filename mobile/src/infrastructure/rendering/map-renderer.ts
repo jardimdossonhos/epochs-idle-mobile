@@ -1,4 +1,4 @@
-﻿﻿
+
 import type { KingdomState } from "../../core/models/game-state";
 import type { RegionDefinition, WorldState } from "../../core/models/world";
 

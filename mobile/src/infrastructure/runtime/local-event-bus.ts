@@ -1,4 +1,4 @@
-﻿import type { EventBus } from "../../core/contracts/services";
+import type { EventBus } from "../../core/contracts/services";
 import type { DomainEvent } from "../../core/models/events";
 
 type Listener = (event: DomainEvent) => void;

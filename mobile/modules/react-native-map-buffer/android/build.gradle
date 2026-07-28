@@ -1,0 +1,37 @@
+
+def reactNativeArchitectures() {
+  def value = project.getProperties().get("reactNativeArchitectures")
+  return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
+}
+
+apply plugin: "com.android.library"
+
+android {
+  compileSdkVersion 34
+  namespace "com.mapbuffer"
+
+  defaultConfig {
+    minSdkVersion 24
+    targetSdkVersion 34
+    externalNativeBuild {
+      cmake {
+        cppFlags "-O2 -frtti -fexceptions -Wall -fstack-protector-all"
+        abiFilters (*reactNativeArchitectures())
+        arguments "-DANDROID_STL=c++_shared"
+      }
+    }
+  }
+  externalNativeBuild {
+    cmake {
+      path "src/main/cpp/CMakeLists.txt"
+    }
+  }
+  buildFeatures {
+    prefab true
+  }
+}
+
+dependencies {
+  implementation "com.facebook.react:react-native:+"
+  implementation project(':react-native-nitro-modules')
+}

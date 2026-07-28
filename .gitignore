@@ -1,4 +1,4 @@
-node_modules/
+﻿node_modules/
 dist/
 release/
 .vite/
@@ -13,3 +13,9 @@ tests/**/*.js
 vite.config.js
 tsconfig.tsbuildinfo
 desktop-dist/
+
+# Proxy Security
+backend/.env
+backend/.wrangler
+.env.local
+*.secret.*

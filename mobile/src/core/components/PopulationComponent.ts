@@ -1,4 +1,4 @@
-﻿export class PopulationComponent {
+export class PopulationComponent {
   public readonly total: Float64Array;
   public readonly growthRate: Float64Array;
 

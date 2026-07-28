@@ -1,6 +1,7 @@
-﻿﻿import type { WarResolver } from "../../contracts/services";
+import type { WarResolver } from "../../contracts/services";
 import type { SimulationSystem } from "../tick-pipeline";
 import { createEventId, roundTo } from "./utils";
+import { buildEvent } from "../../ecs/event-pool";
 
 export function createWarSystem(warResolver: WarResolver): SimulationSystem {
   return {
@@ -29,43 +30,30 @@ export function createWarSystem(warResolver: WarResolver): SimulationSystem {
         const previousScore = warScoresBefore.get(war.id);
 
         if (previousScore !== undefined && Math.abs(previousScore) < 45 && Math.abs(war.warScore) >= 45) {
-          context.events.push({
-            id: createEventId({
-              prefix: "evt_war_escalation",
-              tick: context.nextState.meta.tick,
-              systemId: "war",
-              actorId: war.warScore > 0 ? war.attackers[0] : war.defenders[0],
-              sequence: eventSeq++
-            }),
-            type: "war.escalated",
-            actorKingdomId: war.warScore > 0 ? war.attackers[0] : war.defenders[0],
-            payload: {
-              warId: war.id,
-              warScore: roundTo(war.warScore)
-            },
-            occurredAt: context.now
-          });
+          const actorId = war.warScore > 0 ? war.attackers[0] : war.defenders[0];
+          const evt = buildEvent(
+            "war.escalated",
+            context.now,
+            { warId: war.id, warScore: roundTo(war.warScore) },
+            actorId
+          );
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_war_escalation", tick: context.nextState.meta.tick, systemId: "war", actorId, sequence: eventSeq++ });
+            context.events.push(evt);
+          }
         }
 
-        // Processamento de Baixas Físicas (Dreno Populacional)
+        // Processamento de Baixas FÃ­sicas (Dreno Populacional)
         if (war.casualties) {
           for (const kingdomId of Object.keys(war.casualties)) {
             const dead = war.casualties[kingdomId];
             if (dead > 0) {
-              context.events.push({
-                id: createEventId({
-                  prefix: "evt_war_casualties",
-                  tick: context.nextState.meta.tick,
-                  systemId: "war",
-                  actorId: kingdomId,
-                  sequence: eventSeq++
-                }),
-                type: "war.casualties",
-                actorKingdomId: kingdomId,
-                payload: { warId: war.id, amount: dead },
-                occurredAt: context.now
-              });
-              // Limpa o buffer após o evento ser despachado para a Thread Principal
+              const evt = buildEvent("war.casualties", context.now, { warId: war.id, amount: dead }, kingdomId, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_war_casualties", tick: context.nextState.meta.tick, systemId: "war", actorId: kingdomId, sequence: eventSeq++ });
+            context.events.push(evt);
+          }
+              // Limpa o buffer apÃ³s o evento ser despachado para a Thread Principal
               war.casualties[kingdomId] = 0;
             }
           }
@@ -78,24 +66,15 @@ export function createWarSystem(warResolver: WarResolver): SimulationSystem {
           continue;
         }
 
-        context.events.push({
-          id: createEventId({
-            prefix: "evt_war_capture",
-            tick: context.nextState.meta.tick,
-            systemId: "war",
-            actorId: regionAfter.ownerId,
-            sequence: eventSeq++
-          }),
-          type: "war.region_captured",
-          actorKingdomId: regionAfter.ownerId,
-          targetKingdomId: previousOwnerId,
-          payload: {
+        const evt = buildEvent("war.region_captured", context.now, {
             regionId,
             previousOwnerId,
             newOwnerId: regionAfter.ownerId
-          },
-          occurredAt: context.now
-        });
+          }, regionAfter.ownerId, previousOwnerId);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_war_capture", tick: context.nextState.meta.tick, systemId: "war", actorId: regionAfter.ownerId, sequence: eventSeq++ });
+            context.events.push(evt);
+          }
       }
     }
   };

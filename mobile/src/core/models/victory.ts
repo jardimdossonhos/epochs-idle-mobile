@@ -1,4 +1,4 @@
-﻿import { VictoryPath } from "./enums";
+import { VictoryPath } from "./enums";
 
 export interface VictoryProgress {
   territorialShare: number;

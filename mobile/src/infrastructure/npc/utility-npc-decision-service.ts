@@ -1,4 +1,4 @@
-﻿﻿import { NpcArchetype, DiplomaticRelation } from "../../core/models/enums";
+import { NpcArchetype, DiplomaticRelation } from "../../core/models/enums";
 import type { INpcDecisionService, NpcDecision } from "../../core/contracts/services";
 import type { GameState, KingdomState } from "../../core/models/game-state";
 import type { KingdomId, TimestampMs } from "../../core/models/types";

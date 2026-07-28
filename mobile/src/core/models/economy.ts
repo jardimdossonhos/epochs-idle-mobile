@@ -1,4 +1,4 @@
-﻿import { ResourceType } from "./enums";
+import { ResourceType } from "./enums";
 import type { RegionId } from "./types";
 
 export type ResourceStock = Record<ResourceType, number>;

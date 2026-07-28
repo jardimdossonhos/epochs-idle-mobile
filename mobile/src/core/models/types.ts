@@ -1,4 +1,4 @@
-﻿export type TimestampMs = number;
+export type TimestampMs = number;
 export type TickId = number;
 
 export type KingdomId = string;

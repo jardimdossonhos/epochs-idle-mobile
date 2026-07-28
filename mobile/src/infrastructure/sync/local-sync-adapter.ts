@@ -1,4 +1,4 @@
-﻿import type { CommandLogEntry, SnapshotSummary, StateSnapshot } from "../../core/models/commands";
+import type { CommandLogEntry, SnapshotSummary, StateSnapshot } from "../../core/models/commands";
 import type { GameState } from "../../core/models/game-state";
 import type { SyncAdapter, SyncPullRequest, SyncPullResponse, SyncSyncResult } from "../../core/contracts/services";
 import { validateCommandChain } from "../../core/utils/command-chain";

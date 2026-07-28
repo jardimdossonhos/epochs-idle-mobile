@@ -1,3 +1,4 @@
+import { buildEvent } from "../../ecs/event-pool";
 import { ReligiousPolicy } from "../../models/enums";
 import type { RegionState } from "../../models/world";
 import type { SimulationSystem } from "../tick-pipeline";
@@ -223,63 +224,36 @@ export function createReligionSystem(): SimulationSystem {
           }
 
           if (state.meta.tick % Math.max(1, Math.floor(18 / tickScale)) === 0) {
-            context.events.push({
-              id: createEventId({
-                prefix: "evt_religion",
-                tick: state.meta.tick,
-                systemId: "religion",
-                actorId: sourceKingdom.id,
-                sequence: eventSeq++
-              }),
-              type: "religion.mission_started",
-              actorKingdomId: sourceKingdom.id,
-              targetKingdomId: kingdom.id,
-              payload: {
+            const evt = buildEvent("religion.mission_started", context.now, {
                 influence: roundTo(influence, 4),
                 pressure: roundTo(pressure, 4)
-              },
-              occurredAt: context.now
-            });
+              }, sourceKingdom.id, kingdom.id);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_religion", tick: context.nextState.meta.tick, systemId: "religion", actorId: sourceKingdom.id, sequence: context.events.length });
+            context.events.push(evt);
+          }
           }
 
           if (regionsWithProgress > 0) {
-            context.events.push({
-              id: createEventId({
-                prefix: "evt_religion",
-                tick: state.meta.tick,
-                systemId: "religion",
-                actorId: sourceKingdom.id,
-                sequence: eventSeq++
-              }),
-              type: "religion.conversion_progress",
-              actorKingdomId: sourceKingdom.id,
-              targetKingdomId: kingdom.id,
-              payload: {
+            const evt = buildEvent("religion.conversion_progress", context.now, {
                 regionsWithProgress,
                 sourceFaith
-              },
-              occurredAt: context.now
-            });
+              }, sourceKingdom.id, kingdom.id);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_religion", tick: context.nextState.meta.tick, systemId: "religion", actorId: sourceKingdom.id, sequence: context.events.length });
+            context.events.push(evt);
+          }
           }
 
           if (influence > 0.8 && kingdom.stability < 35 && state.meta.tick % Math.max(1, Math.floor(20 / tickScale)) === 0) {
-            context.events.push({
-              id: createEventId({
-                prefix: "evt_religion",
-                tick: state.meta.tick,
-                systemId: "religion",
-                actorId: sourceKingdom.id,
-                sequence: eventSeq++
-              }),
-              type: "religion.coup_risk",
-              actorKingdomId: sourceKingdom.id,
-              targetKingdomId: kingdom.id,
-              payload: {
+            const evt = buildEvent("religion.coup_risk", context.now, {
                 influence: roundTo(influence, 4),
                 targetStability: roundTo(kingdom.stability, 2)
-              },
-              occurredAt: context.now
-            });
+              }, sourceKingdom.id, kingdom.id);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_religion", tick: context.nextState.meta.tick, systemId: "religion", actorId: sourceKingdom.id, sequence: context.events.length });
+            context.events.push(evt);
+          }
           }
         }
 
@@ -360,23 +334,15 @@ export function createReligionSystem(): SimulationSystem {
         const tensionIndex = (1 - kingdom.religion.tolerance) * 0.55 + faithConflict * 6 + (1 - kingdom.religion.cohesion) * 0.25;
 
         if (tensionIndex > 0.55 && state.meta.tick % Math.max(1, Math.floor(6 / tickScale)) === 0) {
-          context.events.push({
-            id: createEventId({
-              prefix: "evt_religion",
-              tick: state.meta.tick,
-              systemId: "religion",
-              actorId: kingdom.id,
-              sequence: eventSeq++
-            }),
-            type: "religion.tension",
-            actorKingdomId: kingdom.id,
-            payload: {
+          const evt = buildEvent("religion.tension", context.now, {
               tolerance: kingdom.religion.tolerance,
               cohesion: kingdom.religion.cohesion,
               tensionIndex: roundTo(tensionIndex)
-            },
-            occurredAt: context.now
-          });
+            }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_religion", tick: context.nextState.meta.tick, systemId: "religion", actorId: kingdom.id, sequence: context.events.length });
+            context.events.push(evt);
+          }
         }
       }
     }

@@ -21,6 +21,35 @@ export interface EcsState {
   populationTotal: number[] | Float64Array;
   populationGrowthRate: number[] | Float64Array;
   manpower: number[] | Float64Array;
+  factionCasualties: Int32Array | number[];
+  regionOwner: Int32Array | number[];
+  regionCaptureProgress: Float32Array | number[];
+  regionSupplyCapacity: Float32Array | number[];
+  regionCurrentSupply: Float32Array | number[];
+  regionManpowerYield: Float32Array | number[];
+  regionManpowerCap: Float32Array | number[];
+  factionManpowerCap: Float32Array | number[];
+  regionGoldYield: Float32Array | number[];
+  factionGoldBalance: Float32Array | number[];
+  factionManpowerReserve: Float32Array | number[];
+  accumulatedSimulatedTime: number;
+  conquestEpoch: number;
+  cmdHead: number;
+  cmdTail: number;
+  cmdType: Int32Array | number[];
+  cmdFaction: Int32Array | number[];
+  cmdArg0: Int32Array | number[];
+  cmdArg1: Int32Array | number[];
+  factionResources: Float32Array | number[];
+  hexStructures: Int32Array | number[];
+
+  combatEventHead: number;
+  combatEventTail: number;
+  combatEventX: Float32Array | number[];
+  combatEventY: Float32Array | number[];
+  combatEventTs: Float32Array | number[];
+
+  visibilityMask: Uint8Array | number[];
 }
 
 export interface KingdomState {
@@ -29,8 +58,8 @@ export interface KingdomState {
   adjective: string;
   isPlayer: boolean;
   capitalRegionId: string;
-  rulerId?: string; // NOVO: O ID do Personagem que governa o império
-  heirs: string[]; // IDs dos herdeiros em ordem de sucessão
+  rulerId?: string; // NOVO: O ID do Personagem que governa o impÃ©rio
+  heirs: string[]; // IDs dos herdeiros em ordem de sucessÃ£o
   ownedRegionIds?: string[]; // Cached list of owned region IDs
   economy: EconomyState;
   population: PopulationState;
@@ -96,3 +125,4 @@ export interface GameState {
   randomSeed: number;
   ecs?: EcsState;
 }
+

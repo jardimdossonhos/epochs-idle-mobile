@@ -1,4 +1,4 @@
-﻿﻿﻿﻿import { Application, Container, Graphics, Text } from "pixi.js";
+import { Application, Container, Graphics, Text } from "pixi.js";
 import type { KingdomState } from "../../core/models/game-state";
 import type { StaticWorldData } from "../../core/models/static-world-data";
 import type { RegionDefinition, WorldState } from "../../core/models/world";

@@ -1,4 +1,4 @@
-﻿import type { SaveSlotId, SaveSummary } from "../../core/contracts/game-ports";
+import type { SaveSlotId, SaveSummary } from "../../core/contracts/game-ports";
 import { ResourceType } from "../../core/models/enums";
 import type { GameState } from "../../core/models/game-state";
 

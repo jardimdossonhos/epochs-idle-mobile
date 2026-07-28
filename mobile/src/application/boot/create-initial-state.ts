@@ -36,12 +36,12 @@ const KINGDOM_BLUEPRINTS: KingdomBlueprint[] = [
     name: "Primeira Tribo",
     adjective: "Primordial",
     isPlayer: true,
-    preferredCapitalRegionId: "" // Será injetado dinamicamente via UI no main.ts
+    preferredCapitalRegionId: "" // SerÃƒÆ’Ã‚Â¡ injetado dinamicamente via UI no main.ts
   },
   {
     id: "k_npc_1",
     name: "Povo de Uruk",
-    adjective: "Mesopotâmico",
+    adjective: "MesopotÃƒÆ’Ã‚Â¢mico",
     isPlayer: false,
     preferredCapitalRegionId: "",
     archetype: NpcArchetype.Expansionist,
@@ -279,8 +279,8 @@ function createKingdom(
   stateFaith: ReligionId
 ): KingdomState {
   const isNature = blueprint.id === "k_nature";
-  const populationTotal = isNature ? 0 : 20; // A aurora da humanidade começa com uma minúscula tribo de 20 pessoas
-  const armyManpower = isNature ? 0 : 5; // Apenas uns poucos caçadores/guerreiros
+  const populationTotal = isNature ? 0 : 20; // A aurora da humanidade comeÃƒÆ’Ã‚Â§a com uma minÃƒÆ’Ã‚Âºscula tribo de 20 pessoas
+  const armyManpower = isNature ? 0 : 5; // Apenas uns poucos caÃƒÆ’Ã‚Â§adores/guerreiros
 
   return {
     id: blueprint.id,
@@ -289,11 +289,11 @@ function createKingdom(
     isPlayer: blueprint.isPlayer,
     color: blueprint.color,
     capitalRegionId,
-    heirs: [], // Inicialmente sem herdeiros - serão gerados quando o monarca for definido
+    heirs: [], // Inicialmente sem herdeiros - serÃƒÆ’Ã‚Â£o gerados quando o monarca for definido
     economy: createBaseEconomy(),
     population: createBasePopulation(populationTotal),
     technology: {
-      unlocked: isNature ? [] : ["fire_mastery"], // O fogo é o berço de tudo
+      unlocked: isNature ? [] : ["fire_mastery"], // O fogo ÃƒÆ’Ã‚Â© o berÃƒÆ’Ã‚Â§o de tudo
       activeResearchId: isNature ? null : "bone_tools",
       researchGoalId: null,
       accumulatedResearch: 0,
@@ -311,14 +311,22 @@ function createKingdom(
       holyWarCooldownUntil: 0
     },
     military: {
-      posture: ArmyPosture.Defensive, // Tribos nascentes são defensivas
+      posture: ArmyPosture.Defensive, // Tribos nascentes sÃƒÆ’Ã‚Â£o defensivas
       recruitmentPriority: 0.52,
       offensiveFocus: blueprint.isPlayer ? 0.47 : 0.51,
       targetRegionIds: [],
       armies: isNature ? [] : [
         {
+          _poolIdx: -1,
+          generation: 0,
+          isActive: true,
+          factionIndex: blueprint.isPlayer ? 1 : 2,
           id: `${blueprint.id}_army_1`,
-          stationedRegionId: capitalRegionId,
+          stationedIndex: parseInt(capitalRegionId.replace("r_hex_", ""), 10),
+          targetIndex: -1,
+          pathLength: 0,
+          currentPath: new Int32Array(50),
+          maxManpower: armyManpower,
           manpower: armyManpower,
           quality: 0.1,
           morale: 0.5,
@@ -390,12 +398,12 @@ function assignRegionOwners(
   const capitalByOwner: Record<string, string> = {};
   const defsById = toDefinitionMap(definitions);
 
-  // 1. O globo inteiro começa pertencendo à natureza absoluta (Vazio populacional)
+  // 1. O globo inteiro comeÃƒÆ’Ã‚Â§a pertencendo ÃƒÆ’Ã‚Â  natureza absoluta (Vazio populacional)
   for (const definition of definitions) {
     ownerByRegionId[definition.id] = "k_nature";
   }
 
-  // Função interna para criar "Clusters" (Tribos unidas de 2 a 3 hexágonos)
+  // FunÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o interna para criar "Clusters" (Tribos unidas de 2 a 3 hexÃƒÆ’Ã‚Â¡gonos)
   function spawnCluster(kingdomId: string, centerId: string) {
     const center = defsById[centerId];
     if (!center || center.isWater) return;
@@ -404,7 +412,7 @@ function assignRegionOwners(
     capitalByOwner[kingdomId] = centerId;
     
     let clusterSize = 1;
-    const targetSize = 2 + Math.floor(Math.random() * 2); // Nasce dominando de 2 a 3 territórios vizinhos
+    const targetSize = 2 + Math.floor(Math.random() * 2); // Nasce dominando de 2 a 3 territÃƒÆ’Ã‚Â³rios vizinhos
     
     for (const neighborId of center.neighbors) {
       if (clusterSize >= targetSize) break;
@@ -426,14 +434,14 @@ function assignRegionOwners(
     spawnCluster("k_player", playerStart);
   }
 
-  // 3. Alocar as Antigas Tribos Históricas da IA
+  // 3. Alocar as Antigas Tribos HistÃƒÆ’Ã‚Â³ricas da IA
   const npcZones = ["near_east", "north_africa", "south_asia", "east_asia"];
   for (let i = 1; i <= 4; i++) {
     const npcId = `k_npc_${i}`;
     const targetZone = npcZones[i - 1];
     const validSpawns = definitions.filter(d => !d.isWater && d.zone === targetZone && ownerByRegionId[d.id] === "k_nature");
     if (validSpawns.length > 0) {
-      // Tenta cair pelo centro da região em vez de nas pontas extremas
+      // Tenta cair pelo centro da regiÃƒÆ’Ã‚Â£o em vez de nas pontas extremas
       const start = validSpawns[Math.floor(validSpawns.length / 2)].id;
       spawnCluster(npcId, start);
     }
@@ -463,7 +471,7 @@ function createRegionState(
 ): RegionState {
   const isNature = ownerId === "k_nature";
   const seed = hashString(definition.id);
-  const unrest = isNature ? 0 : 0.08 + ((seed % 23) / 100); // A natureza não se revolta
+  const unrest = isNature ? 0 : 0.08 + ((seed % 23) / 100); // A natureza nÃƒÆ’Ã‚Â£o se revolta
   const autonomy = 0.2 + ((Math.floor(seed / 13) % 22) / 100);
   const devastation = isNature ? 0 : ((Math.floor(seed / 31) % 7) / 100);
   const assimilation = 0.74 + ((Math.floor(seed / 47) % 23) / 100);
@@ -585,7 +593,7 @@ function createKingdoms(ownerByRegionId: Record<string, string>, capitalByOwner:
     kingdoms[blueprint.id] = createKingdom(blueprint, capitalRegionId, ownedRegions.length, chosenFaith);
   }
 
-  // Entidade de contenção global (Terra Selvagem)
+  // Entidade de contenÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o global (Terra Selvagem)
   kingdoms["k_nature"] = createKingdom({
     id: "k_nature",
     name: "Terra Selvagem",
@@ -611,6 +619,16 @@ export function createInitialState(staticData: StaticWorldData, playerStartRegio
 
   const totalEntities = orderedDefinitions.length;
 
+  // Mapeamento estável KingdomId → FactionId numérico para o ECS.
+  // Derivado da posição em KINGDOM_BLUEPRINTS para ser determinístico e livre de colisões.
+  // k_nature mantém -1 (sem facção) para a condição do MacroeconomySystem (owner !== -1).
+  // k_player=1, k_npc_1=2, k_npc_2=3, k_npc_3=4, k_npc_4=5 ...
+  const kingdomToFactionId: Record<string, number> = { "k_nature": -1 };
+  KINGDOM_BLUEPRINTS.forEach((bp, idx) => {
+    kingdomToFactionId[bp.id] = idx + 1;
+  });
+
+
   // FAGULHA VITAL (AURORA DA HUMANIDADE): Preenche 99% das matrizes ECS com ZERO para o terreno vazio
   const ecsState: EcsState = {
     gold: new Array(totalEntities).fill(0),
@@ -621,12 +639,44 @@ export function createInitialState(staticData: StaticWorldData, playerStartRegio
     legitimacy: new Array(totalEntities).fill(0),
     populationTotal: new Array(totalEntities).fill(0),
     populationGrowthRate: new Array(totalEntities).fill(0),
-    manpower: new Array(totalEntities).fill(0)
+    manpower: new Array(totalEntities).fill(0),
+    factionCasualties: new Int32Array(256),
+    factionManpowerReserve: new Float32Array(256).fill(100),
+    accumulatedSimulatedTime: 0,
+    conquestEpoch: 0,
+    regionManpowerYield: new Float32Array(totalEntities).fill(0.1),
+    regionManpowerCap: new Float32Array(totalEntities).fill(50),
+    factionManpowerCap: new Float32Array(256).fill(0),
+    regionGoldYield: new Float32Array(totalEntities).fill(0.5),
+    factionGoldBalance: new Float32Array(256).fill(100),
+    cmdHead: 0,
+    cmdTail: 0,
+    cmdType: new Int32Array(2048),
+    cmdFaction: new Int32Array(2048),
+    cmdArg0: new Int32Array(2048),
+    cmdArg1: new Int32Array(2048),
+    regionOwner: new Int32Array(totalEntities).fill(-1),
+    regionCaptureProgress: new Float32Array(totalEntities).fill(0),
+    regionSupplyCapacity: new Float32Array(totalEntities).fill(1000),
+    regionCurrentSupply: new Float32Array(totalEntities).fill(1000),
+    factionResources: new Float32Array(256 * 3).fill(100),
+    hexStructures: new Int32Array(totalEntities).fill(0),
+    combatEventHead: 0,
+    combatEventTail: 0,
+    combatEventX: new Float32Array(1024),
+    combatEventY: new Float32Array(1024),
+    combatEventTs: new Float32Array(1024),
+    visibilityMask: new Uint8Array(totalEntities).fill(0)
   };
 
   for (let i = 0; i < totalEntities; i++) {
     const def = orderedDefinitions[i];
     const ownerId = ownerByRegionId[def.id] ?? "k_nature";
+
+    // PONTE ECS←OO: Injeta a posse geográfica no ECS para ativar o MacroeconomySystem.
+    // Sem isto, regionOwner permanece -1 e o motor nunca gera renda.
+    const factionId = kingdomToFactionId[ownerId] ?? -1;
+    ecsState.regionOwner[i] = factionId;
 
     if (ownerId !== "k_nature" && !def.isWater) {
       ecsState.populationTotal[i] = 20; // 20 nômades exatos por hexágono capital

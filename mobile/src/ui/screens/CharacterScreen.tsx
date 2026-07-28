@@ -152,18 +152,7 @@ export default function CharacterScreen() {
 
 function getAvatarUrl(cultureId?: string, seed?: string, gender?: 'male'|'female') {
   const safeSeed = seed || 'default';
-  let style = 'lorelei';
-  switch(cultureId) {
-    case 'nordic': style = 'adventurer'; break;
-    case 'eastern': style = 'avataaars'; break;
-    case 'desert': style = 'micah'; break;
-    case 'savanna': style = 'micah'; break;
-    case 'celtic': style = 'adventurer'; break;
-    case 'slavic': style = 'lorelei'; break;
-    case 'indigenous': style = 'avataaars'; break;
-    case 'vedic': style = 'micah'; break;
-    default: style = 'lorelei'; break;
-  }
+  const style = gender === 'female' ? 'lorelei' : 'adventurer';
   return `https://api.dicebear.com/9.x/${style}/png?seed=${safeSeed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffdfbf,ffd5dc`;
 }
 

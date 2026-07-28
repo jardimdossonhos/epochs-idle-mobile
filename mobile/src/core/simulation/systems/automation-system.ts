@@ -1,3 +1,4 @@
+import { buildEvent } from "../../ecs/event-pool";
 import { ArmyPosture, AutomationLevel, BuildingType, ResourceType, TechnologyDomain } from "../../models/enums";
 import { selectDefaultResearchNode, selectResearchNodeTowardsTarget } from "../../data/technology-tree";
 import type { BudgetPriority } from "../../models/economy";
@@ -225,13 +226,11 @@ function handleConstructionAutomation(state: GameState, kingdom: KingdomState, c
     region.buildings = region.buildings || [];
     region.buildings.push(chosenBuilding);
 
-    context.events.push({
-      id: createEventId({ prefix: "evt_build", tick: state.meta.tick, systemId: "automation", actorId: kingdom.id, sequence: 0 }),
-      type: "automation.build_structure",
-      actorKingdomId: kingdom.id,
-      payload: { regionId: chosenRegionId, buildingType: chosenBuilding, cost: BUILDING_COSTS[chosenBuilding] },
-      occurredAt: context.now
-    });
+    const evt = buildEvent("automation.build_structure", context.now, { regionId: chosenRegionId, buildingType: chosenBuilding, cost: BUILDING_COSTS[chosenBuilding] }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_build", tick: context.nextState.meta.tick, systemId: "automation", actorId: kingdom.id, sequence: context.events.length });
+            context.events.push(evt);
+          }
   }
 }
 
@@ -438,23 +437,14 @@ export function createAutomationSystem(orderedDefinitions: RegionDefinition[]): 
               const boostedInfluence = clamp(currentInfluence + pressureGain, 0, 1);
               targetKingdom.religion.externalInfluenceIn[kingdom.id] = roundTo(boostedInfluence, 4);
 
-              context.events.push({
-                id: createEventId({
-                  prefix: "evt_religion",
-                  tick: state.meta.tick,
-                  systemId: "automation",
-                  actorId: kingdom.id,
-                  sequence: missionSeq++
-                }),
-                type: "religion.mission_started",
-                actorKingdomId: kingdom.id,
-                targetKingdomId: targetKingdom.id,
-                payload: {
+              const evt = buildEvent("religion.mission_started", context.now, {
                   influence: roundTo(boostedInfluence, 4),
                   pressure: roundTo(pressureGain, 4)
-                },
-                occurredAt: context.now
-              });
+                }, kingdom.id, targetKingdom.id);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_religion", tick: context.nextState.meta.tick, systemId: "automation", actorId: kingdom.id, sequence: context.events.length });
+            context.events.push(evt);
+          }
             } else {
               kingdom.stability = roundTo(clamp(kingdom.stability - 0.25, 0, 100));
             }

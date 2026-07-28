@@ -1,3 +1,4 @@
+import { buildEvent } from "../../ecs/event-pool";
 import { AutomationLevel } from "../../models/enums";
 import type { StaticWorldData } from "../../models/static-world-data";
 import type { SimulationSystem, TickContext } from "../tick-pipeline";
@@ -64,13 +65,11 @@ export function createMigrationSystem(staticData: StaticWorldData, orderedDefini
                 if (state.ecs.manpower) (state.ecs.manpower as any)[i] = 0;
             }
 
-            context.events.push({
-                id: createEventId({ prefix: "evt_ext", tick: state.meta.tick, systemId: "migration", actorId: kingdom.id, sequence: eventSeq++ }),
-                type: "population.extinction",
-                actorKingdomId: kingdom.id,
-                payload: { regionId, regionName: def.name },
-                occurredAt: context.now
-            });
+            const evt = buildEvent("population.extinction", context.now, { regionId, regionName: def.name }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_ext", tick: context.nextState.meta.tick, systemId: "migration", actorId: kingdom.id, sequence: context.events.length });
+            context.events.push(evt);
+          }
             continue;
         }
 
@@ -129,19 +128,11 @@ export function createMigrationSystem(staticData: StaticWorldData, orderedDefini
 
       // Dispara as emissões para a pipeline (Ignoradas no offline, consumidas em tempo real)
       for (const mig of migrations) {
-        context.events.push({
-          id: createEventId({
-            prefix: "evt_mig",
-            tick: state.meta.tick,
-            systemId: "migration",
-            actorId: mig.kingdomId,
-            sequence: eventSeq++
-          }),
-          type: "population.migration",
-          actorKingdomId: mig.kingdomId,
-          payload: mig,
-          occurredAt: context.now
-        });
+        const evt = buildEvent("population.migration", context.now, mig, mig.kingdomId, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_mig", tick: context.nextState.meta.tick, systemId: "migration", actorId: mig.kingdomId, sequence: context.events.length });
+            context.events.push(evt);
+          }
       }
 
       for (const kid of Object.keys(state.kingdoms)) {

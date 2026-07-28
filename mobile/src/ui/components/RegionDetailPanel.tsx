@@ -17,36 +17,36 @@ interface RegionDetailPanelProps {
   isMergedView?: boolean;
 }
 
-// ─── Mapeamento de Edificios ──────────────────────────────────────────────────
+// â”€â”€â”€ Mapeamento de Edificios â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const BUILDING_META: Record<BuildingType, { icon: string; label: string; desc: string }> = {
   [BuildingType.Market]: {
-    icon: '💰',
+    icon: 'ðŸ’°',
     label: 'Mercado',
-    desc: '+25% Renda da província',
+    desc: '+25% Renda da provÃ­ncia',
   },
   [BuildingType.Barracks]: {
-    icon: '⚔️',
+    icon: 'âš”ï¸',
     label: 'Quartel',
     desc: '+25% Manpower base',
   },
   [BuildingType.Monastery]: {
-    icon: '⛪',
+    icon: 'â›ª',
     label: 'Mosteiro',
-    desc: '+Fé passiva, -Tensão Religiosa',
+    desc: '+FÃ© passiva, -TensÃ£o Religiosa',
   },
   [BuildingType.University]: {
-    icon: '📚',
+    icon: 'ðŸ“š',
     label: 'Universidade',
     desc: '+Pesquisa passiva',
   },
   [BuildingType.Fortress]: {
-    icon: '🏰',
+    icon: 'ðŸ°',
     label: 'Fortaleza',
-    desc: '-Instabilidade, +Resistência',
+    desc: '-Instabilidade, +ResistÃªncia',
   },
 };
 
-// ─── Barra de progresso ───────────────────────────────────────────────────────
+// â”€â”€â”€ Barra de progresso â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function StatBar({ value, color, label }: { value: number; color: string; label: string }) {
   const pct = Math.min(1, Math.max(0, value));
   return (
@@ -91,7 +91,7 @@ const statBarStyles = StyleSheet.create({
   },
 });
 
-// ─── Componente Principal ─────────────────────────────────────────────────────
+// â”€â”€â”€ Componente Principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function RegionDetailPanel({ regionId, onClose, isMergedView = false }: RegionDetailPanelProps) {
   const { gameState, session, playerKingdomId, staticWorldData } = useGameState();
 
@@ -142,7 +142,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
     Object.values(gameState.kingdoms).forEach(kingdom => {
       if (kingdom.military?.armies) {
         kingdom.military.armies.forEach(army => {
-          if (army.stationedRegionId === rId) {
+          if (army.stationedIndex !== -1 && staticWorldData?.orderedDefinitions[army.stationedIndex]?.id === rId) {
             defense += army.manpower ?? 0;
           }
         });
@@ -226,7 +226,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
 
       const result = session.executeBuildStructure(targetRegionId, buildingType);
       if (!result.ok) {
-        Alert.alert('Construção', result.message);
+        Alert.alert('ConstruÃ§Ã£o', result.message);
       }
     },
     [session, regionId, isMergedView, getContiguousRegions, gameState, staticWorldData],
@@ -236,7 +236,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
     (actionType: RegionActionType) => {
       const result = session.executeRegionAction(regionId, actionType);
       if (!result.ok) {
-        Alert.alert('Ação', result.message);
+        Alert.alert('AÃ§Ã£o', result.message);
       }
     },
     [session, regionId],
@@ -246,11 +246,11 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
 
   return (
     <View style={styles.container}>
-      {/* ── Header ── */}
+      {/* â”€â”€ Header â”€â”€ */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.icon}>
-            {regionDef?.isCoastal ? '🌊' : regionDef?.isWater ? '🌊' : '⛰️'}
+            {regionDef?.isCoastal ? 'ðŸŒŠ' : regionDef?.isWater ? 'ðŸŒŠ' : 'â›°ï¸'}
           </Text>
           <View>
             <Text style={styles.regionName} numberOfLines={1}>
@@ -258,22 +258,22 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
             </Text>
             <Text style={styles.ownerLabel}>
               {isPlayerRegion
-                ? '👑 Seu domínio'
+                ? 'ðŸ‘‘ Seu domÃ­nio'
                 : owner
-                ? `🏴 ${owner.name}`
-                : '🌿 Território neutro'}
+                ? `ðŸ´ ${owner.name}`
+                : 'ðŸŒ¿ TerritÃ³rio neutro'}
             </Text>
           </View>
         </View>
         <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={styles.closeBtnText}>✕</Text>
+          <Text style={styles.closeBtnText}>âœ•</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-        {/* ── Stats ── */}
+        {/* â”€â”€ Stats â”€â”€ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📊 Estatísticas</Text>
+          <Text style={styles.sectionTitle}>ðŸ“Š EstatÃ­sticas</Text>
           <StatBar
             value={regionState?.autonomy ?? 0}
             color="#5B9BD5"
@@ -287,17 +287,17 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
           <StatBar
             value={regionState?.assimilation ?? 0}
             color="#2ECC71"
-            label="Assimilação"
+            label="AssimilaÃ§Ã£o"
           />
           <StatBar
             value={regionState?.devastation ?? 0}
             color="#E67E22"
-            label="Devastação"
+            label="DevastaÃ§Ã£o"
           />
           {regionState?.construction && (
             <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: '#2C3E50', paddingTop: 8 }}>
               <Text style={{ color: '#F1C40F', fontSize: 13, fontWeight: 'bold', marginBottom: 4 }}>
-                🔨 Em Construção: {BUILDING_META[regionState.construction.buildingType]?.label ?? regionState.construction.buildingType}
+                ðŸ”¨ Em ConstruÃ§Ã£o: {BUILDING_META[regionState.construction.buildingType]?.label ?? regionState.construction.buildingType}
               </Text>
               <StatBar
                 value={regionState.construction.progress / regionState.construction.targetTicks}
@@ -308,15 +308,15 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
           )}
         </View>
 
-        {/* ── Atributos Consolidados ── */}
+        {/* â”€â”€ Atributos Consolidados â”€â”€ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>💎 Atributos Consolidados</Text>
+          <Text style={styles.sectionTitle}>ðŸ’Ž Atributos Consolidados</Text>
           <View style={styles.infoRow}>
             <Text style={styles.infoKey}>Ouro:</Text>
             <Text style={styles.infoVal}>{totalGold.toFixed(2)}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoKey}>População:</Text>
+            <Text style={styles.infoKey}>PopulaÃ§Ã£o:</Text>
             <Text style={styles.infoVal}>{totalPopulation.toLocaleString()}</Text>
           </View>
           <View style={styles.infoRow}>
@@ -325,17 +325,17 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
           </View>
         </View>
 
-        {/* ── Edificios existentes ── */}
+        {/* â”€â”€ Edificios existentes â”€â”€ */}
         {buildings.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🏛️ Construído</Text>
+            <Text style={styles.sectionTitle}>ðŸ›ï¸ ConstruÃ­do</Text>
             <View style={styles.buildingChips}>
               {buildings.map((b) => {
                 const meta = BUILDING_META[b];
                 return (
                   <View key={b} style={styles.buildingChip}>
                     <Text style={styles.buildingChipText}>
-                      {meta?.icon ?? '🔨'} {meta?.label ?? b}
+                      {meta?.icon ?? 'ðŸ”¨'} {meta?.label ?? b}
                     </Text>
                   </View>
                 );
@@ -344,10 +344,10 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
           </View>
         )}
 
-        {/* ── Ações de Construção (só territórios do jogador) ── */}
+        {/* â”€â”€ AÃ§Ãµes de ConstruÃ§Ã£o (sÃ³ territÃ³rios do jogador) â”€â”€ */}
         {isPlayerRegion && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🔨 Construir</Text>
+            <Text style={styles.sectionTitle}>ðŸ”¨ Construir</Text>
             <View style={styles.actionsGrid}>
               {Object.entries(BUILDING_META).map(([bType, meta]) => {
                 const bt = bType as BuildingType;
@@ -369,9 +369,9 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
                     </Text>
                     <Text style={styles.actionBtnDesc}>
                       {alreadyBuilt
-                        ? '✅ Construído'
+                        ? 'âœ… ConstruÃ­do'
                         : isThisBuildingUnderConstruction
-                        ? '🔨 Construindo...'
+                        ? 'ðŸ”¨ Construindo...'
                         : isUnderConstruction
                         ? 'Em andamento'
                         : meta.desc}
@@ -383,17 +383,17 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
           </View>
         )}
 
-        {/* ── Ações de Região ── */}
+        {/* â”€â”€ AÃ§Ãµes de RegiÃ£o â”€â”€ */}
         {isPlayerRegion && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>⚙️ Ações</Text>
+            <Text style={styles.sectionTitle}>âš™ï¸ AÃ§Ãµes</Text>
             <View style={styles.rowActions}>
               <TouchableOpacity
                 style={styles.rowActionBtn}
                 onPress={() => handleRegionAction('pacify')}
                 activeOpacity={0.75}
               >
-                <Text style={styles.rowActionIcon}>🕊️</Text>
+                <Text style={styles.rowActionIcon}>ðŸ•Šï¸</Text>
                 <Text style={styles.rowActionLabel}>Pacificar</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -401,7 +401,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
                 onPress={() => handleRegionAction('garrison')}
                 activeOpacity={0.75}
               >
-                <Text style={styles.rowActionIcon}>⚔️</Text>
+                <Text style={styles.rowActionIcon}>âš”ï¸</Text>
                 <Text style={styles.rowActionLabel}>Guarnecer</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -409,14 +409,14 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
                 onPress={() => handleRegionAction('invest_agriculture')}
                 activeOpacity={0.75}
               >
-                <Text style={styles.rowActionIcon}>🌾</Text>
+                <Text style={styles.rowActionIcon}>ðŸŒ¾</Text>
                 <Text style={styles.rowActionLabel}>Agricultura</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
 
-        {/* ── Ação de Colonizar (territórios não controlados) ── */}
+        {/* â”€â”€ AÃ§Ã£o de Colonizar (territÃ³rios nÃ£o controlados) â”€â”€ */}
         {!isPlayerRegion && (
           <View style={styles.section}>
             <TouchableOpacity
@@ -424,32 +424,32 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
               onPress={() => handleRegionAction('colonize')}
               activeOpacity={0.75}
             >
-              <Text style={styles.actionBtnIcon}>🚩</Text>
+              <Text style={styles.actionBtnIcon}>ðŸš©</Text>
               <Text style={[styles.actionBtnLabel, { color: '#D4AF37' }]}>Colonizar</Text>
-              <Text style={styles.actionBtnDesc}>Expandir domínio para esta região</Text>
+              <Text style={styles.actionBtnDesc}>Expandir domÃ­nio para esta regiÃ£o</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* ── Info Bioma ── */}
+        {/* â”€â”€ Info Bioma â”€â”€ */}
         {regionDef && (
           <View style={[styles.section, { marginBottom: 20 }]}>
-            <Text style={styles.sectionTitle}>🌍 Informações</Text>
+            <Text style={styles.sectionTitle}>ðŸŒ InformaÃ§Ãµes</Text>
             <View style={styles.infoRow}>
               <Text style={styles.infoKey}>Zona:</Text>
-              <Text style={styles.infoVal}>{regionDef.zone ?? '—'}</Text>
+              <Text style={styles.infoVal}>{regionDef.zone ?? 'â€”'}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoKey}>Bioma:</Text>
-              <Text style={styles.infoVal}>{regionDef.biome ?? '—'}</Text>
+              <Text style={styles.infoVal}>{regionDef.biome ?? 'â€”'}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoKey}>Costeiro:</Text>
-              <Text style={styles.infoVal}>{regionDef.isCoastal ? 'Sim' : 'Não'}</Text>
+              <Text style={styles.infoVal}>{regionDef.isCoastal ? 'Sim' : 'NÃ£o'}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoKey}>Val. Estratégico:</Text>
-              <Text style={styles.infoVal}>{regionDef.strategicValue ?? '—'}</Text>
+              <Text style={styles.infoKey}>Val. EstratÃ©gico:</Text>
+              <Text style={styles.infoVal}>{regionDef.strategicValue ?? 'â€”'}</Text>
             </View>
           </View>
         )}
@@ -458,7 +458,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
   );
 }
 
-// ─── Estilos ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Estilos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#0F1420',

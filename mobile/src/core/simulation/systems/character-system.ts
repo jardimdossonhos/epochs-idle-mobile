@@ -1,3 +1,4 @@
+import { buildEvent } from "../../ecs/event-pool";
 import type { SimulationSystem, TickContext } from "../tick-pipeline";
 import { createEventId } from "./utils";
 import type { Character } from "../../models/character";
@@ -70,16 +71,14 @@ function processSuccession(kingdom: any, deadRuler: Character, state: any, conte
   // Verifica se o reino tem herdeiros
   if (!kingdom.heirs || kingdom.heirs.length === 0) {
     // Sem herdeiros - crise de sucessão!
-    context.events.push({
-      id: createEventId({ prefix: "evt_succession_crisis", tick: state.meta.tick, systemId: "character", sequence: eventSeq++ }),
-      type: "succession.crisis",
-      actorKingdomId: kingdom.id,
-      payload: {
+    const evt = buildEvent("succession.crisis", context.now, {
         deadRulerName: deadRuler.name,
         kingdomName: kingdom.name
-      },
-      occurredAt: context.now
-    });
+      }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_succession_crisis", tick: context.nextState.meta.tick, systemId: "character", actorId: kingdom.id, sequence: eventSeq++ });
+            context.events.push(evt);
+          }
 
     // Instabilidade massiva por falta de sucessão
     kingdom.stability = Math.max(0, kingdom.stability - 50);
@@ -125,18 +124,16 @@ function processSuccession(kingdom: any, deadRuler: Character, state: any, conte
     kingdom.heirs.push(newHeir.id);
 
     // Evento de sucessão bem-sucedida
-    context.events.push({
-      id: createEventId({ prefix: "evt_succession", tick: state.meta.tick, systemId: "character", sequence: eventSeq++ }),
-      type: "succession.success",
-      actorKingdomId: kingdom.id,
-      payload: {
+    const evt = buildEvent("succession.success", context.now, {
         oldRulerName: deadRuler.name,
         newRulerName: newRuler.name,
         newRulerTitle: newRuler.title,
         kingdomName: kingdom.name
-      },
-      occurredAt: context.now
-    });
+      }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_succession", tick: context.nextState.meta.tick, systemId: "character", actorId: kingdom.id, sequence: eventSeq++ });
+            context.events.push(evt);
+          }
 
     // Pequena instabilidade pela mudança de governo
     kingdom.stability = Math.max(0, kingdom.stability - 10);
@@ -144,17 +141,15 @@ function processSuccession(kingdom: any, deadRuler: Character, state: any, conte
 
   } else {
     // Herdeiro não encontrado - crise
-    context.events.push({
-      id: createEventId({ prefix: "evt_succession_crisis", tick: state.meta.tick, systemId: "character", sequence: eventSeq++ }),
-      type: "succession.crisis",
-      actorKingdomId: kingdom.id,
-      payload: {
+    const evt = buildEvent("succession.crisis", context.now, {
         deadRulerName: deadRuler.name,
         kingdomName: kingdom.name,
         reason: "Herdeiro desaparecido"
-      },
-      occurredAt: context.now
-    });
+      }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_succession_crisis", tick: context.nextState.meta.tick, systemId: "character", actorId: kingdom.id, sequence: eventSeq++ });
+            context.events.push(evt);
+          }
   }
 }
 
@@ -199,18 +194,16 @@ export function createCharacterSystem(): SimulationSystem {
             char.memory.push(`Faleceu de causas naturais aos ${age} anos de idade no ano ${currentYear}.`);
 
             // Emite o aviso fúnebre para o Feed Global
-            context.events.push({
-              id: createEventId({ prefix: "evt_char_death", tick: state.meta.tick, systemId: "character", sequence: eventSeq++ }),
-              type: "character.death",
-              actorKingdomId: char.employerKingdomId || char.locationKingdomId || undefined,
-              payload: {
+            const evt = buildEvent("character.death", context.now, {
                 characterId: char.id,
                 characterName: char.name,
                 title: char.title,
                 age
-              },
-              occurredAt: context.now
-            });
+              }, undefined, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_char_death", tick: context.nextState.meta.tick, systemId: "character", actorId: undefined, sequence: eventSeq++ });
+            context.events.push(evt);
+          }
 
             // SISTEMA DE SUCESSÃO: Se o morto era um monarca, processa sucessão
             if (wasRuler && char.employerKingdomId) {

@@ -1,4 +1,4 @@
-﻿import { NpcArchetype } from "../../core/models/enums";
+import { NpcArchetype } from "../../core/models/enums";
 import type { INpcDecisionService, NpcDecision } from "../../core/contracts/services";
 import type { GameState } from "../../core/models/game-state";
 

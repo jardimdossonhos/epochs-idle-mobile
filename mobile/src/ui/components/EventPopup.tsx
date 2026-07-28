@@ -5,19 +5,27 @@ import { useGameState } from '../GameProvider';
 export default function EventPopup() {
   const { gameState } = useGameState();
   const [queue, setQueue] = useState<any[]>([]);
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  // useRef: IDs dispensados não precisam provocar re-render — apenas evitar duplicatas na fila
+  const dismissedIds = React.useRef<Set<string>>(new Set());
   
-  // Efeito para detectar novos eventos
+  // Efeito para detectar novos eventos — protegido contra burst de falência
   useEffect(() => {
     if (!gameState) return;
     
-    // Os eventos mais recentes costumam estar no fim do array
-    const recentEvents = gameState.events.slice(-5); 
-    
-    const newEvents = recentEvents.filter(e => !dismissedIds.has(e.id) && !queue.find(q => q.id === e.id));
+    // Limite de burst: nunca empilhar mais de 3 eventos por ciclo de 4 FPS
+    const MAX_BURST = 3;
+    const recentEvents = gameState.events.slice(-10); 
+    const newEvents = recentEvents
+      .filter(e => (e as any).severity !== 'log' && !dismissedIds.current.has(e.id))
+      .slice(0, MAX_BURST);
     
     if (newEvents.length > 0) {
-      setQueue(prev => [...prev, ...newEvents]);
+      setQueue(prev => {
+        // Filtrar duplicatas já na fila usando IDs existentes
+        const existingIds = new Set(prev.map((q: any) => q.id));
+        const truly_new = newEvents.filter(e => !existingIds.has(e.id));
+        return truly_new.length > 0 ? [...prev, ...truly_new] : prev;
+      });
     }
   }, [gameState?.events]);
 
@@ -25,9 +33,20 @@ export default function EventPopup() {
 
   const currentEvent = queue[0];
 
+  // Filtro de log/severity no topo da fila
+  if ((currentEvent as any).severity === 'log') {
+    // Descarta eventos de log silenciosamente sem setState no render
+    return null;
+  }
+
   const handleDismiss = () => {
-    setDismissedIds(prev => new Set(prev).add(currentEvent.id));
+    dismissedIds.current.add(currentEvent.id);
     setQueue(prev => prev.slice(1));
+  };
+
+  const handleDismissAll = () => {
+    queue.forEach((q: any) => dismissedIds.current.add(q.id));
+    setQueue([]);
   };
 
   const getBorderColor = () => {
@@ -50,7 +69,12 @@ export default function EventPopup() {
           </TouchableOpacity>
 
           {queue.length > 1 && (
-            <Text style={styles.queueText}>+ {queue.length - 1} aviso(s) pendente(s)</Text>
+            <>
+              <Text style={styles.queueText}>+ {queue.length - 1} aviso(s) pendente(s)</Text>
+              <TouchableOpacity style={styles.dismissAllButton} onPress={handleDismissAll}>
+                <Text style={styles.dismissAllText}>Dispensar Todos (X)</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
       </View>
@@ -107,5 +131,22 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 12,
     fontStyle: 'italic',
+  },
+  dismissAllButton: {
+    marginTop: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 4,
+    width: '100%',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#E74C3C',
+  },
+  dismissAllText: {
+    color: '#E74C3C',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
   }
 });

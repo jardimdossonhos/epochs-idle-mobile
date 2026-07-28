@@ -1,4 +1,4 @@
-﻿import { NpcArchetype } from "./enums";
+import { NpcArchetype } from "./enums";
 import type { KingdomId, TimestampMs } from "./types";
 
 export interface NpcPersonality {

@@ -1,6 +1,7 @@
-﻿import type { EventId, KingdomId, TimestampMs } from "./types";
+import type { EventId, KingdomId, TimestampMs } from "./types";
+import type { Poolable } from "../ecs/object-pool";
 
-export interface DomainEvent {
+export interface DomainEvent extends Poolable {
   id: EventId;
   type: string;
   actorKingdomId?: KingdomId;

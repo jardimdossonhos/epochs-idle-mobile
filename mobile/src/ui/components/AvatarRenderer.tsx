@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import { EPIC_CHARACTERS } from '../../assets/data/epic-characters';
+import { getLocalPortrait } from '../../assets/portraits';
 
 interface AvatarRendererProps {
   cultureId?: string;
@@ -8,19 +10,8 @@ interface AvatarRendererProps {
   size?: number;
   borderColor?: string;
   showBorder?: boolean;
+  epicId?: string;
 }
-
-const CULTURE_EMOJIS: Record<string, string> = {
-  nordic: '⚔️',
-  latin: '👑',
-  eastern: '🐉',
-  desert: '🦅',
-  celtic: '🌳',
-  slavic: '🐻',
-  savanna: '🦁',
-  indigenous: '🐆',
-  vedic: '🪷',
-};
 
 const CULTURE_COLORS: Record<string, string> = {
   nordic: '#49657A',
@@ -34,83 +25,6 @@ const CULTURE_COLORS: Record<string, string> = {
   vedic: '#16A085',
 };
 
-export function getAvatarUrl(
-  cultureId: string = 'latin',
-  seed: string = 'default',
-  gender: 'male' | 'female' = 'male'
-): string {
-  const safeSeed = seed || 'sovereign_1';
-  let style = 'lorelei';
-  let params = `seed=${safeSeed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffdfbf,ffd5dc`;
-
-  switch (cultureId) {
-    case 'nordic':
-      style = 'adventurer';
-      params += `&skinColor=f1c27d,ffdbb4&hairColor=e8c547,b5a642`;
-      break;
-    case 'eastern':
-      style = 'avataaars';
-      params += `&skinColor=ffd8b1,f1c27d&hairColor=2c150c,090909`;
-      break;
-    case 'desert':
-      style = 'micah';
-      params += `&baseColor=d6a374,ae5b36,80461b&hairColor=2c150c,000000`;
-      break;
-    case 'savanna':
-      style = 'micah';
-      params += `&baseColor=ae5b36,5c2f17,80461b&hairColor=000000`;
-      break;
-    case 'celtic':
-      style = 'adventurer';
-      params += `&skinColor=ffdbb4,f1c27d&hairColor=b95a20,e8c547,b5a642`;
-      break;
-    case 'slavic':
-      style = 'lorelei';
-      params += `&skinColor=ffdbb4,f1c27d&hairColor=e8c547,b5a642,a56b46`;
-      break;
-    case 'indigenous':
-      style = 'avataaars';
-      params += `&skinColor=d6a374,ae5b36,80461b&hairColor=090909`;
-      break;
-    case 'vedic':
-      style = 'micah';
-      params += `&baseColor=ae5b36,80461b,f1c27d&hairColor=2c150c,000000`;
-      break;
-    default:
-      style = 'lorelei';
-      params += `&skinColor=ffdbb4,f1c27d`;
-      break;
-  }
-
-  if (gender === 'female') {
-    params += `&facialHairProbability=0&facialHair[]`;
-  } else {
-    params += `&facialHairProbability=50`;
-  }
-
-  return `https://api.dicebear.com/9.x/${style}/png?${params}`;
-}
-
-function getBackgroundColorWithAlpha(color: string): string {
-  if (color.startsWith('#') && color.length === 7) {
-    return color + '33';
-  }
-  if (color.startsWith('#') && color.length === 9) {
-    return color;
-  }
-  if (color.startsWith('#') && color.length === 4) {
-    const r = color[1], g = color[2], b = color[3];
-    return `#${r}${r}${g}${g}${b}${b}33`;
-  }
-  if (color.startsWith('rgb(')) {
-    return color.replace('rgb(', 'rgba(').replace(')', ', 0.2)');
-  }
-  if (color.startsWith('rgba(')) {
-    return color;
-  }
-  return 'rgba(212, 175, 55, 0.2)';
-}
-
 export default function AvatarRenderer({
   cultureId = 'latin',
   seed = 'default',
@@ -118,11 +32,16 @@ export default function AvatarRenderer({
   size = 64,
   borderColor,
   showBorder = true,
+  epicId,
 }: AvatarRendererProps) {
-  const [hasError, setHasError] = useState(false);
-  const avatarUrl = getAvatarUrl(cultureId, seed, gender);
-  const fallbackEmoji = CULTURE_EMOJIS[cultureId] || '👑';
-  const themeColor = borderColor || CULTURE_COLORS[cultureId] || '#D4AF37';
+  
+  const epic = epicId ? EPIC_CHARACTERS[epicId] : null;
+  const finalCultureId = epic?.cultureId || cultureId;
+  const finalGender = epic?.gender || gender;
+  const portraitId = epic?.portraitId || '';
+  const finalSeed = epic?.name || seed;
+  
+  const themeColor = borderColor || CULTURE_COLORS[finalCultureId] || '#D4AF37';
 
   const containerStyle = {
     width: size,
@@ -135,17 +54,7 @@ export default function AvatarRenderer({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {!hasError ? (
-        <Image
-          source={{ uri: avatarUrl }}
-          style={styles.image}
-          onError={() => setHasError(true)}
-        />
-      ) : (
-        <View style={[styles.fallbackContainer, { backgroundColor: getBackgroundColorWithAlpha(themeColor) }]}>
-          <Text style={{ fontSize: size * 0.45 }}>{fallbackEmoji}</Text>
-        </View>
-      )}
+      {getLocalPortrait(portraitId, finalCultureId, finalGender, finalSeed)}
     </View>
   );
 }
@@ -153,16 +62,6 @@ export default function AvatarRenderer({
 const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  fallbackContainer: {
-    width: '100%',
-    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },

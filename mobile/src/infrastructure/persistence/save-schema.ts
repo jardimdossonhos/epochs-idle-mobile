@@ -4,6 +4,7 @@ import { AutomationLevel, TechnologyDomain } from "../../core/models/enums";
 import type { GameState } from "../../core/models/game-state";
 import { buildTreatyId, buildWarIdFromSides, sortUniqueIds } from "../../core/models/identifiers";
 import type { WarId } from "../../core/models/types";
+import { generateCulturalName, CultureId } from "../../core/simulation/systems/culture-generator";
 
 export const SAVE_SCHEMA_VERSION = 4;
 
@@ -167,7 +168,7 @@ export function migrateStateToCurrent(state: GameState): GameState {
 
       migrated.world.characters[rulerId] = {
         id: rulerId,
-        name: `Soberano de ${kingdom.name}`,
+        name: generateCulturalName(cultureId as CultureId, gender),
         title: title,
         cultureId: cultureId,
         gender: gender,

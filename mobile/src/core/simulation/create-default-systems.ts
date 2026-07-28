@@ -11,7 +11,7 @@ import { createDiplomacySystem } from "./systems/diplomacy-system";
 import { createMigrationSystem } from "./systems/migration-system";
 import { createEconomySystem } from "./systems/economy-system";
 import { createEventLogSystem } from "./systems/event-log-system";
-import { createMilitarySystem } from "./systems/military-system"; // Bypass: Força o recálculo do cache TypeScript
+import { createMilitarySystem } from "./systems/military-system";
 import { createNpcDecisionSystem } from "./systems/npc-decision-system";
 import { createPopulationSystem } from "./systems/population-system";
 import { createReligionSystem } from "./systems/religion-system";
@@ -20,6 +20,15 @@ import { createVictorySystem } from "./systems/victory-system";
 import { createWarSystem } from "./systems/war-system";
 import { createWorldActivitySystem } from "./systems/world-activity-system";
 import { createCharacterSystem } from "./systems/character-system";
+import { createNavigationSystem } from "./navigation/navigation-system";
+import { SpatialGridSystem } from "./spatial/spatial-grid-system";
+import { LogisticsSystem } from "./systems/logistics-system";
+import { CombatSystem } from "./systems/combat-system";
+import { ConquestSystem } from "./systems/conquest-system";
+import { ReinforcementSystem } from "./systems/reinforcement-system";
+import { MacroEconomySystem } from "./systems/macroeconomy-system";
+import { ActionExecutionSystem } from "./systems/action-execution-system";
+import { RenderSyncSystem } from "./render/render-sync-system";
 
 export interface SimulationServices {
   npcDecisionService: INpcDecisionService;
@@ -31,7 +40,12 @@ export interface SimulationServices {
 }
 
 export function createDefaultSimulationSystems(services: SimulationServices): SimulationSystem[] {
+  const spatialGridSystem = new SpatialGridSystem();
+  const navigationSystem = createNavigationSystem(spatialGridSystem);
   return [
+    new ActionExecutionSystem(spatialGridSystem),
+    new MacroEconomySystem(spatialGridSystem),
+    new ReinforcementSystem(spatialGridSystem),
     createMigrationSystem(services.staticData, services.orderedDefinitions),
     createDisasterSystem(),
     createEventChainSystem(),
@@ -45,10 +59,23 @@ export function createDefaultSimulationSystems(services: SimulationServices): Si
     createTechnologySystem(),
     createDiplomacySystem(services.diplomacyResolver),
     createNpcDecisionSystem(services.npcDecisionService, services.diplomacyResolver, services.warResolver),
+    new RenderSyncSystem(),
     createWarSystem(services.warResolver),
     createWorldActivitySystem(),
     createVictorySystem(),
     createEventLogSystem(),
-    createCharacterSystem()
+    createCharacterSystem(),
+    navigationSystem,
+    new LogisticsSystem(spatialGridSystem),
+    new CombatSystem(spatialGridSystem),
+    new ConquestSystem(spatialGridSystem)
   ];
 }
+
+
+
+
+
+
+
+

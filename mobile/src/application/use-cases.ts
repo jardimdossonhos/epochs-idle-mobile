@@ -1,4 +1,4 @@
-﻿import type { SaveSlotId } from "../core/contracts/game-ports";
+import type { SaveSlotId } from "../core/contracts/game-ports";
 import type { GameState, KingdomState } from "../core/models/game-state";
 import type { KingdomId } from "../core/models/types";
 

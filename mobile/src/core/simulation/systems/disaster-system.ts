@@ -1,3 +1,4 @@
+import { buildEvent } from "../../ecs/event-pool";
 import type { SimulationSystem } from "../tick-pipeline";
 import { createEventId, clamp, roundTo } from "./utils";
 import { ResourceType } from "../../models/enums";

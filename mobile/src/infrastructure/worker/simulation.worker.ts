@@ -1,3 +1,4 @@
+import { enqueueCommand } from "../../core/simulation/command-queue";
 import { World } from "../../core/ecs/World";
 import { EconomyComponent } from "../../core/components/EconomyComponent";
 import { PopulationComponent } from "../../core/components/PopulationComponent";
@@ -6,6 +7,12 @@ import type { EcsState } from "../../core/models/game-state";
 import { EconomySystem } from "../../core/systems/EconomySystem";
 import { PopulationSystem } from "../../core/systems/PopulationSystem";
 import { MilitarySystem } from "../../core/systems/MilitarySystem";
+import { CombatSystem } from "../../core/systems/CombatSystem";
+import { ConquestSystem } from "../../core/systems/ConquestSystem";
+import { BotSystem } from "../../core/systems/BotSystem";
+import { PathfindingGrid } from "../../core/ecs/PathfindingGrid";
+import { VisionSystem } from "../../core/systems/VisionSystem";
+import { HistorySystem } from "../../core/systems/HistorySystem";
 
 const DiagnosticWorker = {
   trace: (code: string, message: string, data?: any) => {
@@ -26,9 +33,18 @@ let geography: { isWater: Uint8Array; biome: Uint8Array } | null = null;
 const economySystem = new EconomySystem();
 const populationSystem = new PopulationSystem();
 const militarySystem = new MilitarySystem();
+const combatSystem = new CombatSystem();
+const conquestSystem = new ConquestSystem();
+let botSystem: BotSystem | null = null;
+let pathfindingGrid: PathfindingGrid | null = null;
+let visionSystem: VisionSystem | null = null;
+let historySystem: HistorySystem = new HistorySystem();
+let visionUpdateTrigger = 0;
 
 const activeEntities: number[] = [];
 let activeModifiers: Record<string, Float64Array> | null = null;
+let latestEcsState: EcsState | null = null;
+let structureUpdateTrigger = 0;
 
 type WorkerCommand =
   | { type: "START" }
@@ -40,7 +56,8 @@ type WorkerCommand =
   | { type: "RESUME" }
   | { type: "SET_TIME_SCALE"; payload: { speedMultiplier: number; isPaused: boolean } }
   | { type: "APPLY_ECS_EFFECTS"; payload: { target: string; operation: string; value: number; indices: number[] } }
-  | { type: "UPDATE_MODIFIERS"; payload: Record<string, Float64Array> };
+  | { type: "UPDATE_MODIFIERS"; payload: Record<string, Float64Array> }
+  | { type: "DISPATCH_COMMAND"; payload: [number, number, number, number] };
 
 interface TickMessage {
   type: "TICK";
@@ -67,7 +84,7 @@ function startClock(): void {
   }
 
   if (!world || !economy || !population || !military || activeEntities.length === 0) {
-    // Ainda não inicializado via INIT; não inicia o relógio.
+    // Ainda nÃ£o inicializado via INIT; nÃ£o inicia o relÃ³gio.
     return;
   }
 
@@ -85,14 +102,31 @@ function startClock(): void {
     if (economy && population && military && geography) {
       if (!isPaused && speedMultiplier > 0) {
         const gameDeltaTime = deltaTimeSeconds * speedMultiplier;
-        economySystem.update(gameDeltaTime, economy, population, activeEntities, activeModifiers);
+
         populationSystem.update(gameDeltaTime, population, activeEntities, activeModifiers, geography.biome);
         militarySystem.update(gameDeltaTime, military, population, activeEntities, activeModifiers);
+
+        if (latestEcsState && geography) {
+           economySystem.update(debugTickCount, latestEcsState.regionOwner, geography.biome, latestEcsState.factionResources);
+        }
+
+        if (latestEcsState && geography) {
+           combatSystem.update(latestEcsState);
+           historySystem.update(latestEcsState, debugTickCount, 1);
+           conquestSystem.update(latestEcsState);
+           if (botSystem && pathfindingGrid) {
+              botSystem.update(debugTickCount, latestEcsState, pathfindingGrid, 256);
+           }
+        }
+        if (latestEcsState) {
+           const actionSys = new (require('../../core/simulation/systems/action-execution-system').ActionExecutionSystem)();
+           actionSys.execute(latestEcsState);
+        }
       }
 
       debugTickCount++;
       if (debugTickCount % 40 === 0) { // Log aprox a cada 10s reais
-        DiagnosticWorker.trace("WRK-ADT", `Tick Físico ${debugTickCount} processado.`, { speed: `${speedMultiplier}x`, deltaMs: deltaTimeSeconds });
+        DiagnosticWorker.trace("WRK-ADT", `Tick FÃ­sico ${debugTickCount} processado.`, { speed: `${speedMultiplier}x`, deltaMs: deltaTimeSeconds });
       }
 
       const message: TickMessage = {
@@ -140,7 +174,29 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
       isPaused = command.payload.isPaused;
       break;
     }
+    case "DISPATCH_COMMAND": {
+      if (world && latestEcsState) {
+        const cmd = command.payload;
+        enqueueCommand(latestEcsState, cmd[0], cmd[1], cmd[2], cmd[3]);
+      }
+      break;
+    }
     case "INIT": {
+      if (geography && geography.biome) {
+        botSystem = new BotSystem(geography.biome.length);
+        const mapData = require('../../core/data/world_map_data.json');
+        const neighborsArray: number[][] = [];
+        const cx = new Float32Array(mapData.regions.length);
+        const cy = new Float32Array(mapData.regions.length);
+        for (let i = 0; i < mapData.regions.length; i++) {
+          neighborsArray.push(mapData.regions[i].neighbors || []);
+          const [sx, sy] = mapData.regions[i].centroid || [0, 0];
+          cx[i] = sx;
+          cy[i] = sy;
+        }
+        pathfindingGrid = new PathfindingGrid(geography.biome.length, neighborsArray);
+        combatSystem.setCentroids(cx, cy);
+      }
       const count = command.payload?.entityCount ?? 0;
       world = new World();
       economy = new EconomyComponent(count > 0 ? count : 1);
@@ -151,12 +207,12 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
         biome: command.payload.biomeData
       };
       activeEntities.length = 0;
-      // Apenas aloca as entidades. O preenchimento virá do RESTORE_ECS_STATE ou de uma lógica de "novo jogo".
+      // Apenas aloca as entidades. O preenchimento virÃ¡ do RESTORE_ECS_STATE ou de uma lÃ³gica de "novo jogo".
       for (let i = 0; i < count; i += 1) {
         const entityId = world.createEntity();
         activeEntities.push(entityId);
       }
-      DiagnosticWorker.trace("WRK-ECS", `Alocação Inicial ECS concluída. Reservados blocos para ${count} províncias.`, { geoMatrixSize: geography?.isWater.length });
+      DiagnosticWorker.trace("WRK-ECS", `AlocaÃ§Ã£o Inicial ECS concluÃ­da. Reservados blocos para ${count} provÃ­ncias.`, { geoMatrixSize: geography?.isWater.length });
       break;
     }
     case "EXTRACT_SAVE_STATE": {
@@ -165,6 +221,7 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
       }
 
       const saveData: EcsState = {
+        ...(latestEcsState || {} as any),
         gold: Array.from(economy.gold),
         food: Array.from(economy.food),
         wood: Array.from(economy.wood),
@@ -183,6 +240,7 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
       stopClock();
       if (!economy || !population || !military) return;
       const saveData: EcsState = {
+        ...(latestEcsState || {} as any),
         gold: Array.from(economy.gold),
         food: Array.from(economy.food),
         wood: Array.from(economy.wood),
@@ -202,13 +260,13 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
     }
     case "RESTORE_ECS_STATE": {
       if (!economy || !population || !military) {
-        DiagnosticWorker.warn("WRK-ERR", "Comando de Restauração falhou: Arrays nulos antes do preenchimento.");
+        DiagnosticWorker.warn("WRK-ERR", "Comando de RestauraÃ§Ã£o falhou: Arrays nulos antes do preenchimento.");
         return;
       }
       const state = command.payload;
       
       // Usamos o tamanho alocado internamente. Mesmo que o JSON recebido 
-      // seja um objeto esparso, garantimos que todos os índices recebam o valor ou 0.
+      // seja um objeto esparso, garantimos que todos os Ã­ndices recebam o valor ou 0.
       if (state.gold) {
         const len = economy.gold.length;
         let nonZeroCount = 0;
@@ -238,11 +296,11 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
         }
         DiagnosticWorker.trace(
           "WRK-ECS",
-          `Restauração Finalizada: ${len} células restauradas. ${nonZeroCount} continham dados não nulos.`
+          `RestauraÃ§Ã£o Finalizada: ${len} cÃ©lulas restauradas. ${nonZeroCount} continham dados nÃ£o nulos.`
         );
       }
       
-      // Handshake Crítico: Avisa a Main Thread que os dados foram restaurados com sucesso
+      // Handshake CrÃ­tico: Avisa a Main Thread que os dados foram restaurados com sucesso
       self.postMessage({ type: "WORKER_STATE_RESTORED" });
       break;
     }
@@ -252,7 +310,7 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
       const { target, operation, value, indices } = command.payload;
       let targetArray: Float64Array | null = null;
 
-      // Roteamento O(1): Mapeia a string segura para o ponteiro de memória real
+      // Roteamento O(1): Mapeia a string segura para o ponteiro de memÃ³ria real
       switch (target) {
         case "gold": targetArray = economy.gold; break;
         case "food": targetArray = economy.food; break;
@@ -265,14 +323,14 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
       }
 
       if (!targetArray) {
-        DiagnosticWorker.warn("WRK-ERR", `APPLY_ECS_EFFECTS ignorado: alvo '${target}' não encontrado na arquitetura.`);
+        DiagnosticWorker.warn("WRK-ERR", `APPLY_ECS_EFFECTS ignorado: alvo '${target}' nÃ£o encontrado na arquitetura.`);
         return;
       } else {
         DiagnosticWorker.trace("WRK-ECS", `APPLY_ECS_EFFECTS: { op: ${operation}, target: ${target}, val: ${value}, indices: ${indices.length} }`);
       }
 
       if (operation === "subtract_empire_total") {
-        // Rateio Proporcional (Taxação Uniforme): Drena recursos percentualmente baseando-se no total do império
+        // Rateio Proporcional (TaxaÃ§Ã£o Uniforme): Drena recursos percentualmente baseando-se no total do impÃ©rio
         let empireTotal = 0;
         for (let i = 0; i < indices.length; i++) {
           const idx = indices[i];
@@ -289,20 +347,20 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
           }
         }
       } else if (operation === "add_empire_total") {
-        // Rateio Igualitário: Distribui uma injeção global de recurso fatiada igualmente por todos os territórios
+        // Rateio IgualitÃ¡rio: Distribui uma injeÃ§Ã£o global de recurso fatiada igualmente por todos os territÃ³rios
         const slice = indices.length > 0 ? value / indices.length : 0;
         for (let i = 0; i < indices.length; i++) {
           const idx = indices[i];
           if (idx >= 0 && idx < targetArray.length) targetArray[idx] += slice;
         }
       } else {
-        // Mutação em Lote de Alta Performance Original (Aplica o valor BRUTO em CADA província, ideal para Modo Deus e Desastres Locais)
+        // MutaÃ§Ã£o em Lote de Alta Performance Original (Aplica o valor BRUTO em CADA provÃ­ncia, ideal para Modo Deus e Desastres Locais)
         for (let i = 0; i < indices.length; i++) {
           const idx = indices[i];
           if (idx >= 0 && idx < targetArray.length) {
             if (operation === "add") targetArray[idx] += value;
             else if (operation === "set") targetArray[idx] = value;
-            else if (operation === "subtract") targetArray[idx] = Math.max(0, targetArray[idx] - value); // Proteção contra recursos negativos
+            else if (operation === "subtract") targetArray[idx] = Math.max(0, targetArray[idx] - value); // ProteÃ§Ã£o contra recursos negativos
           }
         }
       }
@@ -316,3 +374,12 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
       break;
   }
 };
+
+
+
+
+
+
+
+
+

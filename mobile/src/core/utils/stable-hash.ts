@@ -1,4 +1,4 @@
-﻿function normalize(value: unknown): unknown {
+function normalize(value: unknown): unknown {
   if (value === null || typeof value !== "object") {
     if (typeof value === "number") {
       if (Number.isNaN(value)) {

@@ -1,39 +1,36 @@
 import type { EconomyComponent } from "../components/EconomyComponent";
 import type { PopulationComponent } from "../components/PopulationComponent";
 import type { EcsModifiers } from "../models/technology";
+import { GameConfig } from "../config/game-config";
 
 export class EconomySystem {
-  update(deltaTime: number, economy: EconomyComponent, population: PopulationComponent, activeEntities: number[], activeModifiers: EcsModifiers | null): void {
-    const gold = economy.gold;
-    const food = economy.food;
-    const wood = economy.wood;
-    const iron = economy.iron;
+  update(
+    tickCount: number,
+    regionOwner: Int32Array | number[],
+    biomeData: Uint8Array,
+    factionResources: Float32Array | number[]
+  ): void {
+    if (tickCount % GameConfig.economy.TICKS_PER_MONTH !== 0) {
+      return;
+    }
 
-    const foodProductionModifiers = activeModifiers?.["economy.food_production_multiplier"];
-    const taxIncomeModifiers = activeModifiers?.["economy.tax_income_multiplier"];
+    // Identificador de Biomas (0 = WATER, 1 = DESERT, 2 = LAND) - Mapeamento Simples
+    const BIOME_MAP = ["WATER", "DESERT", "LAND"];
 
-    for (let i = 0; i < activeEntities.length; i += 1) {
-      const entityId = activeEntities[i];
-      
-      // A força de trabalho é o motor absoluto da economia
-      const pop = population.total[entityId] || 0;
-      
-      const foodMultiplier = foodProductionModifiers?.[entityId] ?? 0;
-      const taxMultiplier = taxIncomeModifiers?.[entityId] ?? 0;
+    for (let i = 0; i < regionOwner.length; i++) {
+      const owner = regionOwner[i];
+      if (owner < 0) continue;
 
-      // Taxas per capita (extremamente lentas para forçar o pacing Idle)
-      const baseFoodGain = (pop * 0.005) + 0.02; // +0.02 base da natureza selvagem
-      const baseGoldGain = pop * 0.0005;
+      const biomeIndex = biomeData[i];
+      const biomeName = BIOME_MAP[biomeIndex] || "LAND";
+      const yields = GameConfig.BIOME_YIELDS[biomeName];
 
-      const gainFood = baseFoodGain * (1 + foodMultiplier);
-      const gainGold = baseGoldGain * (1 + taxMultiplier);
-      const gainWood = (pop * 0.001) + 0.01;
-      const gainIron = (pop * 0.0001);
-
-      gold[entityId] += gainGold * deltaTime;
-      food[entityId] += gainFood * deltaTime;
-      wood[entityId] += gainWood * deltaTime;
-      iron[entityId] += gainIron * deltaTime;
+      if (yields) {
+        const offset = owner * 3;
+        factionResources[offset + 0] += yields.gold;
+        factionResources[offset + 1] += yields.food;
+        factionResources[offset + 2] += yields.prod;
+      }
     }
   }
 }

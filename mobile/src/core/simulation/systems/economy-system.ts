@@ -1,4 +1,5 @@
-﻿import { ResourceType, TreatyType } from "../../models/enums";
+﻿import { buildEvent } from "../../ecs/event-pool";
+import { ResourceType, TreatyType } from "../../models/enums";
 import { createEmptyStock } from "../../models/economy";
 import type { SimulationSystem } from "../tick-pipeline";
 import { clamp, createEventId, ensureResourceNonNegative, getOwnedRegionIds, roundTo } from "./utils";
@@ -110,6 +111,18 @@ export function createEconomySystem(): SimulationSystem {
         kingdom.economy.upkeepPerTick[ResourceType.Legitimacy] = legitimacyUpkeep;
 
         for (const resource of Object.values(ResourceType)) {
+          // ACTION 3: Neutralizaï¿½ï¿½o Parcial do OO para Ouro.
+          // O ECS MacroeconomySystem ï¿½ a ï¿½nica fonte da verdade para o banco.
+          // Mantemos a conta no incomePerTick, mas nï¿½o creditamos no stock OO.
+          if (resource === ResourceType.Gold) {
+            const getFactionId = (kId: string) => { if (kId === 'k_nature') return -1; if (kId === 'k_player') return 1; if (kId.startsWith('k_npc_')) return parseInt(kId.replace('k_npc_', ''), 10) + 1; return -1; };
+            const factionId = getFactionId(kingdom.id);
+            if (factionId !== -1) {
+                context.nextState.ecs!.factionGoldBalance[factionId] += (kingdom.economy.incomePerTick[resource] - kingdom.economy.upkeepPerTick[resource]);
+            }
+            continue;
+          }
+          
           kingdom.economy.stock[resource] = roundTo(
             kingdom.economy.stock[resource] + kingdom.economy.incomePerTick[resource] - kingdom.economy.upkeepPerTick[resource]
           );
@@ -123,26 +136,18 @@ export function createEconomySystem(): SimulationSystem {
         );
 
         if (kingdom.economy.stock[ResourceType.Food] < kingdom.population.total / 8_000 && context.nextState.meta.tick % 5 === 0) {
-          context.events.push({
-            id: createEventId({
-              prefix: "evt_food",
-              tick: context.nextState.meta.tick,
-              systemId: "economy",
-              actorId: kingdom.id,
-              sequence: eventSeq++
-            }),
-            type: "economy.food_shortage",
-            actorKingdomId: kingdom.id,
-            payload: {
+          const evt = buildEvent("economy.food_shortage", context.now, {
               stock: kingdom.economy.stock[ResourceType.Food],
               required: roundTo(kingdom.population.total / 8_000)
-            },
-            occurredAt: context.now
-          });
+            }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_food", tick: context.nextState.meta.tick, systemId: "economy", actorId: kingdom.id, sequence: eventSeq++ });
+            context.events.push(evt);
+          }
         }
       }
 
-      // Processamento de Tributos Contínuos (Vassalagem)
+      // Processamento de Tributos Contï¿½nuos (Vassalagem)
       for (const kingdomId of Object.keys(state.kingdoms)) {
         const kingdom = state.kingdoms[kingdomId];
         for (const treaty of kingdom.diplomacy.treaties) {
@@ -151,9 +156,11 @@ export function createEconomySystem(): SimulationSystem {
              if (overlord) {
                  const tribute = roundTo(kingdom.economy.incomePerTick[ResourceType.Gold] * (treaty.terms.tributeRate as number || 0.15));
                  kingdom.economy.incomePerTick[ResourceType.Gold] -= tribute;
-                 kingdom.economy.stock[ResourceType.Gold] = Math.max(0, kingdom.economy.stock[ResourceType.Gold] - tribute);
+                 
+                 // As mutaï¿½ï¿½es de estoque OO foram removidas para o ECS assumir o Ouro.
+                 // TODO: Mover a cobranï¿½a de Vassalagem no saldo real para o ECS MacroeconomySystem futuramente.
+                 
                  overlord.economy.incomePerTick[ResourceType.Gold] += tribute;
-                 overlord.economy.stock[ResourceType.Gold] += tribute;
              }
           }
         }
@@ -161,3 +168,4 @@ export function createEconomySystem(): SimulationSystem {
     }
   };
 }
+

@@ -1,22 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { mmkvStorage } from '../memory-persistence';
 import LoadGameModal from '../components/LoadGameModal';
 import { useGameState } from '../GameProvider';
-import DevModeModal from '../components/DevModeModal';
+import { useUIStore } from '../store/game-store';
 
 interface MainMenuScreenProps {
   onNewGame: () => void;
   onGameLoaded: () => void;
 }
 
+// --- God Mode constants ---
+const GOD_TAP_REQUIRED = 7;
+const GOD_TAP_WINDOW_MS = 2000;
+
 export default function MainMenuScreen({ onNewGame, onGameLoaded }: MainMenuScreenProps) {
   const { user, logout } = useAuth();
   const { t } = useLanguage();
   const { session } = useGameState();
   const [isLoadModalVisible, setIsLoadModalVisible] = useState(false);
-  const [isDevPanelVisible, setIsDevPanelVisible] = useState(false);
+
+  // God Mode: 7-tap trigger
+  const godTapCount = useRef(0);
+  const godTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleTitlePress = () => {
+    if (godTapTimer.current) clearTimeout(godTapTimer.current);
+    godTapCount.current += 1;
+    if (godTapCount.current >= GOD_TAP_REQUIRED) {
+      useUIStore.setState({ isGodMode: true });
+      Alert.alert('Terminal da IA', 'God Mode Ativado. 🧪');
+      godTapCount.current = 0;
+      return;
+    }
+    godTapTimer.current = setTimeout(() => {
+      godTapCount.current = 0;
+    }, GOD_TAP_WINDOW_MS);
+  };
+
+  const handleNewGame = () => {
+     mmkvStorage.delete('init_payload');
+     onNewGame();
+  };
 
   const handleProfilePress = () => {
     Alert.alert(
@@ -31,7 +58,7 @@ export default function MainMenuScreen({ onNewGame, onGameLoaded }: MainMenuScre
 
   return (
     <View style={styles.container}>
-      {/* User Profile Banner wrapped in TouchableOpacity */}
+      {/* User Profile Banner */}
       <TouchableOpacity 
         style={styles.profileBanner} 
         onPress={handleProfilePress}
@@ -51,22 +78,23 @@ export default function MainMenuScreen({ onNewGame, onGameLoaded }: MainMenuScre
             <Text style={styles.providerText}>{(user?.provider || 'guest').toUpperCase()}</Text>
           </View>
         </View>
-        {/* Changed from TouchableOpacity to View to prevent target collision */}
         <View style={styles.logoutButton}>
           <Text style={styles.logoutText}>🚪</Text>
         </View>
       </TouchableOpacity>
 
-      {/* Title Header */}
+      {/* Title Header — 7 taps activa o Modo Dev */}
       <View style={styles.header}>
-        <Text style={styles.title}>{t('mainMenu.title')}</Text>
+        <TouchableOpacity onPress={handleTitlePress} activeOpacity={1}>
+          <Text style={styles.title}>{t('mainMenu.title')}</Text>
+        </TouchableOpacity>
         <Text style={styles.subtitle}>{t('mainMenu.subtitle')}</Text>
         <View style={styles.divider} />
       </View>
 
       {/* Main Actions */}
       <View style={styles.menuContainer}>
-        <TouchableOpacity style={styles.primaryButton} onPress={onNewGame}>
+        <TouchableOpacity style={styles.primaryButton} onPress={handleNewGame}>
           <Text style={styles.buttonIcon}>⚔️</Text>
           <Text style={styles.primaryButtonText}>{t('mainMenu.newGame')}</Text>
         </TouchableOpacity>
@@ -81,17 +109,18 @@ export default function MainMenuScreen({ onNewGame, onGameLoaded }: MainMenuScre
       <LoadGameModal
         visible={isLoadModalVisible}
         onClose={() => setIsLoadModalVisible(false)}
-        onLoadSuccess={() => {
+        onLoadSuccess={(saveKey) => {
           setIsLoadModalVisible(false);
+          if (saveKey) {
+             const dataStr = mmkvStorage.getString(saveKey);
+             if (dataStr) {
+                mmkvStorage.set('init_payload', dataStr);
+             }
+          }
           onGameLoaded();
         }}
       />
 
-      {/* Dev Mode Modal */}
-      <DevModeModal
-        visible={isDevPanelVisible}
-        onClose={() => setIsDevPanelVisible(false)}
-      />
     </View>
   );
 }

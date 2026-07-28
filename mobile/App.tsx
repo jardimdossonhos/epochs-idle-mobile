@@ -3,7 +3,8 @@ import { Text } from 'react-native';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-
+import { StatusBar } from 'expo-status-bar';
+import { Platform } from 'react-native';
 import { GameProvider, useGameState } from './src/ui/GameProvider';
 import { AuthProvider, useAuth } from './src/ui/context/AuthContext';
 import { LanguageProvider, useLanguage } from './src/ui/context/LanguageContext';
@@ -216,6 +217,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider style={{ flex: 1, backgroundColor: '#121212' }}>
+        <StatusBar hidden={true} />
         <LanguageProvider>
           <AuthProvider>
             <GameProvider>

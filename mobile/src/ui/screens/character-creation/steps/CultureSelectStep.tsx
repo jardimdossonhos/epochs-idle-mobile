@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { CultureId, DEFAULT_CULTURES, generateCulturalName } from '../../../../core/simulation/systems/culture-generator';
 
@@ -20,6 +20,14 @@ const CULTURE_DETAILS: Record<CultureId, { name: string; icon: string; desc: str
 };
 
 export default function CultureSelectStep({ selectedCulture, onSelectCulture }: CultureSelectStepProps) {
+  const sampleNames = useMemo(() => {
+    const names: Record<string, string> = {};
+    DEFAULT_CULTURES.forEach(c => {
+      names[c] = generateCulturalName(c, 'male');
+    });
+    return names;
+  }, []);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.stepTitle}>Escolha sua Herança</Text>
@@ -31,7 +39,7 @@ export default function CultureSelectStep({ selectedCulture, onSelectCulture }: 
         {DEFAULT_CULTURES.map((cultureKey) => {
           const details = CULTURE_DETAILS[cultureKey];
           const isSelected = selectedCulture === cultureKey;
-          const sampleName = generateCulturalName(cultureKey, 'male');
+          const sampleName = sampleNames[cultureKey];
 
           return (
             <TouchableOpacity

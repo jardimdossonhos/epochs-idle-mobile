@@ -490,5 +490,22 @@ Output ONLY a JSON object with this exact structure:
   }
 }
 
-// Singleton exportado para uso em toda a aplicação
-export const geminiService = new GeminiService();
+let _geminiService: GeminiService | null = null;
+
+// Lazy getter — evita crash Hermes por instanciação global em módulo com dependência circular
+export const getGeminiService = (): GeminiService => {
+  if (!_geminiService) {
+    _geminiService = new GeminiService();
+  }
+  return _geminiService;
+};
+
+// Alias de retrocompatibilidade para chamadas existentes que usam geminiService diretamente
+export const geminiService = new Proxy({} as GeminiService, {
+  get: (_target, prop) => {
+    const instance = getGeminiService();
+    const value = (instance as any)[prop];
+    return typeof value === 'function' ? value.bind(instance) : value;
+  },
+});
+

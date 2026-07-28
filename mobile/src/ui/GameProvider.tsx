@@ -13,32 +13,35 @@ import { GameState } from '../core/models/game-state';
 import { ClockService } from '../core/contracts/services';
 import { AILogger } from '../infrastructure/telemetry/AILogger';
 
-import { 
-  MemoryCommandLogRepository, 
-  MemorySnapshotRepository 
-} from './memory-persistence';
+
 import { MobileGameStateRepository, MobileSaveRepository } from '../infrastructure/persistence/MobileGameStateRepository';
+import { mmkvStorage } from './memory-persistence';
+import { useUIStore } from './store/game-store';
 
 class NativeClockService implements ClockService {
-  private intervalId: ReturnType<typeof setInterval> | null = null;
+  private rAFId: number | null = null;
   private lastTickAt = 0;
   private listeners: ((deltaMs: number, now: number) => void)[] = [];
 
   start(onTick: (deltaMs: number, now: number) => void) {
     this.stop();
     this.lastTickAt = this.now();
-    this.intervalId = setInterval(() => {
+    
+    const loop = () => {
       const now = this.now();
-      const deltaMs = Math.max(1, now - this.lastTickAt);
+      const deltaMs = Math.max(0, now - this.lastTickAt);
       this.lastTickAt = now;
       onTick(deltaMs, now);
-    }, 250);
+      this.rAFId = requestAnimationFrame(loop);
+    };
+    
+    this.rAFId = requestAnimationFrame(loop);
   }
 
   stop() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
+    if (this.rAFId !== null) {
+      cancelAnimationFrame(this.rAFId);
+      this.rAFId = null;
     }
   }
 
@@ -78,10 +81,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const clock = new NativeClockService();
 
     const newSession = new GameSession({
-      gameStateRepository: new MobileGameStateRepository(),
-      saveRepository: new MobileSaveRepository(),
-      commandLogRepository: new MemoryCommandLogRepository(),
-      snapshotRepository: new MemorySnapshotRepository(),
+      gameStateRepository: new MobileGameStateRepository(mmkvStorage),
+      saveRepository: new MobileSaveRepository(mmkvStorage) as any,
       staticWorldData,
       clock,
       eventBus,
@@ -97,6 +98,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       warResolver,
     });
 
+    let syncInterval: any;
+
     const initGame = async () => {
       try {
         AILogger.init();
@@ -104,13 +107,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         // Start a new campaign for prototype
         const initialState = createInitialState(staticWorldData, undefined, WORLD_DEFINITIONS_V1);
         await newSession.bootstrap(initialState);
-
-      // Subscribe to React state updates
-      const unsubscribe = newSession.subscribe((newState) => {
-        // We MUST shallow clone the state, otherwise React ignores the update because the Engine mutates the object in-place!
-        setGameState({ ...newState });
-      });
-      unsubscribeRef.current = unsubscribe;
 
       // Since we run synchronously on mobile (no Web Worker yet), we instantly mark the worker as ready.
       newSession.markWorkerReady();
@@ -127,8 +123,70 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
       // Start engine tick
       newSession.start();
-      } catch (e) {
-        console.error("Error bootstrapping game session:", e);
+
+      // Filtro de Tick: Previne vazamento de referências e loops infinitos no React (Maximum update depth)
+      let lastRenderedTick = -1;
+      let lastEventsLength = -1;
+
+      // Start UI sync bridge (4 FPS)
+      syncInterval = setInterval(() => {
+        const state = newSession.getState();
+        if (state) {
+          const pId = Object.keys(state.kingdoms).find(id => state.kingdoms[id].isPlayer) || "k_player";
+          const k = state.kingdoms[pId];
+          const e = k?.economy;
+          if (e) {
+          const t = e?.taxPolicy;
+            // Ação A: Lê estoques reais do ECS via ponte pública (desacoplada do ECS diretamente)
+            // e?.stock?.gold estava sempre zerado pois a engine migrou para TypedArrays
+            let ecsStock = { gold: 0, food: 0, wood: 0, iron: 0, faith: 0, legitimacy: 0 } as any;
+            try { ecsStock = newSession.getPlayerEcsStock(); } catch (_) {}
+            useUIStore.setState({
+              tick: state?.meta?.tick ?? 0,
+              isPaused: state?.meta?.paused ?? false,
+              playerGold: ecsStock.gold ?? 0,
+              playerFood: ecsStock.food ?? 0,
+              playerWood: ecsStock.wood ?? 0,
+              playerIron: ecsStock.iron ?? 0,
+              playerFaith: ecsStock.faith ?? 0,
+              playerLegitimacy: ecsStock.legitimacy ?? 0,
+              playerGoldIncome: e?.incomePerTick?.gold ?? 0,
+              playerFoodIncome: e?.incomePerTick?.food ?? 0,
+              playerWoodIncome: e?.incomePerTick?.wood ?? 0,
+              playerIronIncome: e?.incomePerTick?.iron ?? 0,
+              playerFaithIncome: e?.incomePerTick?.faith ?? 0,
+              playerLegitimacyIncome: e?.incomePerTick?.legitimacy ?? 0,
+              playerPopulation: k?.population?.total ?? 0,
+              playerRegions: k?.ownedRegionIds?.length ?? 0,
+              playerCorruption: e?.corruption ?? 0,
+              playerInflation: e?.inflation ?? 0,
+              playerTaxBaseRate: t?.baseRate ?? 0.2,
+              playerTaxNobleRelief: t?.nobleRelief ?? 0.1,
+              playerTaxClergyExemption: t?.clergyExemption ?? 0.08,
+              playerTaxTariffRate: t?.tariffRate ?? 0.12,
+              playerBudgetEconomy: e?.budgetPriority?.economy ?? 0,
+              playerBudgetMilitary: e?.budgetPriority?.military ?? 0,
+              playerBudgetReligion: e?.budgetPriority?.religion ?? 0,
+              playerBudgetAdministration: e?.budgetPriority?.administration ?? 0,
+              playerBudgetTechnology: e?.budgetPriority?.technology ?? 0,
+              playerStability: Math.min(100, Math.max(0, (k as any)?.stats?.stability ?? 100)),
+              ...(state.events.length !== lastEventsLength ? { worldFeed: state.events.filter(e => (e as any).severity === 'log' || (e as any).severity === 'info').slice(-20) } : {})
+            });
+            lastEventsLength = state.events.length;
+            
+            // Vacina Cirúrgica (Contexto):
+            // Só avança a árvore de contexto lenta se o Tick realmente progrediu.
+            // Removemos o `{...state}` para preservar a referência de clones saudáveis da Engine.
+            if (state.meta.tick !== lastRenderedTick) {
+                lastRenderedTick = state.meta.tick;
+                setGameState(state);
+            }
+          }
+        }
+      }, 250);
+
+      } catch (err) {
+        console.error("Error bootstrapping game session:", err);
       }
     };
 
@@ -139,8 +197,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         console.log('[GameProvider] App going to background. Forcing save to disk.');
         try {
           await newSession.triggerAutosave();
-        } catch (err) {
-          console.error('[GameProvider] Error in background triggerAutosave:', err);
+        } catch (error) {
+          console.error('[GameProvider] Error in background triggerAutosave:', error);
         }
       }
     });
@@ -148,6 +206,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.remove();
       newSession.stop();
+      if (syncInterval) clearInterval(syncInterval);
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
       }
@@ -169,3 +228,4 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     </GameContext.Provider>
   );
 }
+

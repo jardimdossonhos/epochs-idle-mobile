@@ -1,3 +1,4 @@
+import { buildEvent } from "../../ecs/event-pool";
 ﻿import { VictoryPath } from "../../models/enums";
 import type { SimulationSystem } from "../tick-pipeline";
 import { clamp, createEventId, getOwnedRegionIds, getPlayerKingdom, roundTo } from "./utils";
@@ -23,22 +24,14 @@ export function createVictorySystem(): SimulationSystem {
           state.victory.achievedAt = context.now;
           state.victory.postVictoryMode = true;
 
-          context.events.push({
-            id: createEventId({
-              prefix: "evt_victory",
-              tick: state.meta.tick,
-              systemId: "victory",
-              actorId: player.id,
-              sequence: eventSeq++
-            }),
-            type: "victory.achieved",
-            actorKingdomId: player.id,
-            payload: {
+          const evt = buildEvent("victory.achieved", context.now, {
               path: VictoryPath.TerritorialDomination,
               territorialShare: roundTo(territorialShare)
-            },
-            occurredAt: context.now
-          });
+            }, player.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_victory", tick: context.nextState.meta.tick, systemId: "victory", actorId: player.id, sequence: context.events.length });
+            context.events.push(evt);
+          }
         }
       }
 

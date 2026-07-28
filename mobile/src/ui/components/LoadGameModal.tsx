@@ -1,152 +1,92 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
-import { useGameState } from '../GameProvider';
-import { SaveSlotId, SaveSummary } from '../../core/contracts/game-ports';
-import { MobileSaveRepository } from '../../infrastructure/persistence/MobileGameStateRepository';
 import { useLanguage } from '../context/LanguageContext';
+import { mmkvStorage } from '../memory-persistence';
 
 interface LoadGameModalProps {
   visible: boolean;
   onClose: () => void;
-  onLoadSuccess: () => void;
+  onLoadSuccess: (saveKey: string) => void;
 }
 
 interface EnrichedSlot {
-  slotId: SaveSlotId;
-  summary: SaveSummary | null;
+  slotId: string;
   culture: string;
 }
 
 export default function LoadGameModal({ visible, onClose, onLoadSuccess }: LoadGameModalProps) {
-  const { session } = useGameState();
   const { t } = useLanguage();
   const [slots, setSlots] = useState<EnrichedSlot[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadSlotsData = async () => {
-    setLoading(true);
-    try {
-      const repo = new MobileSaveRepository();
-      const enriched: EnrichedSlot[] = [];
-      const knownSlots: SaveSlotId[] = ["auto-1", "manual-1", "manual-2", "manual-3"];
-      
-      for (const slotId of knownSlots) {
-        let summary: SaveSummary | null = null;
-        let culture = 'latin';
-        try {
-          const snapshot = await repo.loadFromSlot(slotId);
-          if (snapshot) {
-            summary = snapshot.summary;
-            const gameState = snapshot.state;
-            const playerKingdom = gameState?.kingdoms?.['k_player'];
-            const rulerId = playerKingdom?.rulerId;
-            const stateWorld = gameState?.world;
-            if (rulerId && stateWorld?.characters?.[rulerId]) {
-              culture = stateWorld.characters[rulerId].cultureId || 'latin';
-            }
-          }
-        } catch (e) {
-          console.error(`[LoadGameModal] Error loading slot ${slotId}`, e);
-        }
-        enriched.push({ slotId, summary, culture });
-      }
-      setSlots(enriched);
-    } catch (e) {
-      console.error('[LoadGameModal] Failed to list slots', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
     if (visible) {
-      loadSlotsData();
+      setLoading(true);
+      const keys = mmkvStorage.getAllKeys().filter((k: string) => k.startsWith('save_'));
+      const formattedSlots = keys.map((k: string) => ({ slotId: k, culture: 'N/A' }));
+      setSlots(formattedSlots);
+      setLoading(false);
     }
   }, [visible]);
 
-  const handleSelectSlot = async (slotId: SaveSlotId) => {
-    if (!session) return;
-    try {
-      await session.loadSlot(slotId);
-      session.start();
-      onLoadSuccess();
-    } catch (e) {
-      console.error(`[LoadGameModal] Error loading slot ${slotId}`, e);
-      Alert.alert(t('loadGame.errorTitle'), t('loadGame.errorMessage'));
-    }
+  const handleLoad = async (slotId: string) => {
+    onLoadSuccess(slotId);
   };
 
-  const renderSlotItem = ({ item }: { item: EnrichedSlot }) => {
-    const { slotId, summary, culture } = item;
-
-    if (!summary) {
-      return (
-        <View style={[styles.slotCard, styles.emptyCard]}>
-          <View style={styles.slotHeader}>
-            <Text style={styles.kingdomName}>
-              {slotId === 'auto-1' ? t('loadGame.autoSave') : `${t('loadGame.emptySlot')} (${slotId.toUpperCase()})`}
-            </Text>
-            <Text style={styles.slotBadge}>{slotId.toUpperCase()}</Text>
-          </View>
-          <View style={styles.slotDetails}>
-            <Text style={styles.detailText}>{t('loadGame.noCampaigns')}</Text>
-          </View>
-        </View>
-      );
-    }
-
-    const dateStr = new Date(summary.savedAt).toLocaleDateString();
-    const year = Math.floor(summary.tick / 12) + 1;
-    const displayName = slotId === 'auto-1' ? t('loadGame.autoSave') : (summary.playerKingdomName || t('loadGame.kingdomOfOld'));
-
-    return (
-      <TouchableOpacity style={styles.slotCard} onPress={() => handleSelectSlot(slotId)}>
-        <View style={styles.slotHeader}>
-          <Text style={styles.kingdomName}>{displayName}</Text>
-          <Text style={styles.slotBadge}>{slotId.toUpperCase()}</Text>
-        </View>
-        
-        <View style={styles.slotDetails}>
-          <Text style={styles.detailText}>👑 {t('loadGame.culture')}: <Text style={styles.highlight}>{culture.toUpperCase()}</Text></Text>
-          <Text style={styles.detailText}>⏳ {t('loadGame.year')}: <Text style={styles.highlight}>{year}</Text> ({t('loadGame.tick')} {summary.tick})</Text>
-          <Text style={styles.detailText}>📅 {t('loadGame.savedAt')}: {dateStr}</Text>
-        </View>
-
-        <View style={styles.loadButtonContainer}>
-          <Text style={styles.loadButtonText}>{t('loadGame.resumeCampaign')}</Text>
-        </View>
-      </TouchableOpacity>
+  const handleDelete = async (slotId: string) => {
+    Alert.alert(
+      t('loadGame.deleteConfirmTitle'),
+      t('loadGame.deleteConfirmMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        { 
+          text: t('common.delete'), 
+          style: 'destructive',
+          onPress: () => {
+            mmkvStorage.delete(slotId);
+            setSlots(prev => prev.filter(s => s.slotId !== slotId));
+          }
+        }
+      ]
     );
   };
 
-  return (
-    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{t('loadGame.savedChronicles')}</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          </View>
+  const renderSlot = ({ item }: { item: EnrichedSlot }) => (
+    <View style={styles.slotCard}>
+      <View style={styles.slotInfo}>
+        <Text style={styles.slotId}>{item.slotId}</Text>
+      </View>
+      <View style={styles.slotActions}>
+        <TouchableOpacity style={styles.loadBtn} onPress={() => handleLoad(item.slotId)}>
+          <Text style={styles.btnText}>Carregar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.slotId)}>
+          <Text style={styles.btnText}>Excluir</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={styles.overlay}>
+        <View style={styles.container}>
+          <Text style={styles.title}>{t('loadGame.title')}</Text>
           {loading ? (
-            <View style={styles.centerContainer}>
-              <ActivityIndicator size="large" color="#D4AF37" />
-              <Text style={styles.loadingText}>{t('loadGame.readingArchives')}</Text>
-            </View>
+            <ActivityIndicator color="#D4AF37" size="large" />
           ) : slots.length === 0 ? (
-            <View style={styles.centerContainer}>
-              <Text style={styles.emptyText}>{t('loadGame.noCampaigns')}</Text>
-            </View>
+            <Text style={styles.emptyText}>{t('loadGame.noSaves')}</Text>
           ) : (
             <FlatList
               data={slots}
-              keyExtractor={(item) => item.slotId}
-              renderItem={renderSlotItem}
-              contentContainerStyle={styles.listContent}
+              keyExtractor={s => s.slotId}
+              renderItem={renderSlot}
+              style={{ width: '100%', marginTop: 20 }}
             />
           )}
+          <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+            <Text style={styles.btnText}>{t('common.cancel')}</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -154,118 +94,16 @@ export default function LoadGameModal({ visible, onClose, onLoadSuccess }: LoadG
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContainer: {
-    width: '100%',
-    maxHeight: '80%',
-    backgroundColor: '#1A1A1A',
-    borderColor: '#D4AF37',
-    borderWidth: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#262626',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#D4AF37',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  closeButtonText: {
-    color: '#AAA',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  centerContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#888',
-    marginTop: 12,
-  },
-  emptyText: {
-    color: '#888',
-    fontSize: 16,
-    fontStyle: 'italic',
-  },
-  listContent: {
-    padding: 16,
-  },
-  slotCard: {
-    backgroundColor: '#121212',
-    borderColor: '#333',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-  },
-  emptyCard: {
-    opacity: 0.65,
-    borderStyle: 'dashed',
-    borderColor: '#555',
-  },
-  slotHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  kingdomName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#E0E0E0',
-  },
-  slotBadge: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#D4AF37',
-    backgroundColor: '#2A2A2A',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  slotDetails: {
-    marginVertical: 4,
-  },
-  detailText: {
-    color: '#AAA',
-    fontSize: 13,
-    marginBottom: 2,
-  },
-  highlight: {
-    color: '#FFF',
-    fontWeight: '600',
-  },
-  loadButtonContainer: {
-    marginTop: 12,
-    backgroundColor: '#2A2A2A',
-    borderColor: '#D4AF37',
-    borderWidth: 1,
-    paddingVertical: 8,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  loadButtonText: {
-    color: '#D4AF37',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
+  container: { width: '90%', height: '70%', backgroundColor: '#1A1A1A', borderRadius: 12, padding: 20, alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#D4AF37' },
+  emptyText: { color: '#888', marginTop: 40 },
+  slotCard: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', padding: 15, borderBottomWidth: 1, borderColor: '#333' },
+  slotInfo: { flex: 1 },
+  slotId: { color: '#FFF', fontWeight: 'bold' },
+  slotActions: { flexDirection: 'row', alignItems: 'center' },
+  loadBtn: { backgroundColor: '#D4AF37', padding: 10, borderRadius: 5, marginRight: 10 },
+  deleteBtn: { backgroundColor: '#E53E3E', padding: 10, borderRadius: 5 },
+  btnText: { color: '#000', fontWeight: 'bold' },
+  closeBtn: { marginTop: 20, padding: 15, backgroundColor: '#333', borderRadius: 8, width: '100%', alignItems: 'center' }
 });

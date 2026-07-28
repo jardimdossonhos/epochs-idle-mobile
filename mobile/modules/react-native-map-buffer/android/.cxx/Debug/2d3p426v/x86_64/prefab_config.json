@@ -1,0 +1,9 @@
+{
+  "enabled": true,
+  "prefabPath": "C:\\Users\\joti.SIMPLO\\.gradle\\caches\\modules-2\\files-2.1\\com.google.prefab\\cli\\2.1.0\\aa32fec809c44fa531f01dcfb739b5b3304d3050\\cli-2.1.0-all.jar",
+  "packages": [
+    "C:\\Users\\joti.SIMPLO\\.gradle\\caches\\9.3.1\\transforms\\c174bdaddf1c0c6aae661bdd72ab083c\\workspace\\transformed\\react-android-0.85.3-debug\\prefab",
+    "C:\\Users\\joti.SIMPLO\\Documents\\Epochs_Idle\\mobile\\node_modules\\react-native-nitro-modules\\android\\build\\intermediates\\prefab_package\\debug\\prefab",
+    "C:\\Users\\joti.SIMPLO\\.gradle\\caches\\9.3.1\\transforms\\ea766dde9f3ea3c01d2fedc68bbc91e7\\workspace\\transformed\\fbjni-0.7.0\\prefab"
+  ]
+}

@@ -1,3 +1,4 @@
+import { buildEvent } from "../../ecs/event-pool";
 ﻿import type { RegionalControl } from "../../models/administration";
 import type { SimulationSystem } from "../tick-pipeline";
 import { clamp, createEventId, getOwnedRegionIds, roundTo } from "./utils";
@@ -49,22 +50,14 @@ export function createAdministrationSystem(): SimulationSystem {
               region.buildings = region.buildings || [];
               region.buildings.push(region.construction.buildingType);
 
-              context.events.push({
-                id: createEventId({
-                  prefix: "evt_build",
-                  tick: state.meta.tick,
-                  systemId: "administration",
-                  actorId: kingdom.id,
-                  sequence: eventSeq++
-                }),
-                type: "region.building_completed",
-                actorKingdomId: kingdom.id,
-                payload: {
+              const evt = buildEvent("region.building_completed", context.now, {
                   regionId,
                   buildingType: region.construction.buildingType
-                },
-                occurredAt: context.now
-              });
+                }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_build", tick: context.nextState.meta.tick, systemId: "administration", actorId: kingdom.id, sequence: eventSeq++ });
+            context.events.push(evt);
+          }
 
               delete region.construction;
             }
@@ -113,23 +106,15 @@ export function createAdministrationSystem(): SimulationSystem {
           usedCapacity += 7 + definition.strategicValue * 1.5 + (1 - region.assimilation) * 8;
 
           if (control.revoltRisk > 0.78 && state.meta.tick % 7 === 0) {
-            context.events.push({
-              id: createEventId({
-                prefix: "evt_revolt",
-                tick: state.meta.tick,
-                systemId: "administration",
-                actorId: kingdom.id,
-                sequence: eventSeq++
-              }),
-              type: "administration.revolt_risk",
-              actorKingdomId: kingdom.id,
-              payload: {
+            const evt = buildEvent("administration.revolt_risk", context.now, {
                 regionId,
                 revoltRisk: control.revoltRisk,
                 localAutonomy: control.localAutonomy
-              },
-              occurredAt: context.now
-            });
+              }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_revolt", tick: context.nextState.meta.tick, systemId: "administration", actorId: kingdom.id, sequence: eventSeq++ });
+            context.events.push(evt);
+          }
           }
 
           nextControls.push(control);

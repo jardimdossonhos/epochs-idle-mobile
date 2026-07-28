@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿import type { PopulationComponent } from "../components/PopulationComponent";
+import type { PopulationComponent } from "../components/PopulationComponent";
 import type { EcsModifiers } from "../models/technology";
 
 // Capacidade base de suporte natural por bioma (sem tecnologia)

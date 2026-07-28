@@ -1,0 +1,3 @@
+C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/.cxx/Debug/2d3p426v/x86_64/CMakeFiles/mapbuffer.dir
+C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/.cxx/Debug/2d3p426v/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/.cxx/Debug/2d3p426v/x86_64/CMakeFiles/rebuild_cache.dir

@@ -78,6 +78,7 @@ export function generateCulturalName(cultureId: CultureId, gender: Gender): stri
   }
 }
 
-export function generatePortraitSeed(): string {
-  return Math.random().toString(36).substring(2, 10);
+export function generatePortraitSeed(cultureId?: CultureId, gender?: Gender): string {
+  const prefix = cultureId && gender ? `${cultureId}_${gender}_` : '';
+  return prefix + Math.random().toString(36).substring(2, 10);
 }

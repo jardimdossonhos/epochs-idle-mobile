@@ -1,3 +1,4 @@
+import { buildEvent } from "../../ecs/event-pool";
 ﻿﻿import type { DiplomacyResolver, INpcDecisionService, NpcDecision, WarResolver } from "../../contracts/services";
 import type { WarState } from "../../models/game-state";
 import type { NpcMemoryEntry } from "../../models/npc";
@@ -142,24 +143,15 @@ export function createNpcDecisionSystem(
                 if (newWar) {
                   decisionResult = "war_declared";
 
-                  context.events.push({
-                    id: createEventId({
-                      prefix: "evt_war_start",
-                      tick: context.nextState.meta.tick,
-                      systemId: "npc_decision",
-                      actorId: attacker.id,
-                      sequence: eventSeq++
-                    }),
-                    type: "war.started",
-                    actorKingdomId: attacker.id,
-                    targetKingdomId: defender.id,
-                    payload: {
+                  const evt = buildEvent("war.started", context.now, {
                       warId: newWar.id,
                       attackers: newWar.attackers,
                       defenders: newWar.defenders
-                    },
-                    occurredAt: context.now
-                  });
+                    }, attacker.id, defender.id);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_war_start", tick: context.nextState.meta.tick, systemId: "npc_decision", actorId: attacker.id, sequence: eventSeq++ });
+            context.events.push(evt);
+          }
                 }
               } else {
                 decisionResult = "war_cancelled_low_risk";
@@ -180,23 +172,14 @@ export function createNpcDecisionSystem(
               context.nextState = warResolver.enforcePeace(context.nextState, activeWar.id);
               decisionResult = "peace_accepted";
 
-              context.events.push({
-                id: createEventId({
-                  prefix: "evt_war_peace",
-                  tick: context.nextState.meta.tick,
-                  systemId: "npc_decision",
-                  actorId: decision.actorKingdomId,
-                  sequence: eventSeq++
-                }),
-                type: "war.peace",
-                actorKingdomId: decision.actorKingdomId,
-                targetKingdomId: decision.targetKingdomId,
-                payload: {
+              const evt = buildEvent("war.peace", context.now, {
                   warId: activeWar.id,
                   source: "npc_proposal"
-                },
-                occurredAt: context.now
-              });
+                }, decision.actorKingdomId, decision.targetKingdomId);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_war_peace", tick: context.nextState.meta.tick, systemId: "npc_decision", actorId: decision.actorKingdomId, sequence: eventSeq++ });
+            context.events.push(evt);
+          }
             }
           }
 
@@ -207,27 +190,18 @@ export function createNpcDecisionSystem(
 
           kingdom.npc.lastDecisionTick = context.nextState.meta.tick;
 
-          context.events.push({
-            id: createEventId({
-              prefix: "evt_npc",
-              tick: context.nextState.meta.tick,
-              systemId: "npc_decision",
-              actorId: decision.actorKingdomId,
-              sequence: eventSeq++
-            }),
-            type: "npc.decision",
-            actorKingdomId: decision.actorKingdomId,
-            targetKingdomId: decision.targetKingdomId,
-            payload: {
+          const evt = buildEvent("npc.decision", context.now, {
               actionType: decision.actionType,
               priority: roundTo(decision.priority),
               targetRegionId: decision.targetRegionId,
               result: decisionResult,
               warRisk,
               ...decision.payload
-            },
-            occurredAt: context.now
-          });
+            }, decision.actorKingdomId, decision.targetKingdomId);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_npc", tick: context.nextState.meta.tick, systemId: "npc_decision", actorId: decision.actorKingdomId, sequence: eventSeq++ });
+            context.events.push(evt);
+          }
         }
       }
     }

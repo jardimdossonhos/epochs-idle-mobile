@@ -1,4 +1,4 @@
-﻿import type { ClockService } from "../../core/contracts/services";
+import type { ClockService } from "../../core/contracts/services";
 
 export class BrowserClockService implements ClockService {
   private timerHandle: number | null = null;

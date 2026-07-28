@@ -1,4 +1,4 @@
-﻿﻿import type { RegionDefinition } from "../../core/models/world";
+import type { RegionDefinition } from "../../core/models/world";
 import { BiomeType } from "../../core/models/enums";
 
 export const SEED_REGION_DEFINITIONS: RegionDefinition[] = [

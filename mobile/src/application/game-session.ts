@@ -170,6 +170,26 @@ export class GameSession {
     }
   }
 
+  private hydrateECS(state: GameState) {
+    if (!state || !state.ecs) return;
+    const ecs = state.ecs;
+    const MAX_FACTIONS = 256;
+    // Deduzimos o total de regiões pela array base (ou um fallback seguro)
+    const MAX_REGIONS = ecs.regionOwner ? ecs.regionOwner.length : 10000;
+
+    // HIDRATAÇÃO DE MACROECONOMIA (Patch de Retrocompatibilidade)
+    if (!ecs.factionManpowerCap) ecs.factionManpowerCap = new Float32Array(MAX_FACTIONS).fill(0);
+    if (!ecs.factionManpowerReserve) ecs.factionManpowerReserve = new Float32Array(MAX_FACTIONS).fill(100);
+    if (!ecs.factionGoldBalance) ecs.factionGoldBalance = new Float32Array(MAX_FACTIONS).fill(100);
+    
+    if (!ecs.regionManpowerYield) ecs.regionManpowerYield = new Float32Array(MAX_REGIONS).fill(0.1);
+    if (!ecs.regionManpowerCap) ecs.regionManpowerCap = new Float32Array(MAX_REGIONS).fill(50);
+    if (!ecs.regionGoldYield) ecs.regionGoldYield = new Float32Array(MAX_REGIONS).fill(0.5);
+
+    // No futuro, qualquer nova array do ECS adicionada em atualizações 
+    // deverá ser mapeada nesta "Alfândega" para não quebrar saves antigos.
+  }
+
   async bootstrap(initialState: GameState): Promise<GameState> {
     await this.bootstrapCommandHead();
 
@@ -180,6 +200,7 @@ export class GameSession {
     const baseState = recovered ?? initialState;
     
     this.migrateLegacyState(baseState);
+    this.hydrateECS(baseState);
 
     const now = this.deps.clock.now();
     
@@ -464,7 +485,7 @@ export class GameSession {
       if (!targetRole) return { ok: false, message: "Para lendas, selecione o cargo desejado." };
       candidate.role = targetRole; // Transmuta a Lenda para o cargo escolhido
     } else {
-      targetRole = candidate.role;
+      targetRole = targetRole || candidate.role;
     }
 
     if (admin.council[targetRole]) {
@@ -2259,23 +2280,45 @@ export class GameSession {
       return emptyStock;
     }
 
-    const kingdomRegionIndices = Object.values(state.world.regions)
-      .filter((r) => r.ownerId === kingdomId)
-      .map((r) => REGION_INDEX_MAP.get(r.regionId))
-      .filter((index): index is number => index !== undefined);
-
+    const getFactionId = (kId: string) => {
+      if (kId === "k_nature") return -1;
+      if (kId === "k_player") return 1;
+      if (kId.startsWith("k_npc_")) return parseInt(kId.replace("k_npc_", ""), 10) + 1;
+      return -1;
+    };
+    
+    const factionId = getFactionId(kingdomId);
     const totals = emptyStock;
-    const ecs = state.ecs;
-
-    for (const index of kingdomRegionIndices) {
-      totals.gold += ecs.gold[index] ?? 0;
-      totals.food += ecs.food[index] ?? 0;
-      totals.wood += ecs.wood[index] ?? 0;
-      totals.iron += ecs.iron[index] ?? 0;
-      totals.faith += ecs.faith[index] ?? 0;
-      totals.legitimacy += ecs.legitimacy[index] ?? 0;
+    
+    // ACTION 2: Leitura Híbrida (Ponte ECS Híbrida)
+    
+    // Ouro: Extraído exclusivamente da fonte da verdade do motor ECS (MacroeconomySystem)
+    if (factionId !== -1) {
+      totals.gold = state.ecs.factionGoldBalance[factionId] ?? 0;
     }
+
+    // Outros Recursos: Extraídos do motor OO (EconomySystem) mantido ativo
+    const kingdom = state.kingdoms[kingdomId];
+    if (kingdom) {
+      totals.food = kingdom.economy.stock[ResourceType.Food] ?? 0;
+      totals.wood = kingdom.economy.stock[ResourceType.Wood] ?? 0;
+      totals.iron = kingdom.economy.stock[ResourceType.Iron] ?? 0;
+      totals.faith = kingdom.economy.stock[ResourceType.Faith] ?? 0;
+      totals.legitimacy = kingdom.economy.stock[ResourceType.Legitimacy] ?? 0;
+    }
+
     return totals;
+  }
+
+  /**
+   * Ponte ECS→UI: Agrega os estoques reais do ECS para o reino do jogador.
+   * Mantém a UI desacoplada da alocação de memória do motor.
+   * Chamado pelo syncInterval do GameProvider a 4 FPS.
+   */
+  public getPlayerEcsStock(): Record<ResourceType, number> {
+    const state = this.requireState();
+    const player = this.getPlayerKingdom(state);
+    return this.getKingdomTotalEcsStock(state, player.id);
   }
 
   public canAfford(cost: Partial<Record<ResourceType, number>>): boolean {

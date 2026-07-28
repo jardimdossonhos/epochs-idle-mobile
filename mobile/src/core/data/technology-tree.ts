@@ -1,4 +1,4 @@
-﻿﻿import { TechnologyDomain } from "../models/enums";
+import { TechnologyDomain } from "../models/enums";
 import type { TechnologyNode, TechnologyState } from "../models/technology";
 
 const NODES: TechnologyNode[] = [

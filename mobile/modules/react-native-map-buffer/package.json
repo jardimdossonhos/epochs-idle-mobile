@@ -1,0 +1,11 @@
+{
+  "name": "react-native-map-buffer",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "react-native": "src/index.ts",
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*",
+    "react-native-nitro-modules": "*"
+  }
+}

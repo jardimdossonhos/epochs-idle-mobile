@@ -1,3 +1,4 @@
+import { buildEvent } from "../../ecs/event-pool";
 import type { SimulationSystem } from "../tick-pipeline";
 import { createEventId } from "./utils";
 
@@ -55,22 +56,16 @@ export function createWorldActivitySystem(): SimulationSystem {
         return;
       }
 
-      context.events.push({
-        id: createEventId({
-          prefix: "evt_world_summary",
-          tick: context.nextState.meta.tick,
-          systemId: "world_activity",
-          sequence: 0
-        }),
-        type: "world.activity_summary",
-        payload: {
+      const evt = buildEvent("world.activity_summary", context.now, {
           warsStarted: activity.warsStarted,
           peacesSigned: activity.peacesSigned,
           captures: activity.captures,
           diplomaticMoves: activity.diplomaticMoves
-        },
-        occurredAt: context.now
-      });
+        }, undefined, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_world_summary", tick: context.nextState.meta.tick, systemId: "world_activity", actorId: undefined, sequence: context.events.length });
+            context.events.push(evt);
+          }
     }
   };
 }

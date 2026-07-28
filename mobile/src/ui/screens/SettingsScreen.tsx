@@ -17,6 +17,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useGameState } from '../GameProvider';
+import { useUIStore } from '../store/game-store';
 
 export default function SettingsScreen() {
   const { session } = useGameState();
@@ -26,28 +27,44 @@ export default function SettingsScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
-  const tapCountRef = useRef(0);
-  const lastTapTimeRef = useRef(0);
+  const isGodMode = useUIStore(s => s.isGodMode);
 
-  const handleDevModePress = () => {
-    const now = Date.now();
-    if (now - lastTapTimeRef.current < 2000) {
-      tapCountRef.current += 1;
-      if (tapCountRef.current >= 5) {
-        if (session) {
-          session.devModeActive = !session.devModeActive;
-          session.emitState(true);
-          Alert.alert(
-            'Modo Desenvolvedor',
-            session.devModeActive ? 'Modo Desenvolvedor ATIVADO' : 'Modo Desenvolvedor DESATIVADO'
-          );
-        }
-        tapCountRef.current = 0;
-      }
-    } else {
-      tapCountRef.current = 1;
+  const godTapCount = useRef(0);
+  const godTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleGodModePress = () => {
+    if (godTapTimer.current) clearTimeout(godTapTimer.current);
+    godTapCount.current += 1;
+    if (godTapCount.current >= 7) {
+      useUIStore.setState({ isGodMode: !isGodMode });
+      Alert.alert('Terminal da IA', isGodMode ? 'God Mode DESATIVADO.' : 'God Mode Ativado. 🧪');
+      godTapCount.current = 0;
+      return;
     }
-    lastTapTimeRef.current = now;
+    godTapTimer.current = setTimeout(() => {
+      godTapCount.current = 0;
+    }, 2000);
+  };
+
+  const dumpStateToAI = () => {
+    try {
+      if (!session) { Alert.alert('Erro', 'Nenhuma sessão ativa.'); return; }
+      const state = session.getState();
+      const dump = JSON.stringify(state, null, 2);
+      
+      console.log('\n\n=== [GOD MODE] INÍCIO DO DUMP DE ESTADO PARA IA ===\n');
+      
+      // Fatiamento para evitar o limite de caracteres do Metro Bundler
+      const chunkSize = 4000;
+      for (let i = 0; i < dump.length; i += chunkSize) {
+        console.log(dump.substring(i, i + chunkSize));
+      }
+      
+      console.log('\n=== [GOD MODE] FIM DO DUMP ===\n\n');
+      Alert.alert('God Mode', 'Estado exportado para o console com sucesso!');
+    } catch (e) {
+      Alert.alert('Erro', 'Erro ao exportar estado: ' + e);
+    }
   };
 
   const { logout, user } = useAuth();
@@ -131,13 +148,24 @@ export default function SettingsScreen() {
         <View style={styles.header}>
           <Text style={styles.headerIcon}>⚙️</Text>
           <Text style={styles.headerTitle}>{t('settings.title')}</Text>
-          <TouchableOpacity onPress={handleDevModePress} activeOpacity={0.8}>
+          <TouchableOpacity onPress={handleGodModePress} activeOpacity={0.8}>
             <Text style={{ color: '#D4AF37', fontSize: 18, fontWeight: 'bold', marginVertical: 4 }}>
               Epochs Idle
             </Text>
           </TouchableOpacity>
           <Text style={styles.headerSubtitle}>{t('settings.headerSubtitle')}</Text>
         </View>
+
+        {/* God Mode — Dump de Estado */}
+        {isGodMode && (
+          <TouchableOpacity
+            style={{ backgroundColor: '#8B0000', padding: 14, borderRadius: 8, alignItems: 'center', marginBottom: 16 }}
+            onPress={dumpStateToAI}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 15 }}>🧪 [God Mode] Exportar State Dump para IA</Text>
+          </TouchableOpacity>
+        )}
 
         {/* ── Seção: IA Gemini ────────────────────────────────────────────── */}
         <View style={styles.section}>

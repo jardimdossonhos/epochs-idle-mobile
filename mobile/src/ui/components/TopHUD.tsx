@@ -4,33 +4,24 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGameState } from '../GameProvider';
 import { useLanguage } from '../context/LanguageContext';
 import DevModeModal from './DevModeModal';
+import { useUIStore } from '../store/game-store';
+import { mmkvStorage } from '../memory-persistence';
 
 export default function TopHUD() {
   const insets = useSafeAreaInsets();
-  const { gameState, session, playerKingdomId } = useGameState();
+  const { session } = useGameState();
   const { t } = useLanguage();
   const [isDevPanelVisible, setIsDevPanelVisible] = React.useState(false);
 
-  const targetTick = gameState?.meta.tick ?? 0;
-  const [visualTick, setVisualTick] = React.useState(targetTick);
+  const targetTick = useUIStore(s => s.tick);
+  const isPaused = useUIStore(s => s.isPaused);
+  const gold = useUIStore(s => s.playerGold);
+  const pop = useUIStore(s => s.playerPopulation);
+  const regions = useUIStore(s => s.playerRegions);
 
-  React.useEffect(() => {
-    if (gameState) {
-      const diff = targetTick - visualTick;
-      if (Math.abs(diff) > 12) {
-        setVisualTick(targetTick);
-      } else if (diff > 0) {
-        const timer = setTimeout(() => {
-          setVisualTick(prev => prev + 1);
-        }, 40);
-        return () => clearTimeout(timer);
-      } else if (diff < 0) {
-        setVisualTick(targetTick);
-      }
-    }
-  }, [visualTick, targetTick, gameState]);
 
-  if (!gameState || !session) {
+
+  if (!session) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <Text style={styles.loadingText}>{t('topHud.forgingWorld')}</Text>
@@ -38,16 +29,21 @@ export default function TopHUD() {
     );
   }
 
-  const myKingdom = gameState.kingdoms[playerKingdomId];
-  const gold = myKingdom?.economy?.stock?.gold || 0;
-  
-  const metrics = session.getKingdomMetrics(playerKingdomId);
-  const pop = metrics.totalPopulation;
-  const regions = metrics.controlledRegions;
-  const isPaused = gameState.meta.paused;
-
   const handleTogglePause = () => {
     session.togglePause();
+    useUIStore.setState({ isPaused: !useUIStore.getState().isPaused });
+  };
+
+  const handleManualSave = () => {
+    try {
+      const state = session.getState();
+      if (!state) throw new Error("Estado da Engine nulo.");
+      const slotId = 'save_manual_' + new Date().getTime();
+      mmkvStorage.set(slotId, JSON.stringify(state));
+      alert("Jogo Salvo com Sucesso!");
+    } catch (err) {
+      alert("Erro ao salvar: " + err);
+    }
   };
 
   return (
@@ -60,13 +56,17 @@ export default function TopHUD() {
       <View style={styles.row}>
         <Text style={styles.eraText}>
           {t('topHud.eraText', {
-            year: Math.floor(visualTick / 12) + 1,
-            month: (visualTick % 12) + 1
+            year: Math.floor(targetTick / 12) + 1,
+            month: (targetTick % 12) + 1
           })}
         </Text>
         
         <TouchableOpacity style={styles.pauseBtn} onPress={handleTogglePause}>
           <Text style={styles.pauseBtnText}>{isPaused ? t('topHud.play') : t('topHud.pause')}</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.pauseBtn} onPress={handleManualSave}>
+          <Text style={styles.pauseBtnText}>💾 Salvar</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.statsRow}>
@@ -172,3 +172,4 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 });
+

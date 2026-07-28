@@ -1,3 +1,4 @@
+import { buildEvent } from "../../ecs/event-pool";
 ﻿﻿import { TechnologyDomain } from "../../models/enums";
 import type { KingdomState } from "../../models/game-state";
 import type { TechnologyNode } from "../../models/technology";
@@ -103,6 +104,8 @@ function selectNextResearchNode(kingdom: KingdomState): TechnologyNode | null {
   return selectDefaultResearchNode(kingdom.technology, kingdom.technology.researchFocus);
 }
 
+
+
 export function createTechnologySystem(): SimulationSystem {
   return {
     id: "technology",
@@ -111,6 +114,8 @@ export function createTechnologySystem(): SimulationSystem {
 
       for (const kingdomId of Object.keys(context.nextState.kingdoms).sort()) {
         const kingdom = context.nextState.kingdoms[kingdomId];
+        if (kingdomId === 'k_nature' || kingdomId === 'k_wilderness' || (kingdom as any).isBarbarian) continue;
+
         const budgetTechFactor = kingdom.economy.budgetPriority.technology / 20;
         const focusBoost = kingdom.technology.researchFocus === TechnologyDomain.Military ? 0.08 : 0.04;
         const baseResearchRate = 1.0;
@@ -137,26 +142,21 @@ export function createTechnologySystem(): SimulationSystem {
         const next = selectNextResearchNode(kingdom);
         kingdom.technology.activeResearchId = next?.id ?? null;
 
-        context.events.push({
-          id: createEventId({
-            prefix: "evt_research",
-            tick: context.nextState.meta.tick,
-            systemId: "technology",
-            actorId: kingdom.id,
-            sequence: eventSeq++
-          }),
-          type: "technology.completed",
-          actorKingdomId: kingdom.id,
-          payload: {
+        const evt = buildEvent("technology.completed", context.now, {
             technologyId: activeNode.id,
             technologyName: activeNode.name,
             domain: activeNode.domain,
             unlockedCount: kingdom.technology.unlocked.length,
             focus: kingdom.technology.researchFocus,
             goalId: kingdom.technology.researchGoalId
-          },
-          occurredAt: context.now
-        });
+          }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_research", tick: context.nextState.meta.tick, systemId: "technology", actorId: kingdom.id, sequence: eventSeq++ });
+            if (!kingdom.isPlayer) {
+              (evt as any).severity = "log";
+            }
+            context.events.push(evt);
+          }
       }
     }
   };

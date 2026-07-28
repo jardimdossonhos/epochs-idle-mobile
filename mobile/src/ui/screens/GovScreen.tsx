@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGameState } from '../GameProvider';
+import { useUIStore } from '../store/game-store';
 import type { TaxPolicy, BudgetPriority } from '../../core/models/economy';
 
 // ─── Tipos de Diretrizes ─────────────────────────────────────────────────────
@@ -66,8 +68,78 @@ const DIRECTIVES: DirectiveDef[] = [
 ];
 
 export default function GovScreen() {
-  const { gameState, session, playerKingdomId } = useGameState();
+  const insets = useSafeAreaInsets();
+  const { session, playerKingdomId } = useGameState();
   const [activeTab, setActiveTab] = useState<'economy' | 'laws' | 'automation' | 'events'>('economy');
+
+  const bootstrapDone = React.useRef(false);
+
+  useEffect(() => {
+    if (session && playerKingdomId && !bootstrapDone.current) {
+      bootstrapDone.current = true;
+      const state = session.getState();
+      const kingdom = state.kingdoms[playerKingdomId];
+      if (kingdom?.economy?.taxPolicy) {
+        useUIStore.setState({
+          playerTaxBaseRate: kingdom.economy.taxPolicy.baseRate,
+          playerTaxNobleRelief: kingdom.economy.taxPolicy.nobleRelief,
+          playerTaxClergyExemption: kingdom.economy.taxPolicy.clergyExemption,
+          playerTaxTariffRate: kingdom.economy.taxPolicy.tariffRate,
+        });
+      }
+    }
+  }, [session, playerKingdomId]);
+
+  const playerGold = useUIStore(s => s.playerGold);
+  const playerFood = useUIStore(s => s.playerFood);
+  const playerWood = useUIStore(s => s.playerWood);
+  const playerIron = useUIStore(s => s.playerIron);
+  const playerLegitimacy = useUIStore(s => s.playerLegitimacy);
+
+  const playerGoldIncome = useUIStore(s => s.playerGoldIncome);
+  const playerFoodIncome = useUIStore(s => s.playerFoodIncome);
+  const playerWoodIncome = useUIStore(s => s.playerWoodIncome);
+  const playerIronIncome = useUIStore(s => s.playerIronIncome);
+  const playerLegitimacyIncome = useUIStore(s => s.playerLegitimacyIncome);
+
+  const taxBaseRate = useUIStore(s => s.playerTaxBaseRate);
+  const taxNobleRelief = useUIStore(s => s.playerTaxNobleRelief);
+  const taxClergyExemption = useUIStore(s => s.playerTaxClergyExemption);
+  const taxTariffRate = useUIStore(s => s.playerTaxTariffRate);
+
+  const playerCorruption = useUIStore(s => s.playerCorruption);
+  const playerInflation = useUIStore(s => s.playerInflation);
+  const playerEfficiency = useUIStore(s => s.playerEfficiency);
+
+  const budgetEconomy = useUIStore(s => s.playerBudgetEconomy);
+  const budgetMilitary = useUIStore(s => s.playerBudgetMilitary);
+  const budgetReligion = useUIStore(s => s.playerBudgetReligion);
+  const budgetAdministration = useUIStore(s => s.playerBudgetAdministration);
+  const budgetTechnology = useUIStore(s => s.playerBudgetTechnology);
+
+  const playerEventCount = useUIStore(s => s.playerEventCount);
+  const worldFeed = useUIStore(s => s.worldFeed);
+  
+  const [draftBudget, setDraftBudget] = useState<BudgetPriority | null>(null);
+  const [budgetSaved, setBudgetSaved] = useState(false);
+
+  const activeBudget = draftBudget ?? {
+    economy: budgetEconomy,
+    military: budgetMilitary,
+    religion: budgetReligion,
+    administration: budgetAdministration,
+    technology: budgetTechnology
+  };
+
+  const [draftTaxPolicy, setDraftTaxPolicy] = useState<TaxPolicy | null>(null);
+  const [taxSaved, setTaxSaved] = useState(false);
+
+  const activeTaxPolicy = draftTaxPolicy ?? {
+    baseRate: taxBaseRate,
+    nobleRelief: taxNobleRelief,
+    clergyExemption: taxClergyExemption,
+    tariffRate: taxTariffRate,
+  };
 
   // ── Estado das Diretrizes ──────────────────────────────────────────────────
   const [directives, setDirectives] = useState<Record<DirectiveKey, boolean>>({
@@ -79,16 +151,25 @@ export default function GovScreen() {
     religious_mission: false,
   });
 
-  // Sincroniza estado inicial das diretrizes do game state
+  const handleApplyLaws = () => {
+    if (!session || !activeTaxPolicy) return;
+    session.updateTaxPolicy(activeTaxPolicy);
+    setTaxSaved(true);
+    setDraftTaxPolicy(null);
+    setTimeout(() => setTaxSaved(false), 2000);
+  };
+
+  const directivesBootstrapped = React.useRef(false);
   useEffect(() => {
-    if (!gameState || !playerKingdomId) return;
-    const kingdom = gameState.kingdoms[playerKingdomId];
+    if (!session || directivesBootstrapped.current) return;
+    const kingdom = (session as any).state?.kingdoms[(session as any).state?.playerKingdomId || 'k_player'];
     if (!kingdom?.administration) return;
     const savedDirectives = (kingdom.administration as any).directives;
     if (savedDirectives && typeof savedDirectives === 'object') {
+      directivesBootstrapped.current = true;
       setDirectives((prev) => ({ ...prev, ...savedDirectives }));
     }
-  }, [gameState, playerKingdomId]);
+  }, [session]);
 
   const handleToggleDirective = (key: DirectiveKey) => {
     if (!session) return;
@@ -117,16 +198,7 @@ export default function GovScreen() {
     return found || null;
   };
 
-  if (!gameState) return null;
-
-  const kingdom = gameState.kingdoms[playerKingdomId];
-  if (!kingdom) return null;
-
-  const { economy, administration } = kingdom;
-
-  // Helper to change tax policy
   const adjustTaxPolicy = (field: keyof TaxPolicy, delta: number) => {
-    if (!session) return;
     let min = 0;
     let max = 0.4;
     if (field === 'baseRate') {
@@ -136,27 +208,35 @@ export default function GovScreen() {
       min = 0;
       max = 0.5;
     }
-    const current = economy.taxPolicy[field] || 0;
-    const newVal = Math.max(min, Math.min(max, parseFloat((current + delta).toFixed(2))));
-    session.updateTaxPolicy({ [field]: newVal });
+    setDraftTaxPolicy(prev => {
+      const base = prev ?? { baseRate: taxBaseRate, nobleRelief: taxNobleRelief, clergyExemption: taxClergyExemption, tariffRate: taxTariffRate };
+      const current = base[field];
+      const newVal = Math.max(min, Math.min(max, parseFloat((current + delta).toFixed(2))));
+      return { ...base, [field]: newVal };
+    });
   };
 
-  // Helper to adjust budget priority
   const adjustBudget = (field: keyof BudgetPriority, delta: number) => {
-    if (!session) return;
-    const current = economy.budgetPriority[field] || 0;
-    const newVal = Math.max(0, current + delta);
-    session.updateBudgetPriority({ [field]: newVal });
+    setDraftBudget(prev => {
+      const base = prev ?? { economy: budgetEconomy, military: budgetMilitary, religion: budgetReligion, administration: budgetAdministration, technology: budgetTechnology };
+      const current = base[field];
+      let newVal = current + delta;
+      if (newVal < 0) newVal = 0;
+      
+      const otherTotal = Object.keys(base).reduce((sum, k) => k !== field ? sum + (base as any)[k] : sum, 0);
+      
+      if (otherTotal + newVal > 100) {
+        newVal = 100 - otherTotal;
+      }
+      
+      return { ...base, [field]: newVal };
+    });
   };
 
-  // Calculate state efficiency locally
-  const adminCorruption = administration?.corruption || 0;
-  const adminUsed = administration?.usedCapacity || 0;
-  const adminCap = administration?.adminCapacity || 1;
-  const stateEfficiency = Math.max(0.05, 1 - adminCorruption - Math.max(0, (adminUsed - adminCap) / Math.max(1, adminCap)));
+  const draftTotal = Object.values(activeBudget).reduce((a,b)=>a+b,0);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
       {/* Tabs */}
       <View style={styles.tabContainer}>
         <TouchableOpacity 
@@ -190,40 +270,50 @@ export default function GovScreen() {
           <View>
             <Text style={styles.sectionTitle}>Tesouro & Estoques</Text>
             <View style={styles.resourceGrid}>
-              <ResourceCard icon="💰" name="Ouro" amount={economy.stock.gold} income={economy.incomePerTick.gold} />
-              <ResourceCard icon="🍞" name="Comida" amount={economy.stock.food} income={economy.incomePerTick.food} />
-              <ResourceCard icon="🪵" name="Madeira" amount={economy.stock.wood} income={economy.incomePerTick.wood} />
-              <ResourceCard icon="⛏️" name="Ferro" amount={economy.stock.iron} income={economy.incomePerTick.iron} />
-              <ResourceCard icon="🙏" name="Fé" amount={economy.stock.faith} income={economy.incomePerTick.faith} />
-              <ResourceCard icon="👑" name="Legitima." amount={economy.stock.legitimacy} income={economy.incomePerTick.legitimacy} />
+              <ResourceCard icon="💰" name="Ouro" amount={playerGold} income={playerGoldIncome} />
+              <ResourceCard icon="🍞" name="Comida" amount={playerFood} income={playerFoodIncome} />
+              <ResourceCard icon="🪵" name="Madeira" amount={playerWood} income={playerWoodIncome} />
+              <ResourceCard icon="⛏️" name="Ferro" amount={playerIron} income={playerIronIncome} />
+              <ResourceCard icon="🙏" name="Fé" amount={playerLegitimacy} income={playerLegitimacyIncome} />
+              <ResourceCard icon="👑" name="Legitima." amount={playerLegitimacy} income={playerLegitimacyIncome} />
             </View>
 
             <Text style={styles.sectionTitle}>Política Fiscal</Text>
             <View style={styles.taxControlBox}>
               <TaxStepper 
                 label="Taxa Base (BasePop)" 
-                value={economy.taxPolicy.baseRate} 
+                value={draftTaxPolicy?.baseRate ?? taxBaseRate} 
                 onDecrease={() => adjustTaxPolicy('baseRate', -0.05)}
                 onIncrease={() => adjustTaxPolicy('baseRate', 0.05)}
               />
               <TaxStepper 
                 label="Alívio dos Nobres" 
-                value={economy.taxPolicy.nobleRelief} 
+                value={draftTaxPolicy?.nobleRelief ?? taxNobleRelief} 
                 onDecrease={() => adjustTaxPolicy('nobleRelief', -0.05)}
                 onIncrease={() => adjustTaxPolicy('nobleRelief', 0.05)}
               />
               <TaxStepper 
                 label="Isenção do Clero" 
-                value={economy.taxPolicy.clergyExemption} 
+                value={draftTaxPolicy?.clergyExemption ?? taxClergyExemption} 
                 onDecrease={() => adjustTaxPolicy('clergyExemption', -0.05)}
                 onIncrease={() => adjustTaxPolicy('clergyExemption', 0.05)}
               />
               <TaxStepper 
                 label="Tarifas Alfandegárias" 
-                value={economy.taxPolicy.tariffRate} 
+                value={draftTaxPolicy?.tariffRate ?? taxTariffRate} 
                 onDecrease={() => adjustTaxPolicy('tariffRate', -0.05)}
                 onIncrease={() => adjustTaxPolicy('tariffRate', 0.05)}
               />
+              
+              <TouchableOpacity 
+                style={{ backgroundColor: taxSaved ? '#50E3C2' : '#D4AF37', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 16 }}
+                onPress={handleApplyLaws}
+              >
+                <Text style={{ color: taxSaved ? '#0D2B1D' : '#1A1A1A', fontWeight: 'bold', fontSize: 16 }}>
+                  {taxSaved ? 'Salvo!' : 'Aplicar Leis Fiscais'}
+                </Text>
+              </TouchableOpacity>
+              
               <Text style={styles.taxHelperText}>
                 Impostos altos geram mais Ouro, mas reduzem a estabilidade. Alívios e isenções acalmam as classes dominantes.
               </Text>
@@ -237,19 +327,19 @@ export default function GovScreen() {
             <View style={styles.card}>
               <View style={styles.statRow}>
                 <Text style={styles.statLabel}>Estabilidade</Text>
-                <Text style={styles.statValue}>{(kingdom.stability * 100).toFixed(1)}%</Text>
+                <Text style={styles.statValue}>{(playerLegitimacy || 100).toFixed(1)}%</Text>
               </View>
               <View style={styles.statRow}>
                 <Text style={styles.statLabel}>Eficiência Estatal</Text>
-                <Text style={styles.statValue}>{(stateEfficiency * 100).toFixed(1)}%</Text>
+                <Text style={styles.statValue}>{(playerEfficiency * 100).toFixed(1)}%</Text>
               </View>
               <View style={styles.statRow}>
                 <Text style={styles.statLabel}>Corrupção</Text>
-                <Text style={styles.statValue}>{(economy.corruption * 100).toFixed(1)}%</Text>
+                <Text style={styles.statValue}>{(playerCorruption * 100).toFixed(1)}%</Text>
               </View>
               <View style={styles.statRow}>
                 <Text style={styles.statLabel}>Inflação</Text>
-                <Text style={styles.statValue}>{(economy.inflation * 100).toFixed(1)}%</Text>
+                <Text style={styles.statValue}>{(playerInflation * 100).toFixed(1)}%</Text>
               </View>
             </View>
             <Text style={styles.taxHelperText}>
@@ -260,37 +350,56 @@ export default function GovScreen() {
             <View style={styles.budgetCard}>
               <BudgetStepper 
                 label="Economia" 
-                value={economy.budgetPriority.economy} 
+                value={draftBudget?.economy ?? budgetEconomy} 
                 onDecrease={() => adjustBudget('economy', -5)}
                 onIncrease={() => adjustBudget('economy', 5)}
               />
               <BudgetStepper 
                 label="Militar" 
-                value={economy.budgetPriority.military} 
+                value={draftBudget?.military ?? budgetMilitary} 
                 onDecrease={() => adjustBudget('military', -5)}
                 onIncrease={() => adjustBudget('military', 5)}
               />
               <BudgetStepper 
                 label="Religião" 
-                value={economy.budgetPriority.religion} 
+                value={draftBudget?.religion ?? budgetReligion} 
                 onDecrease={() => adjustBudget('religion', -5)}
                 onIncrease={() => adjustBudget('religion', 5)}
               />
               <BudgetStepper 
                 label="Administração" 
-                value={economy.budgetPriority.administration} 
+                value={draftBudget?.administration ?? budgetAdministration} 
                 onDecrease={() => adjustBudget('administration', -5)}
                 onIncrease={() => adjustBudget('administration', 5)}
               />
               <BudgetStepper 
                 label="Tecnologia" 
-                value={economy.budgetPriority.technology} 
+                value={draftBudget?.technology ?? budgetTechnology} 
                 onDecrease={() => adjustBudget('technology', -5)}
                 onIncrease={() => adjustBudget('technology', 5)}
               />
               <Text style={styles.budgetHelperText}>
                 O orçamento é auto-normalizado para totalizar 100%. Ajustar um sector afeta proporcionalmente os outros.
               </Text>
+
+              <Text style={{ color: draftTotal !== 100 ? '#E6A817' : '#D4AF37', textAlign: 'center', marginVertical: 8, fontWeight: 'bold' }}>
+                Pontos Restantes: {100 - draftTotal}%
+              </Text>
+              
+              <TouchableOpacity 
+                style={{ backgroundColor: draftTotal !== 100 ? '#555' : budgetSaved ? '#50E3C2' : '#D4AF37', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 }}
+                disabled={draftTotal !== 100}
+                onPress={() => {
+                  if (activeBudget && session) {
+                    session.updateBudgetPriority(activeBudget);
+                    setBudgetSaved(true);
+                    setDraftBudget(null);
+                    setTimeout(() => setBudgetSaved(false), 2000);
+                  }
+                }}
+              >
+                <Text style={{ color: draftTotal !== 100 ? '#AAA' : '#1A1A1A', fontWeight: 'bold', fontSize: 16 }}>{budgetSaved ? 'Salvo!' : 'Aplicar Distribuição'}</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -369,13 +478,13 @@ export default function GovScreen() {
         {activeTab === 'events' && (
           <View>
             <Text style={styles.sectionTitle}>Eventos em Tempo Real (Mundo Vivo)</Text>
-            {(!gameState.events || gameState.events.length === 0) ? (
+            {(!worldFeed || worldFeed.length === 0) ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>Nenhum evento registrado recentemente no império.</Text>
               </View>
             ) : (
               <View style={{ marginTop: 8 }}>
-                {[...gameState.events].reverse().slice(0, 30).map((evt, idx) => {
+                {[...worldFeed].reverse().map((evt, idx) => {
                   const severityColor = evt.severity === 'critical' ? '#E24A4A' : evt.severity === 'warning' ? '#F8E71C' : '#50E3C2';
                   return (
                     <View key={evt.id || idx} style={styles.eventCard}>

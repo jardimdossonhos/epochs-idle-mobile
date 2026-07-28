@@ -1,3 +1,4 @@
+import { buildEvent } from "../../ecs/event-pool";
 import type { SimulationSystem } from "../tick-pipeline";
 import { createEventId, clamp, roundTo } from "./utils";
 import { ResourceType } from "../../models/enums";
@@ -38,23 +39,15 @@ export function createEventChainSystem(): SimulationSystem {
             6
           );
 
-          context.events.push({
-            id: createEventId({
-              prefix: "evt_chain_economic_crisis_1",
-              tick: state.meta.tick,
-              systemId: "event_chain",
-              actorId: kingdom.id,
-              sequence: eventSeq++
-            }),
-            type: "event_chain.economic_crisis",
-            actorKingdomId: kingdom.id,
-            payload: {
+          const evt = buildEvent("event_chain.economic_crisis", context.now, {
               stage: 1,
               impact: "inflation_start",
               chainId: chainKey
-            },
-            occurredAt: context.now
-          });
+            }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_chain_economic_crisis_1", tick: context.nextState.meta.tick, systemId: "event_chain", actorId: kingdom.id, sequence: context.events.length });
+            context.events.push(evt);
+          }
         }
       }
 
@@ -81,45 +74,29 @@ export function createEventChainSystem(): SimulationSystem {
                 );
                 kingdom.population.unrest = roundTo(clamp(kingdom.population.unrest + 0.1, 0, 1));
 
-                context.events.push({
-                  id: createEventId({
-                    prefix: "evt_chain_economic_crisis_2",
-                    tick: state.meta.tick,
-                    systemId: "event_chain",
-                    actorId: kingdom.id,
-                    sequence: eventSeq++
-                  }),
-                  type: "event_chain.economic_crisis",
-                  actorKingdomId: kingdom.id,
-                  payload: {
+                const evt = buildEvent("event_chain.economic_crisis", context.now, {
                     stage: 2,
                     impact: "food_shortage",
                     chainId: chainKey,
                     amount: 100
-                  },
-                  occurredAt: context.now
-                });
+                  }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_chain_economic_crisis_2", tick: context.nextState.meta.tick, systemId: "event_chain", actorId: kingdom.id, sequence: context.events.length });
+            context.events.push(evt);
+          }
               } else if (chain.stage === 3) {
                 kingdom.stability -= 10;
                 kingdom.population.unrest += 0.2;
 
-                context.events.push({
-                  id: createEventId({
-                    prefix: "evt_chain_economic_crisis_3",
-                    tick: state.meta.tick,
-                    systemId: "event_chain",
-                    actorId: kingdom.id,
-                    sequence: eventSeq++
-                  }),
-                  type: "event_chain.economic_crisis",
-                  actorKingdomId: kingdom.id,
-                  payload: {
+                const evt = buildEvent("event_chain.economic_crisis", context.now, {
                     stage: 3,
                     impact: "social_unrest",
                     chainId: chainKey
-                  },
-                  occurredAt: context.now
-                });
+                  }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_chain_economic_crisis_3", tick: context.nextState.meta.tick, systemId: "event_chain", actorId: kingdom.id, sequence: context.events.length });
+            context.events.push(evt);
+          }
               } else if (chain.stage === 4) {
                 if (Math.random() < 0.6) {
                   kingdom.economy.corruption = Math.max(0.05, kingdom.economy.corruption - 0.15);
@@ -128,44 +105,28 @@ export function createEventChainSystem(): SimulationSystem {
                     6
                   );
 
-                  context.events.push({
-                    id: createEventId({
-                      prefix: "evt_chain_economic_crisis_resolved",
-                      tick: state.meta.tick,
-                      systemId: "event_chain",
-                      actorId: kingdom.id,
-                      sequence: eventSeq++
-                    }),
-                    type: "event_chain.economic_crisis_resolved",
-                    actorKingdomId: kingdom.id,
-                    payload: {
+                  const evt = buildEvent("event_chain.economic_crisis_resolved", context.now, {
                       stage: 4,
                       impact: "recovery",
                       chainId: chainKey
-                    },
-                    occurredAt: context.now
-                  });
+                    }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_chain_economic_crisis_resolved", tick: context.nextState.meta.tick, systemId: "event_chain", actorId: kingdom.id, sequence: context.events.length });
+            context.events.push(evt);
+          }
                 } else {
                   kingdom.stability -= 20;
                   kingdom.legitimacy -= 15;
 
-                  context.events.push({
-                    id: createEventId({
-                      prefix: "evt_chain_economic_crisis_collapse",
-                      tick: state.meta.tick,
-                      systemId: "event_chain",
-                      actorId: kingdom.id,
-                      sequence: eventSeq++
-                    }),
-                    type: "event_chain.economic_crisis_collapse",
-                    actorKingdomId: kingdom.id,
-                    payload: {
+                  const evt = buildEvent("event_chain.economic_crisis_collapse", context.now, {
                       stage: 4,
                       impact: "collapse",
                       chainId: chainKey
-                    },
-                    occurredAt: context.now
-                  });
+                    }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_chain_economic_crisis_collapse", tick: context.nextState.meta.tick, systemId: "event_chain", actorId: kingdom.id, sequence: context.events.length });
+            context.events.push(evt);
+          }
                 }
 
                 delete activeChains[chainKey];
@@ -208,23 +169,15 @@ export function createEventChainSystem(): SimulationSystem {
             army.morale = roundTo(clamp(army.morale + 0.15, 0, 1));
           }
 
-          context.events.push({
-            id: createEventId({
-              prefix: "evt_chain_holy_war_1",
-              tick: state.meta.tick,
-              systemId: "event_chain",
-              actorId: kingdom.id,
-              sequence: eventSeq++
-            }),
-            type: "event_chain.holy_war",
-            actorKingdomId: kingdom.id,
-            payload: {
+          const evt = buildEvent("event_chain.holy_war", context.now, {
               stage: 1,
               impact: "religious_zeal",
               chainId: chainKey
-            },
-            occurredAt: context.now
-          });
+            }, kingdom.id, undefined);
+          if (evt) {
+            evt.id = createEventId({ prefix: "evt_chain_holy_war_1", tick: context.nextState.meta.tick, systemId: "event_chain", actorId: kingdom.id, sequence: context.events.length });
+            context.events.push(evt);
+          }
         }
       }
     }

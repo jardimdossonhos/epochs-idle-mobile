@@ -79,4 +79,20 @@ class AILoggerService {
   }
 }
 
-export const AILogger = new AILoggerService();
+let _aiLogger: AILoggerService | null = null;
+
+// Lazy getter — evita crash Hermes por instanciação global em módulo com dependência circular
+export const getAILogger = (): AILoggerService => {
+  if (!_aiLogger) {
+    _aiLogger = new AILoggerService();
+  }
+  return _aiLogger;
+};
+
+// Alias de retrocompatibilidade
+export const AILogger = {
+  init: () => getAILogger().init(),
+  disableAutoLog: () => getAILogger().disableAutoLog(),
+  logStateDump: (state: any, isAutoLog?: boolean) => getAILogger().logStateDump(state, isAutoLog),
+  logEvent: (payload: any) => getAILogger().logEvent(payload),
+};

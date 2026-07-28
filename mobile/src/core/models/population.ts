@@ -1,4 +1,4 @@
-﻿import { PopulationClass } from "./enums";
+import { PopulationClass } from "./enums";
 
 export type PopulationDistribution = Record<PopulationClass, number>;
 
