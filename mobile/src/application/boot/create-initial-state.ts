@@ -374,6 +374,9 @@ function createKingdom(
     },
     legitimacy: blueprint.isPlayer ? 64 : 58,
     stability: isNature ? 100 : (blueprint.isPlayer ? 60 : 56),
+    governmentSystemId: "band",
+    hasAscended: false,
+    ascensionPostponed: false,
     npc: blueprint.isPlayer || isNature
       ? undefined
       : createNpcBehavior(blueprint.archetype ?? NpcArchetype.Opportunist, blueprint.strategicGoal ?? "equilibrio_regional")
@@ -693,7 +696,7 @@ export function createInitialState(staticData: StaticWorldData, playerStartRegio
       schemaVersion: 4,
       sessionId: `session_${now}`,
       tick: 0,
-      tickDurationMs: 3_000,
+      tickDurationMs: 10_000,
       speedMultiplier: 1,
       paused: false,
       disastersEnabled: true,

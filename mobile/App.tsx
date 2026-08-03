@@ -6,11 +6,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 import { GameProvider, useGameState } from './src/ui/GameProvider';
+import { useUIStore } from './src/ui/store/game-store';
 import { AuthProvider, useAuth } from './src/ui/context/AuthContext';
 import { LanguageProvider, useLanguage } from './src/ui/context/LanguageContext';
 
 import SplashScreen from './src/ui/components/SplashScreen';
 import EventPopup from './src/ui/components/EventPopup';
+import AscensionModal from './src/ui/components/AscensionModal';
 
 // Import Screens
 import MapScreen from './src/ui/screens/MapScreen';
@@ -41,13 +43,52 @@ const EmpireTheme = {
   },
 };
 
+const renderTechIcon = ({ color, size }: { color: string; size: number }) => (
+  <Text style={{ fontSize: size, color }}>💡</Text>
+);
+const renderMapIcon = ({ color, size }: { color: string; size: number }) => (
+  <Text style={{ fontSize: size, color }}>🌍</Text>
+);
+const EvolutionGovTabIcon = ({ color, size }: { color: string; size: number }) => {
+  const isEvolved = useUIStore(s => s.playerHasAscended);
+  const icon = isEvolved ? '🏛️' : '⛺';
+  return <Text style={{ fontSize: size, color }}>{icon}</Text>;
+};
+const renderGovIcon = ({ color, size }: { color: string; size: number }) => (
+  <EvolutionGovTabIcon color={color} size={size} />
+);
+const EvolutionGovTabLabel = ({ focused, color }: { focused: boolean; color: string }) => {
+  const isEvolved = useUIStore(s => s.playerHasAscended);
+  const label = isEvolved ? 'Governo' : 'Tribo';
+  return <Text style={{ color, fontSize: 10, fontWeight: focused ? 'bold' : 'normal' }}>{label}</Text>;
+};
+const renderDiplomacyIcon = ({ color, size }: { color: string; size: number }) => (
+  <Text style={{ fontSize: size, color }}>📜</Text>
+);
+// Ícone e label da aba de Personagens/Corte muda conforme a era do jogo
+// (mesmo padrão da aba Governo/Tribo)
+const EvolutionCharactersTabIcon = ({ color, size }: { color: string; size: number }) => {
+  const isEvolved = useUIStore(s => s.playerHasAscended);
+  const icon = isEvolved ? '👑' : '🔥';
+  return <Text style={{ fontSize: size, color }}>{icon}</Text>;
+};
+const renderCharactersIcon = ({ color, size }: { color: string; size: number }) => (
+  <EvolutionCharactersTabIcon color={color} size={size} />
+);
+const EvolutionCharactersTabLabel = ({ focused, color }: { focused: boolean; color: string }) => {
+  const isEvolved = useUIStore(s => s.playerHasAscended);
+  const label = isEvolved ? 'Corte' : 'Clã';
+  return <Text style={{ color, fontSize: 10, fontWeight: focused ? 'bold' : 'normal' }}>{label}</Text>;
+};
+const renderMenuIcon = ({ color, size }: { color: string; size: number }) => (
+  <Text style={{ fontSize: size, color }}>⚙️</Text>
+);
+const renderSettingsIcon = ({ color, size }: { color: string; size: number }) => (
+  <Text style={{ fontSize: size, color }}>🔧</Text>
+);
+
 function MainTabs() {
-  const { gameState } = useGameState();
   const { t } = useLanguage();
-
-  if (!gameState) return null;
-
-  const isCivilizationUnocked = gameState.meta.tick > 10;
 
   return (
     <Tab.Navigator
@@ -73,9 +114,7 @@ function MainTabs() {
         name="Tech" 
         component={TechScreen}
         options={{
-          tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size, color }}>💡</Text>
-          ),
+          tabBarIcon: renderTechIcon,
           tabBarLabel: t('tabs.knowledge')
         }}
       />
@@ -83,60 +122,40 @@ function MainTabs() {
         name="Map" 
         component={MapScreen} 
         options={{ 
-          tabBarLabel: isCivilizationUnocked ? t('tabs.world') : t('tabs.tribeAndRegion'),
-          tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size, color }}>🌍</Text>
-          )
+          tabBarLabel: t('tabs.world'),
+          tabBarIcon: renderMapIcon
         }}
       />
-      
-      {isCivilizationUnocked && (
-        <Tab.Screen 
-          name="Government" 
-          component={GovScreen} 
-          options={{ 
-            tabBarLabel: t('tabs.government'),
-            tabBarIcon: ({ color, size }) => (
-              <Text style={{ fontSize: size, color }}>🏛️</Text>
-            )
-          }}
-        />
-      )}
-      
-      {isCivilizationUnocked && (
-        <Tab.Screen 
-          name="Diplomacy" 
-          component={DiplomacyScreen} 
-          options={{ 
-            tabBarLabel: t('tabs.diplomacy'),
-            tabBarIcon: ({ color, size }) => (
-              <Text style={{ fontSize: size, color }}>📜</Text>
-            )
-          }}
-        />
-      )}
-      
-      {isCivilizationUnocked && (
-        <Tab.Screen 
-          name="Characters" 
-          component={CharacterScreen} 
-          options={{ 
-            tabBarLabel: t('tabs.court'),
-            tabBarIcon: ({ color, size }) => (
-              <Text style={{ fontSize: size, color }}>👑</Text>
-            )
-          }}
-        />
-      )}
-
+      <Tab.Screen 
+        name="Government" 
+        component={GovScreen} 
+        options={{ 
+          tabBarLabel: ({ focused, color }) => <EvolutionGovTabLabel focused={focused} color={color} />,
+          tabBarIcon: renderGovIcon
+        }}
+      />
+      <Tab.Screen 
+        name="Diplomacy" 
+        component={DiplomacyScreen} 
+        options={{ 
+          tabBarLabel: t('tabs.diplomacy'),
+          tabBarIcon: renderDiplomacyIcon
+        }}
+      />
+      <Tab.Screen 
+        name="Characters" 
+        component={CharacterScreen} 
+        options={{ 
+          tabBarLabel: ({ focused, color }) => <EvolutionCharactersTabLabel focused={focused} color={color} />,
+          tabBarIcon: renderCharactersIcon
+        }}
+      />
       <Tab.Screen 
         name="Menu" 
         component={MenuScreen} 
         options={{ 
           tabBarLabel: t('tabs.menu'),
-          tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size, color }}>⚙️</Text>
-          )
+          tabBarIcon: renderMenuIcon
         }}
       />
       <Tab.Screen 
@@ -144,9 +163,7 @@ function MainTabs() {
         component={SettingsScreen} 
         options={{ 
           tabBarLabel: t('tabs.config'),
-          tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size, color }}>🔧</Text>
-          )
+          tabBarIcon: renderSettingsIcon
         }}
       />
     </Tab.Navigator>
@@ -207,6 +224,7 @@ function AppContent() {
     <>
       <MainTabs />
       <EventPopup />
+      <AscensionModal />
     </>
   );
 }

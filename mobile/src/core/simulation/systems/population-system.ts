@@ -17,10 +17,11 @@ export function createPopulationSystem(orderedDefinitions: RegionDefinition[]): 
         const foodPressure = requiredFood <= 0 ? 0 : clamp((requiredFood - foodStock) / requiredFood, 0, 1);
 
         const naturalGrowth = kingdom.population.total * kingdom.population.growthRatePerTick;
-        const growthPenalty = 1 - foodPressure * 1.6 - kingdom.population.pressure.warWeariness * 0.2;
-        const populationDelta = Math.round(naturalGrowth * growthPenalty);
+        const tribalBaseGrowth = (kingdom.population.total < 2000 && foodPressure === 0) ? 0.35 : 0;
+        const growthPenalty = Math.max(0, 1 - foodPressure * 1.6 - kingdom.population.pressure.warWeariness * 0.2);
+        const populationDelta = (naturalGrowth + tribalBaseGrowth) * growthPenalty;
 
-        kingdom.population.total = Math.max(120_000, kingdom.population.total + populationDelta);
+        kingdom.population.total = Math.max(10, roundTo(kingdom.population.total + populationDelta));
 
         kingdom.population.pressure.famineRisk = roundTo(clamp(foodPressure, 0, 1));
         kingdom.population.unrest = roundTo(

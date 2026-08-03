@@ -1,8 +1,9 @@
 import { buildEvent } from "../../ecs/event-pool";
-﻿﻿import { TechnologyDomain } from "../../models/enums";
+import { TechnologyDomain } from "../../models/enums";
 import type { KingdomState } from "../../models/game-state";
 import type { TechnologyNode } from "../../models/technology";
 import { getTechnologyNode, selectDefaultResearchNode, selectResearchNodeTowardsTarget } from "../../data/technology-tree";
+import { getGovernmentModifiers } from "../../data/government-types";
 import type { SimulationSystem } from "../tick-pipeline";
 import { clamp, createEventId, roundTo } from "./utils";
 
@@ -116,10 +117,11 @@ export function createTechnologySystem(): SimulationSystem {
         const kingdom = context.nextState.kingdoms[kingdomId];
         if (kingdomId === 'k_nature' || kingdomId === 'k_wilderness' || (kingdom as any).isBarbarian) continue;
 
+        const govMods = getGovernmentModifiers(kingdom.governmentSystemId);
         const budgetTechFactor = kingdom.economy.budgetPriority.technology / 20;
         const focusBoost = kingdom.technology.researchFocus === TechnologyDomain.Military ? 0.08 : 0.04;
         const baseResearchRate = 1.0;
-        const researchDelta = baseResearchRate * (0.5 + budgetTechFactor + focusBoost);
+        const researchDelta = baseResearchRate * (0.5 + budgetTechFactor + focusBoost) * govMods.researchSpeedMultiplier;
 
         kingdom.technology.accumulatedResearch = roundTo(kingdom.technology.accumulatedResearch + researchDelta);
 

@@ -33,6 +33,11 @@ export interface UIDeltas {
   playerStability: number;
   worldFeed: any[];
   isGodMode: boolean;
+  speedMultiplier: number;
+  playerUnlockedTechs: string[];
+  playerHasAscended: boolean;
+  playerAscensionEligible: boolean;
+  playerAscensionPostponed: boolean;
 }
 
 export const useUIStore = create<UIDeltas>(() => ({
@@ -68,6 +73,11 @@ export const useUIStore = create<UIDeltas>(() => ({
   playerStability: 100,
   worldFeed: [],
   isGodMode: false,
+  speedMultiplier: 1,
+  playerUnlockedTechs: [],
+  playerHasAscended: false,
+  playerAscensionEligible: false,
+  playerAscensionPostponed: false,
 }));
 
 export const syncUI = (deltas: Partial<UIDeltas>) => {

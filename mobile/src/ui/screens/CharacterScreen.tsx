@@ -4,32 +4,132 @@ import { useGameState } from '../GameProvider';
 import type { Character } from '../../core/models/character';
 import type { Minister } from '../../core/models/administration';
 import { MinisterRole } from '../../core/models/enums';
+import { getGovernmentDefinition } from '../../core/data/government-types';
+import GovernmentPolicyModal from '../components/GovernmentPolicyModal';
+
+// ---------------------------------------------------------------------------
+// Contexto de imersão por tipo de governo
+// Adicionar novos governos aqui quando forem criados no GOVERNMENT_REGISTRY.
+// ---------------------------------------------------------------------------
+function getGovContext(govId: string, era: string) {
+  if (era === 'tribal') {
+    switch (govId) {
+      case 'tribal_council':
+        return {
+          bannerIcon: '🏛️',
+          eraLabel: 'ERA TRIBAL • CONSELHO',
+          leaderTitle: 'ORADOR DO CONSELHO',
+          councilTitle: 'CONSELHO DE ANCIONÃOS',
+          policyLabel: 'Clique para deliberações tribais',
+          courtTabLabel: 'Conselho',
+          candidatesTabLabel: 'Membros',
+          emptyText: 'Nenhum ancioão encontrado no conselho.',
+          recruitLabel: '+ Alistar Membro',
+        };
+      case 'chiefdom':
+        return {
+          bannerIcon: '⚔️',
+          eraLabel: 'ERA TRIBAL • CACICADO',
+          leaderTitle: 'CHEFE GUERREIRO',
+          councilTitle: 'CONSELHO DE CHEFES',
+          policyLabel: 'Clique para ritos e decisões de guerra',
+          courtTabLabel: 'Chefes',
+          candidatesTabLabel: 'Guerreiros',
+          emptyText: 'Nenhum chefe guerreiro neste cã de batalha.',
+          recruitLabel: '+ Recrutar Guerreiro',
+        };
+      default: // band
+        return {
+          bannerIcon: '🔥',
+          eraLabel: 'ERA TRIBAL • BANDO',
+          leaderTitle: 'LÍDER DA TRIBO',
+          councilTitle: 'ANCIONÃOS DO BANDO',
+          policyLabel: 'Clique para costumes e ritos',
+          courtTabLabel: 'Bandó',
+          candidatesTabLabel: 'Membros',
+          emptyText: 'Nenhum ancioão ao redor da fogueira.',
+          recruitLabel: '+ Chamar Membro',
+        };
+    }
+  }
+  // Era Estatal — extensível para republic, empire, etc.
+  switch (govId) {
+    case 'republic':
+      return {
+        bannerIcon: '🏹',
+        eraLabel: 'ERA ESTATAL • REPÚBLICA',
+        leaderTitle: 'CÓNSUL DA REPÚBLICA',
+        councilTitle: 'SENADO',
+        policyLabel: 'Clique para políticas republicanas',
+        courtTabLabel: 'Senado',
+        candidatesTabLabel: 'Candidatos',
+        emptyText: 'Nenhum senador encontrado.',
+        recruitLabel: '+ Nomear Senador',
+      };
+    case 'empire':
+      return {
+        bannerIcon: '👑',
+        eraLabel: 'ERA IMPERIAL',
+        leaderTitle: 'IMPERADOR',
+        councilTitle: 'CONSÍLIO IMPERIAL',
+        policyLabel: 'Clique para edictos imperiais',
+        courtTabLabel: 'Consílio',
+        candidatesTabLabel: 'Candidatos',
+        emptyText: 'Nenhum conselheiro nos salões imperiais.',
+        recruitLabel: '+ Recrutar Conselheiro',
+      };
+    case 'theocracy':
+      return {
+        bannerIcon: '✝️',
+        eraLabel: 'ERA ESTATAL • TEOCRACIA',
+        leaderTitle: 'SUMO SACERDOTE',
+        councilTitle: 'SÒNODO SAGRADO',
+        policyLabel: 'Clique para decretos divinos',
+        courtTabLabel: 'Sônodo',
+        candidatesTabLabel: 'Candidatos',
+        emptyText: 'Nenhum prelado encontrado no sônodo.',
+        recruitLabel: '+ Ordenar Prelado',
+      };
+    default: // monarchy e qualquer governo estatal ainda sem entrada específica
+      return {
+        bannerIcon: '🏰',
+        eraLabel: 'ERA ESTATAL',
+        leaderTitle: 'CHEFE DE ESTADO',
+        councilTitle: 'CONSELHO DE MINISTROS',
+        policyLabel: 'Clique para alterar políticas',
+        courtTabLabel: 'Corte',
+        candidatesTabLabel: 'Candidatos',
+        emptyText: 'Ninguém encontrado nestes salões.',
+        recruitLabel: '+ Recrutar',
+      };
+  }
+}
 
 export default function CharacterScreen() {
   const { gameState, session, playerKingdomId } = useGameState();
   const [activeTab, setActiveTab] = useState<'court' | 'candidates'>('court');
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
 
   if (!gameState || !session) return null;
 
   const kingdom = gameState.kingdoms[playerKingdomId];
   if (!kingdom) return null;
 
+  const govDef = getGovernmentDefinition(kingdom.governmentSystemId);
+  const govCtx = getGovContext(govDef.id, govDef.era);
+
+  const ruler = kingdom.rulerId && gameState.world.characters?.[kingdom.rulerId]
+    ? gameState.world.characters[kingdom.rulerId]
+    : Object.values(gameState.world.characters || {}).find(
+        c => c.status === 'ruler' && c.employerKingdomId === playerKingdomId
+      );
+
   // Filter based on tab
   const getTabCharacters = () => {
     switch (activeTab) {
       case 'court': {
-        const chars: any[] = [];
-        if (kingdom.rulerId && gameState.world.characters?.[kingdom.rulerId]) {
-          chars.push(gameState.world.characters[kingdom.rulerId]);
-        } else {
-          const fallback = Object.values(gameState.world.characters || {}).filter(
-            c => c.status === 'ruler' && c.employerKingdomId === playerKingdomId
-          );
-          chars.push(...fallback);
-        }
         const council = Object.values(kingdom.administration?.council || {}).filter((m): m is Minister => !!m);
-        chars.push(...council);
-        return chars;
+        return council;
       }
       case 'candidates':
         return kingdom.administration?.candidatePool || [];
@@ -113,38 +213,75 @@ export default function CharacterScreen() {
           style={[styles.tab, activeTab === 'court' && styles.activeTab]}
           onPress={() => setActiveTab('court')}
         >
-          <Text style={[styles.tabText, activeTab === 'court' && styles.activeTabText]}>Corte</Text>
+          <Text style={[styles.tabText, activeTab === 'court' && styles.activeTabText]}>{govCtx.courtTabLabel}</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.tab, activeTab === 'candidates' && styles.activeTab]}
           onPress={() => setActiveTab('candidates')}
         >
-          <Text style={[styles.tabText, activeTab === 'candidates' && styles.activeTabText]}>Candidatos</Text>
+          <Text style={[styles.tabText, activeTab === 'candidates' && styles.activeTabText]}>{govCtx.candidatesTabLabel}</Text>
         </TouchableOpacity>
       </View>
-
-      {activeTab === 'court' && (
-        <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-          <TouchableOpacity 
-            style={{ backgroundColor: '#D4AF37', padding: 12, borderRadius: 8, alignItems: 'center' }}
-            onPress={() => setActiveTab('candidates')}
-          >
-            <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 16 }}>+ Recrutar Novo Ministro</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* Content */}
       <FlatList
         data={characters}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          activeTab === 'court' ? (
+            <View style={styles.powerCenterContainer}>
+              <TouchableOpacity
+                style={styles.governmentBanner}
+                onPress={() => setShowPolicyModal(true)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.governmentBannerLeft}>
+                  <Text style={styles.governmentBannerTitle}>
+                    {govCtx.bannerIcon} {govDef.name.toUpperCase()}
+                  </Text>
+                  <Text style={styles.governmentBannerSubtitle}>
+                    {govCtx.eraLabel} • {govCtx.policyLabel}
+                  </Text>
+                </View>
+                <Text style={styles.governmentBannerArrow}>▼</Text>
+              </TouchableOpacity>
+
+              {ruler && (
+                <View style={styles.rulerSection}>
+                  <Text style={styles.sectionHeader}>{govCtx.leaderTitle}</Text>
+                  <CharacterCard character={ruler} />
+                </View>
+              )}
+
+              <Text style={styles.sectionHeader}>{govCtx.councilTitle}</Text>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Ninguém encontrado nestes salões.</Text>
+            <Text style={styles.emptyText}>{govCtx.emptyText}</Text>
           </View>
         }
         renderItem={renderItem}
+      />
+
+      {activeTab === 'court' && (
+        <View style={styles.bottomRecruitBar}>
+          <TouchableOpacity
+            style={styles.bottomRecruitBtn}
+            onPress={() => setActiveTab('candidates')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.bottomRecruitBtnText}>{govCtx.recruitLabel}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <GovernmentPolicyModal
+        visible={showPolicyModal}
+        onClose={() => setShowPolicyModal(false)}
+        currentGovernmentId={govDef.id}
       />
     </SafeAreaView>
   );
@@ -446,6 +583,68 @@ function StatBox({ label, value, color }: { label: string, value: number, color:
 }
 
 const styles = StyleSheet.create({
+  powerCenterContainer: {
+    marginBottom: 12,
+  },
+  governmentBanner: {
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#D4AF37',
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  governmentBannerLeft: {
+    flex: 1,
+  },
+  governmentBannerTitle: {
+    color: '#D4AF37',
+    fontSize: 16,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  governmentBannerSubtitle: {
+    color: '#AAA',
+    fontSize: 12,
+  },
+  governmentBannerArrow: {
+    color: '#D4AF37',
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  rulerSection: {
+    marginBottom: 16,
+  },
+  sectionHeader: {
+    color: '#888',
+    fontSize: 11,
+    fontWeight: 'bold',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  bottomRecruitBar: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#1A1A1A',
+    borderTopWidth: 1,
+    borderTopColor: '#2C2C2C',
+  },
+  bottomRecruitBtn: {
+    backgroundColor: '#D4AF37',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  bottomRecruitBtnText: {
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
   container: {
     flex: 1,
     backgroundColor: '#121212',

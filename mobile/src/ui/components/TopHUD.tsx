@@ -76,7 +76,7 @@ export default function TopHUD() {
         </View>
         <View style={styles.statBox}>
           <Text style={styles.statIcon}>👥</Text>
-          <Text style={styles.statValue}>{pop.toLocaleString()}</Text>
+          <Text style={styles.statValue}>{Math.floor(pop).toLocaleString()}</Text>
         </View>
         <View style={styles.statBox}>
           <Text style={styles.statIcon}>💰</Text>

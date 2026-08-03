@@ -144,7 +144,7 @@ export function useGameEngine(): GameEngineState {
           
           cancelAnimation(tickProgress);
           tickProgress.value = 0;
-          const duration = data.payload.tickDurationMs || 3000;
+          const duration = data.payload.tickDurationMs || 10000;
           tickProgress.value = withTiming(1, { duration, easing: Easing.linear });
         }
       }

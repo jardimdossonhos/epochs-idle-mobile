@@ -1,6 +1,7 @@
-﻿import { buildEvent } from "../../ecs/event-pool";
+import { buildEvent } from "../../ecs/event-pool";
 import { ResourceType, TreatyType } from "../../models/enums";
 import { createEmptyStock } from "../../models/economy";
+import { getGovernmentModifiers } from "../../data/government-types";
 import type { SimulationSystem } from "../tick-pipeline";
 import { clamp, createEventId, ensureResourceNonNegative, getOwnedRegionIds, roundTo } from "./utils";
 
@@ -93,17 +94,19 @@ export function createEconomySystem(): SimulationSystem {
         const faithUpkeep = roundTo(0.04 + (1 - kingdom.religion.tolerance) * 0.2);
         const legitimacyUpkeep = roundTo((100 - kingdom.stability) / 900 + Math.max(0, taxLoad - 0.34) * 0.07);
 
+        const govMods = getGovernmentModifiers(kingdom.governmentSystemId);
+
         kingdom.economy.incomePerTick = createEmptyStock();
         kingdom.economy.upkeepPerTick = createEmptyStock();
 
-        kingdom.economy.incomePerTick[ResourceType.Gold] = goldIncome;
+        kingdom.economy.incomePerTick[ResourceType.Gold] = roundTo(goldIncome * govMods.incomeMultiplier);
         kingdom.economy.incomePerTick[ResourceType.Food] = foodIncome;
         kingdom.economy.incomePerTick[ResourceType.Wood] = woodIncome;
         kingdom.economy.incomePerTick[ResourceType.Iron] = ironIncome;
         kingdom.economy.incomePerTick[ResourceType.Faith] = faithIncome;
-        kingdom.economy.incomePerTick[ResourceType.Legitimacy] = legitimacyIncome;
+        kingdom.economy.incomePerTick[ResourceType.Legitimacy] = roundTo(legitimacyIncome + (govMods.legitimacyBonus / 60));
 
-        kingdom.economy.upkeepPerTick[ResourceType.Gold] = goldUpkeep;
+        kingdom.economy.upkeepPerTick[ResourceType.Gold] = roundTo(goldUpkeep * govMods.armyUpkeepMultiplier);
         kingdom.economy.upkeepPerTick[ResourceType.Food] = foodUpkeep;
         kingdom.economy.upkeepPerTick[ResourceType.Wood] = woodUpkeep;
         kingdom.economy.upkeepPerTick[ResourceType.Iron] = ironUpkeep;

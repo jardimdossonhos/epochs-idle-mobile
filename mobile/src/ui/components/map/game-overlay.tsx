@@ -69,7 +69,7 @@ export function GameOverlay({ dispatchCommand }: GameOverlayProps) {
 
         {store.selectedArmy ? (
           <Text style={styles.armyInfo}>
-            Tropa Estacionada: Facção {store.selectedArmy.faction} | População: {store.selectedArmy.manpower}
+            Tropa Estacionada: Facção {store.selectedArmy.faction} | População: {Math.floor(store.selectedArmy.manpower)}
           </Text>
         ) : (
           <Text style={styles.armyInfo}>Nenhuma tropa estacionada.</Text>

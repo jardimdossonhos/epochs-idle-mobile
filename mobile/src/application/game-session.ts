@@ -10,6 +10,7 @@ import type {
   SnapshotRepository
 } from "../core/contracts/game-ports";
 import { getTechnologyNode, isTechnologyAvailable, listAvailableTechnologyNodes, listTechnologyNodes, selectDefaultResearchNode, selectResearchNodeTowardsTarget } from "../core/data/technology-tree";
+import { getGovernmentDefinition, getGovernmentLegitimacyCost, isGovernmentUnlocked } from "../core/data/government-types";
 import { createEmptyStock } from "../core/models/economy";
 import { AutomationLevel, DiplomaticRelation, ReligiousPolicy, ResourceType, TechnologyDomain, TreatyType, BuildingType, MinisterRole, MinisterPersonality, NpcArchetype } from "../core/models/enums";
 import type { BudgetPriority, TaxPolicy } from "../core/models/economy";
@@ -378,7 +379,7 @@ export class GameSession {
     if (state.meta.speedMultiplier >= 100) {
       state.meta.tickDurationMs = 1000;
     } else {
-      state.meta.tickDurationMs = 3000;
+      state.meta.tickDurationMs = 10000;
     }
     this.recordPlayerCommand("session.speed", { speedMultiplier: state.meta.speedMultiplier, tickDurationMs: state.meta.tickDurationMs });
     this.persistCurrent();
@@ -772,9 +773,154 @@ export class GameSession {
       budgetPriority: player.economy.budgetPriority
     });
     this.persistCurrent();
-    this.emitState();
-
     return { ok: true, message: "Políticas aplicadas com sucesso." };
+  }
+
+  public ascendPlayerKingdom(): void {
+    const state = this.requireState();
+    const player = this.getPlayerKingdom(state);
+    player.hasAscended = true;
+    player.ascensionPostponed = false;
+    const prevGovId = player.governmentSystemId || 'band';
+    if (!player.unlockedGovernmentIds) {
+      player.unlockedGovernmentIds = ['band'];
+    }
+    if (prevGovId && !player.unlockedGovernmentIds.includes(prevGovId)) {
+      player.unlockedGovernmentIds.push(prevGovId);
+    }
+    if (!player.unlockedGovernmentIds.includes('monarchy')) {
+      player.unlockedGovernmentIds.push('monarchy');
+    }
+    // Transiciona automaticamente para a Era Estatal (Monarquia Imperial).
+    // Sem esta linha, a UI permanecia exibindo "ERA TRIBAL" mesmo após a Cerimônia de Ascensão.
+    if (!player.governmentSystemId || player.governmentSystemId === 'band' || player.governmentSystemId === 'tribal_council' || player.governmentSystemId === 'chiefdom') {
+      player.governmentSystemId = 'monarchy';
+    }
+    this.appendActionLog("Fundação do Estado", "Nosso povo formalizou um governo estatal centralizado. A Era Estatal começou.", "info");
+    this.persistCurrent();
+    this.emitState();
+  }
+
+  public postponePlayerAscension(): void {
+    const state = this.requireState();
+    const player = this.getPlayerKingdom(state);
+    player.ascensionPostponed = true;
+
+    // Registra monarchy em availableGovernmentIds:
+    // O jogador escolheu ficar tribal, mas os pré-requisitos da Monarquia já foram
+    // atendidos (por isso o popup disparou). Guardamos como "disponível, nunca adotado"
+    // para que apareça na Mesa de Políticas com custo de PRIMEIRA adoção.
+    if (!player.availableGovernmentIds) {
+      player.availableGovernmentIds = [];
+    }
+    if (!player.availableGovernmentIds.includes('monarchy')) {
+      player.availableGovernmentIds.push('monarchy');
+    }
+
+    this.appendActionLog('Tradicao Tribal Preservada', 'O soberano optou por preservar os costumes livres de nossa tribo por enquanto.', 'info');
+    this.persistCurrent();
+    this.emitState();
+  }
+
+  public setGovernmentSystem(id: string): { ok: boolean; message: string } {
+    const state = this.requireState();
+    const player = this.getPlayerKingdom(state);
+    const def = getGovernmentDefinition(id);
+    if (!def) {
+      return { ok: false, message: "Sistema de governo inválido." };
+    }
+    if (player.governmentSystemId === id) {
+      return { ok: false, message: "Este já é o regime de governo ativo." };
+    }
+
+    // Inicializa listas de histórico se ainda não existem (saves antigos)
+    if (!player.unlockedGovernmentIds) {
+      player.unlockedGovernmentIds = [player.governmentSystemId ?? 'band'].filter(Boolean);
+    }
+    if (!player.availableGovernmentIds) {
+      player.availableGovernmentIds = [];
+    }
+
+    // Classifica a adoção em três categorias:
+    // 1. RE-ADOÇÃO: já foi o governo ativo alguma vez → só legitimidade
+    // 2. DISPONÍVEL (nunca adotado, mas desbloqueado): pula pré-requisitos técnicos → ouro + legitimidade
+    // 3. NOVO: pré-requisitos técnicos verificados → ouro + estabilidade + legitimidade
+    const isReadoption = player.unlockedGovernmentIds.includes(id);
+    const isAvailable  = !isReadoption && player.availableGovernmentIds.includes(id);
+    const legitimacyCost = getGovernmentLegitimacyCost(id);
+    const ecsStock = this.getPlayerEcsStock();
+    const currentGold = ecsStock[ResourceType.Gold] ?? (player.economy?.stock?.[ResourceType.Gold] ?? 0);
+    const currentLegitimacy = ecsStock[ResourceType.Legitimacy] ?? (player.economy?.stock?.[ResourceType.Legitimacy] ?? 0);
+
+    if (isReadoption) {
+      // ── RE-ADOÇÃO: apenas legitimidade, sem pré-requisitos técnicos ──
+      if (currentLegitimacy < legitimacyCost) {
+        return { ok: false, message: `Legitimidade insuficiente para restaurar este regime. Necessário: ${legitimacyCost}. Atual: ${Math.floor(currentLegitimacy)}.` };
+      }
+    } else {
+      // ── PRIMEIRA ADOÇÃO (disponível ou novo): verifica ouro + legitimidade ──
+      // Para governos em availableGovernmentIds, pré-requisitos técnicos já foram
+      // validados no momento do desbloqueio — não verificamos de novo.
+      if (!isAvailable) {
+        const currentYear = Math.floor((state.meta?.tick ?? 0) / 12) + 1;
+        if (!isGovernmentUnlocked(player, def, currentYear)) {
+          return { ok: false, message: 'Os pré-requisitos para este sistema de governo não foram atendidos.' };
+        }
+      }
+      if (currentGold < def.transitionCost.gold) {
+        return { ok: false, message: `Ouro insuficiente para a reforma cívica. Necessário: ${def.transitionCost.gold} ouro. Atual: ${Math.floor(currentGold)}.` };
+      }
+      if (currentLegitimacy < legitimacyCost) {
+        return { ok: false, message: `Legitimidade insuficiente. Necessário: ${legitimacyCost}. Atual: ${Math.floor(currentLegitimacy)}.` };
+      }
+
+      if (def.transitionCost.gold > 0) {
+        this.applyCost({ [ResourceType.Gold]: def.transitionCost.gold });
+        if (player.economy?.stock) {
+          player.economy.stock.gold = Math.max(0, (player.economy.stock.gold ?? 0) - def.transitionCost.gold);
+        }
+      }
+      if (def.transitionCost.stabilityPenalty > 0) {
+        player.stability = Math.max(0, player.stability - def.transitionCost.stabilityPenalty);
+      }
+    }
+
+    // Desconta legitimidade (em ambos os casos, exceto band que custa 0)
+    if (legitimacyCost > 0) {
+      this.applyCost({ [ResourceType.Legitimacy]: legitimacyCost });
+      if (player.economy?.stock) {
+        player.economy.stock[ResourceType.Legitimacy] = Math.max(0, currentLegitimacy - legitimacyCost);
+      }
+    }
+
+    // Move o governo anterior (antecessor) e o novo para o "histórico permanente"
+    const oldGovId = player.governmentSystemId;
+    if (oldGovId && !player.unlockedGovernmentIds.includes(oldGovId)) {
+      player.unlockedGovernmentIds.push(oldGovId);
+    }
+    if (!player.unlockedGovernmentIds.includes(id)) {
+      player.unlockedGovernmentIds.push(id);
+    }
+    // Remove de availableGovernmentIds (já foi adotado — agora é histórico)
+    player.availableGovernmentIds = player.availableGovernmentIds.filter(avId => avId !== id);
+
+    // Aplica o novo governo
+    player.governmentSystemId = id;
+
+    // hasAscended é ONE-WAY STREET — nunca volta a false, mesmo ao adotar tribal
+    if (def.era === 'state' && !player.hasAscended) {
+      player.hasAscended = true;
+      player.ascensionPostponed = false;
+    }
+
+    const actionLabel = isReadoption ? 'Restauração de Regime' : 'Reforma Cívica';
+    const logMsg = isReadoption
+      ? `O reino restaurou o antigo regime: ${def.name}.`
+      : `Nosso reino adotou a política governamental: ${def.name}.`;
+    this.appendActionLog(actionLabel, logMsg, "info");
+    this.persistCurrent();
+    this.emitState();
+    return { ok: true, message: `Regime governamental alterado para ${def.name}.` };
   }
 
   /**
@@ -2343,6 +2489,14 @@ export class GameSession {
     const player = this.getPlayerKingdom(state);
     const capitalIndex = this.getKingdomCapitalIndex(state, player.id);
 
+    const getFactionId = (kId: string) => {
+      if (kId === "k_nature") return -1;
+      if (kId === "k_player") return 1;
+      if (kId.startsWith("k_npc_")) return parseInt(kId.replace("k_npc_", ""), 10) + 1;
+      return -1;
+    };
+    const factionId = getFactionId(player.id);
+
     if (capitalIndex === -1) {
       console.error(`[applyCost] Não foi possível encontrar o índice da capital para o jogador ${player.id}`);
       return;
@@ -2351,6 +2505,11 @@ export class GameSession {
     for (const [resource, value] of Object.entries(cost)) {
       const key = resource as ResourceType;
       const required = value ?? 0;
+      if (key === ResourceType.Gold && factionId !== -1 && state.ecs.factionGoldBalance) {
+        state.ecs.factionGoldBalance[factionId] = this.round(
+          Math.max(0, (state.ecs.factionGoldBalance[factionId] ?? 0) - required)
+        );
+      }
       const resourceArray = state.ecs[key];
       if (resourceArray && capitalIndex < resourceArray.length) {
         resourceArray[capitalIndex] = this.round(Math.max(0, resourceArray[capitalIndex] - required));
@@ -2582,6 +2741,44 @@ export class GameSession {
     }
   }
 
+  private checkCivicUnlocks(state: GameState): void {
+    const player = this.getPlayerKingdom(state);
+    if (!player) return;
+    const pop = player.population?.total ?? 0;
+    if (!player.unlockedGovernmentIds) {
+      player.unlockedGovernmentIds = [player.governmentSystemId ?? 'band'].filter(Boolean);
+    }
+    if (!player.availableGovernmentIds) {
+      player.availableGovernmentIds = [];
+    }
+
+    if (
+      pop >= 200 &&
+      !player.unlockedGovernmentIds.includes('tribal_council') &&
+      !player.availableGovernmentIds.includes('tribal_council')
+    ) {
+      player.availableGovernmentIds.push('tribal_council');
+      this.appendActionLog(
+        "Reforma Cívica Disponível",
+        "Nossa tribo atingiu 200 almas: o 'Conselho Tribal' agora pode ser adotado na Mesa de Políticas da aba Governo.",
+        "info"
+      );
+    }
+
+    if (
+      pop >= 500 &&
+      !player.unlockedGovernmentIds.includes('chiefdom') &&
+      !player.availableGovernmentIds.includes('chiefdom')
+    ) {
+      player.availableGovernmentIds.push('chiefdom');
+      this.appendActionLog(
+        "Reforma Cívica Disponível",
+        "Com 500 almas, nossa demografia agora comporta a liderança centralizada de um 'Cacicado' na Mesa de Políticas.",
+        "info"
+      );
+    }
+  }
+
   private onClockTick(deltaMs: number, now: number): void {
     this.processClockTick(deltaMs, now, false);
   }
@@ -2644,6 +2841,7 @@ export class GameSession {
         }
 
         this.recordTickCommands(previousTick, result.state.meta.tick, result.events, simNow);
+        this.checkCivicUnlocks(result.state);
 
         if (this.ticksSinceAutosave >= (this.deps.autosaveEveryTicks ?? 300)) {
           this.ticksSinceAutosave = 0;

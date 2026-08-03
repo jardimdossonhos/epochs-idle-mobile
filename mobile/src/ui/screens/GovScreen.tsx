@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGameState } from '../GameProvider';
 import { useUIStore } from '../store/game-store';
@@ -95,6 +95,7 @@ export default function GovScreen() {
   const playerWood = useUIStore(s => s.playerWood);
   const playerIron = useUIStore(s => s.playerIron);
   const playerLegitimacy = useUIStore(s => s.playerLegitimacy);
+  const playerStability = useUIStore(s => s.playerStability);
 
   const playerGoldIncome = useUIStore(s => s.playerGoldIncome);
   const playerFoodIncome = useUIStore(s => s.playerFoodIncome);
@@ -119,6 +120,8 @@ export default function GovScreen() {
 
   const playerEventCount = useUIStore(s => s.playerEventCount);
   const worldFeed = useUIStore(s => s.worldFeed);
+  const isEvolved = useUIStore(s => s.playerHasAscended);
+  const isEligibleForAscension = useUIStore(s => s.playerAscensionEligible || s.playerAscensionPostponed);
   
   const [draftBudget, setDraftBudget] = useState<BudgetPriority | null>(null);
   const [budgetSaved, setBudgetSaved] = useState(false);
@@ -243,19 +246,19 @@ export default function GovScreen() {
           style={[styles.tab, activeTab === 'economy' && styles.activeTab]}
           onPress={() => setActiveTab('economy')}
         >
-          <Text style={[styles.tabText, activeTab === 'economy' && styles.activeTabText]}>Economia</Text>
+          <Text style={[styles.tabText, activeTab === 'economy' && styles.activeTabText]}>{isEvolved ? 'Economia' : 'Coleta & Espólio'}</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.tab, activeTab === 'laws' && styles.activeTab]}
           onPress={() => setActiveTab('laws')}
         >
-          <Text style={[styles.tabText, activeTab === 'laws' && styles.activeTabText]}>Estado</Text>
+          <Text style={[styles.tabText, activeTab === 'laws' && styles.activeTabText]}>{isEvolved ? 'Estado' : 'Tradição'}</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.tab, activeTab === 'automation' && styles.activeTab]}
           onPress={() => setActiveTab('automation')}
         >
-          <Text style={[styles.tabText, activeTab === 'automation' && styles.activeTabText]}>Idle / Auto</Text>
+          <Text style={[styles.tabText, activeTab === 'automation' && styles.activeTabText]}>{isEvolved ? 'Idle / Auto' : 'Foco do Bando'}</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.tab, activeTab === 'events' && styles.activeTab]}
@@ -265,10 +268,13 @@ export default function GovScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {activeTab === 'economy' && (
+      {activeTab === 'events' ? (
+        <EventFeedTab worldFeed={worldFeed} />
+      ) : (
+        <ScrollView contentContainerStyle={styles.content}>
+          {activeTab === 'economy' && (
           <View>
-            <Text style={styles.sectionTitle}>Tesouro & Estoques</Text>
+            <Text style={styles.sectionTitle}>{isEvolved ? 'Tesouro & Estoques' : 'Provimentos da Tribo'}</Text>
             <View style={styles.resourceGrid}>
               <ResourceCard icon="💰" name="Ouro" amount={playerGold} income={playerGoldIncome} />
               <ResourceCard icon="🍞" name="Comida" amount={playerFood} income={playerFoodIncome} />
@@ -278,7 +284,7 @@ export default function GovScreen() {
               <ResourceCard icon="👑" name="Legitima." amount={playerLegitimacy} income={playerLegitimacyIncome} />
             </View>
 
-            <Text style={styles.sectionTitle}>Política Fiscal</Text>
+            <Text style={styles.sectionTitle}>{isEvolved ? 'Política Fiscal' : 'Divisão de Caça/Coleta'}</Text>
             <View style={styles.taxControlBox}>
               <TaxStepper 
                 label="Taxa Base (BasePop)" 
@@ -310,12 +316,14 @@ export default function GovScreen() {
                 onPress={handleApplyLaws}
               >
                 <Text style={{ color: taxSaved ? '#0D2B1D' : '#1A1A1A', fontWeight: 'bold', fontSize: 16 }}>
-                  {taxSaved ? 'Salvo!' : 'Aplicar Leis Fiscais'}
+                  {taxSaved ? 'Salvo!' : (isEvolved ? 'Aplicar Leis Fiscais' : 'Aplicar Divisão do Espólio')}
                 </Text>
               </TouchableOpacity>
               
               <Text style={styles.taxHelperText}>
-                Impostos altos geram mais Ouro, mas reduzem a estabilidade. Alívios e isenções acalmam as classes dominantes.
+                {isEvolved 
+                  ? 'Impostos altos geram mais Ouro, mas reduzem a estabilidade. Alívios e isenções acalmam as classes dominantes.'
+                  : 'Uma divisão rígida favorece o tesouro comum do bando, mas pode gerar descontentamento entre os caçadores e anciãos.'}
               </Text>
             </View>
           </View>
@@ -323,11 +331,11 @@ export default function GovScreen() {
 
         {activeTab === 'laws' && (
           <View>
-            <Text style={styles.sectionTitle}>Indicadores do Estado</Text>
+            <Text style={styles.sectionTitle}>{isEvolved ? 'Indicadores do Estado' : 'Coesão do Bando'}</Text>
             <View style={styles.card}>
               <View style={styles.statRow}>
                 <Text style={styles.statLabel}>Estabilidade</Text>
-                <Text style={styles.statValue}>{(playerLegitimacy || 100).toFixed(1)}%</Text>
+                <Text style={styles.statValue}>{(playerStability || 100).toFixed(1)}%</Text>
               </View>
               <View style={styles.statRow}>
                 <Text style={styles.statLabel}>Eficiência Estatal</Text>
@@ -343,10 +351,12 @@ export default function GovScreen() {
               </View>
             </View>
             <Text style={styles.taxHelperText}>
-              A eficiência estatal multiplica toda a sua produção. Mantenha a estabilidade alta!
+              {isEvolved
+                ? 'A eficiência estatal multiplica toda a sua produção. Mantenha a estabilidade alta!'
+                : 'A coesão da tribo determina a motivação para coletar e caçar em harmonia.'}
             </Text>
 
-            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Prioridades de Orçamento</Text>
+            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{isEvolved ? 'Prioridades de Orçamento' : 'Foco da Tribo'}</Text>
             <View style={styles.budgetCard}>
               <BudgetStepper 
                 label="Economia" 
@@ -379,7 +389,9 @@ export default function GovScreen() {
                 onIncrease={() => adjustBudget('technology', 5)}
               />
               <Text style={styles.budgetHelperText}>
-                O orçamento é auto-normalizado para totalizar 100%. Ajustar um sector afeta proporcionalmente os outros.
+                {isEvolved
+                  ? 'O orçamento é auto-normalizado para totalizar 100%. Ajustar um sector afeta proporcionalmente os outros.'
+                  : 'A dedicação do bando é auto-normalizada em 100%. Mudar um foco ajusta os demais esforços da tribo.'}
               </Text>
 
               <Text style={{ color: draftTotal !== 100 ? '#E6A817' : '#D4AF37', textAlign: 'center', marginVertical: 8, fontWeight: 'bold' }}>
@@ -398,7 +410,9 @@ export default function GovScreen() {
                   }
                 }}
               >
-                <Text style={{ color: draftTotal !== 100 ? '#AAA' : '#1A1A1A', fontWeight: 'bold', fontSize: 16 }}>{budgetSaved ? 'Salvo!' : 'Aplicar Distribuição'}</Text>
+                <Text style={{ color: draftTotal !== 100 ? '#AAA' : '#1A1A1A', fontWeight: 'bold', fontSize: 16 }}>
+                  {budgetSaved ? 'Salvo!' : (isEvolved ? 'Aplicar Distribuição' : 'Aplicar Foco Tribal')}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -406,10 +420,11 @@ export default function GovScreen() {
 
         {activeTab === 'automation' && (
           <View>
-            <Text style={styles.sectionTitle}>Diretrizes Estratégicas (Idle)</Text>
+            <Text style={styles.sectionTitle}>{isEvolved ? 'Diretrizes Estratégicas (Idle)' : 'Instintos e Hábitos da Tribo (Idle)'}</Text>
             <Text style={styles.taxHelperText}>
-              Ative as políticas que seus ministros devem seguir automaticamente enquanto você não governa.
-              Diretrizes conflitantes são mutuamente exclusivas.
+              {isEvolved
+                ? 'Ative as políticas que seus ministros devem seguir automaticamente enquanto você não governa. Diretrizes conflitantes são mutuamente exclusivas.'
+                : 'Defina os instintos e hábitos que os anciãos devem conduzir enquanto você observa. Escolhas conflitantes são exclusivas.'}
             </Text>
 
             <View style={{ marginTop: 12, gap: 10 }}>
@@ -475,32 +490,146 @@ export default function GovScreen() {
           </View>
         )}
 
-        {activeTab === 'events' && (
-          <View>
-            <Text style={styles.sectionTitle}>Eventos em Tempo Real (Mundo Vivo)</Text>
-            {(!worldFeed || worldFeed.length === 0) ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>Nenhum evento registrado recentemente no império.</Text>
-              </View>
-            ) : (
-              <View style={{ marginTop: 8 }}>
-                {[...worldFeed].reverse().map((evt, idx) => {
-                  const severityColor = evt.severity === 'critical' ? '#E24A4A' : evt.severity === 'warning' ? '#F8E71C' : '#50E3C2';
-                  return (
-                    <View key={evt.id || idx} style={styles.eventCard}>
-                      <View style={styles.eventHeader}>
-                        <Text style={[styles.eventSeverity, { color: severityColor }]}>● {evt.severity?.toUpperCase() || 'INFO'}</Text>
-                        <Text style={styles.eventTitle}>{evt.title}</Text>
-                      </View>
-                      <Text style={styles.eventDetails}>{evt.details}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-        )}
-      </ScrollView>
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+function getEventCategory(evt: any): 'all' | 'economy' | 'war' | 'diplomacy' {
+  const text = `${evt.groupKey || ''} ${evt.title || ''} ${evt.details || ''} ${evt.type || ''}`.toLowerCase();
+  if (
+    text.includes('war') ||
+    text.includes('guerra') ||
+    text.includes('batalha') ||
+    text.includes('combat') ||
+    text.includes('conquest') ||
+    text.includes('revolta') ||
+    text.includes('rebel') ||
+    text.includes('recruta') ||
+    text.includes('exército') ||
+    text.includes('invad')
+  ) {
+    return 'war';
+  }
+  if (
+    text.includes('diplom') ||
+    text.includes('pacto') ||
+    text.includes('aliança') ||
+    text.includes('embaixad') ||
+    text.includes('tratado') ||
+    text.includes('acordo') ||
+    text.includes('ally') ||
+    text.includes('truce') ||
+    text.includes('paz')
+  ) {
+    return 'diplomacy';
+  }
+  if (
+    text.includes('economy') ||
+    text.includes('ouro') ||
+    text.includes('food') ||
+    text.includes('fome') ||
+    text.includes('shortage') ||
+    text.includes('escassez') ||
+    text.includes('imposto') ||
+    text.includes('tribut') ||
+    text.includes('constru') ||
+    text.includes('edifí') ||
+    text.includes('budget') ||
+    text.includes('taxa') ||
+    text.includes('tesouro') ||
+    text.includes('comércio') ||
+    text.includes('mercad') ||
+    text.includes('celei') ||
+    text.includes('economic')
+  ) {
+    return 'economy';
+  }
+  return 'all';
+}
+
+function EventFeedTab({ worldFeed }: { worldFeed: any[] }) {
+  const [filter, setFilter] = useState<'all' | 'economy' | 'war' | 'diplomacy'>('all');
+
+  const filteredEvents = React.useMemo(() => {
+    if (!worldFeed || worldFeed.length === 0) return [];
+    const list = [...worldFeed].sort((a, b) => (b.occurredAt || 0) - (a.occurredAt || 0));
+    if (filter === 'all') return list;
+    return list.filter(evt => {
+      const cat = getEventCategory(evt);
+      return cat === filter;
+    });
+  }, [worldFeed, filter]);
+
+  const renderItem = ({ item }: { item: any }) => {
+    const severityColor =
+      item.severity === 'critical'
+        ? '#E24A4A'
+        : item.severity === 'warning'
+        ? '#F8E71C'
+        : '#50E3C2';
+    return (
+      <View style={styles.eventCard}>
+        <View style={styles.eventHeader}>
+          <Text style={[styles.eventSeverity, { color: severityColor }]}>
+            ● {item.severity?.toUpperCase() || 'INFO'}
+          </Text>
+          <Text style={styles.eventTitle}>{item.title}</Text>
+        </View>
+        <Text style={styles.eventDetails}>{item.details}</Text>
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.feedContainer}>
+      <Text style={[styles.sectionTitle, { marginHorizontal: 16, marginTop: 12 }]}>
+        Eventos em Tempo Real (Mundo Vivo)
+      </Text>
+      <View style={styles.filterBar}>
+        {(['all', 'economy', 'war', 'diplomacy'] as const).map((cat) => {
+          const label =
+            cat === 'all'
+              ? 'Tudo'
+              : cat === 'economy'
+              ? 'Economia'
+              : cat === 'war'
+              ? 'Guerra'
+              : 'Diplomacia';
+          const active = filter === cat;
+          return (
+            <TouchableOpacity
+              key={cat}
+              style={[styles.filterChip, active && styles.filterChipActive]}
+              onPress={() => setFilter(cat)}
+            >
+              <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {filteredEvents.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>
+            Nenhum evento desta categoria registrado no império.
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredEvents}
+          keyExtractor={(item, index) => item.id || String(index)}
+          renderItem={renderItem}
+          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          initialNumToRender={15}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={true}
+        />
+      )}
     </View>
   );
 }
@@ -831,4 +960,35 @@ const styles = StyleSheet.create({
   eventDetails: { color: '#CCCCCC', fontSize: 13, lineHeight: 18 },
   emptyContainer: { padding: 40, alignItems: 'center' },
   emptyText: { color: '#666', fontStyle: 'italic' },
+  feedContainer: {
+    flex: 1,
+  },
+  filterBar: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    marginVertical: 8,
+    gap: 8,
+  },
+  filterChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: '#1E242C',
+    borderWidth: 1,
+    borderColor: '#30363D',
+  },
+  filterChipActive: {
+    backgroundColor: '#D4AF37',
+    borderColor: '#D4AF37',
+  },
+  filterChipText: {
+    color: '#A0A6AD',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  filterChipTextActive: {
+    color: '#0D1117',
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });

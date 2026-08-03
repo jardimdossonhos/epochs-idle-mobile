@@ -1,43 +1,74 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, Modal, TouchableOpacity, Animated } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { StyleSheet, Text, View, Modal, TouchableOpacity } from 'react-native';
 import { useGameState } from '../GameProvider';
+import { useUIStore } from '../store/game-store';
+
+// ---------------------------------------------------------------------------
+// Tipos de evento que NUNCA devem aparecer como popup bloqueante,
+// independente do reino (sempre apenas no feed).
+// ---------------------------------------------------------------------------
+const FEED_ONLY_TYPES = new Set([
+  'technology.completed',        // pesquisa concluída — qualquer reino
+  'npc.decision',                // movimentos de NPC
+  'religion.mission_started',    // início de missão religiosa
+  'religion.conversion_progress',// progresso de conversão
+  'economy.food_shortage',       // escassez de alimentos rotineira
+  'population.unrest_warning',   // aviso de agitação rotineiro
+  'war.escalated',               // escalada de guerra (agrupada no feed)
+  'war.region_captured',         // captura de região (agrupada no feed)
+]);
 
 export default function EventPopup() {
-  const { gameState } = useGameState();
+  const { gameState, playerKingdomId } = useGameState();
+  const speedMultiplier = useUIStore(s => s.speedMultiplier);
   const [queue, setQueue] = useState<any[]>([]);
-  // useRef: IDs dispensados não precisam provocar re-render — apenas evitar duplicatas na fila
-  const dismissedIds = React.useRef<Set<string>>(new Set());
-  
-  // Efeito para detectar novos eventos — protegido contra burst de falência
+  const dismissedIds = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (!gameState) return;
-    
-    // Limite de burst: nunca empilhar mais de 3 eventos por ciclo de 4 FPS
-    const MAX_BURST = 3;
-    const recentEvents = gameState.events.slice(-10); 
-    const newEvents = recentEvents
-      .filter(e => (e as any).severity !== 'log' && !dismissedIds.current.has(e.id))
-      .slice(0, MAX_BURST);
-    
+
+    // Regra 1: Silenciador de velocidade.
+    // Qualquer velocidade acima de 1x → sem popups. Tudo vai pro feed.
+    if (speedMultiplier > 1) {
+      if (queue.length > 0) setQueue([]);
+      return;
+    }
+
+    // Regra 2: Apenas eventos CRÍTICOS ou WARNINGS do próprio reino do jogador
+    // devem gerar popup. Eventos 'info' e eventos de outros reinos vão só pro feed.
+    const MAX_BURST = 2;
+    const recentEvents = gameState.events.slice(-15);
+
+    const newEvents = recentEvents.filter(e => {
+      if (dismissedIds.current.has(e.id)) return false;
+
+      // Bloqueia tipos que são inerentemente "feed-only"
+      if (FEED_ONLY_TYPES.has((e as any).type)) return false;
+
+      // Bloqueia eventos de outros reinos (NPCs)
+      if ((e as any).actorKingdomId && (e as any).actorKingdomId !== playerKingdomId) return false;
+
+      // Bloqueia severity 'info' — não é urgente o suficiente para interromper o jogador
+      if ((e as any).severity === 'info') return false;
+
+      // Passa: warning ou critical do próprio reino do jogador
+      return (e as any).severity === 'warning' || (e as any).severity === 'critical';
+    }).slice(0, MAX_BURST);
+
     if (newEvents.length > 0) {
       setQueue(prev => {
-        // Filtrar duplicatas já na fila usando IDs existentes
         const existingIds = new Set(prev.map((q: any) => q.id));
         const truly_new = newEvents.filter(e => !existingIds.has(e.id));
         return truly_new.length > 0 ? [...prev, ...truly_new] : prev;
       });
     }
-  }, [gameState?.events]);
+  }, [gameState?.events?.[0]?.id || '', speedMultiplier, playerKingdomId]);
+
 
   if (queue.length === 0) return null;
 
   const currentEvent = queue[0];
 
-  // Filtro de log/severity no topo da fila
-  if ((currentEvent as any).severity === 'log') {
-    // Descarta eventos de log silenciosamente sem setState no render
-    return null;
-  }
 
   const handleDismiss = () => {
     dismissedIds.current.add(currentEvent.id);

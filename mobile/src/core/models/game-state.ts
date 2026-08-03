@@ -73,6 +73,11 @@ export interface KingdomState {
   stability: number;
   color?: string; // Cor oficial do estandarte do reino
   npc?: NpcBehaviorState;
+  governmentSystemId?: string; // ID do sistema de governo ativo no Registro de Governos
+  unlockedGovernmentIds?: string[]; // Histórico: governos que já foram o regime ativo em algum momento (marco permanente)
+  availableGovernmentIds?: string[]; // Desbloqueados mas nunca adotados (pré-requisitos atendidos; aguardando adoção)
+  hasAscended?: boolean; // Era Estatal: se true, o jogador formalizou o Estado na Cerimônia de Ascensão — ONE-WAY STREET
+  ascensionPostponed?: boolean; // Se true, o jogador optou por preservar as tradições tribais e adiar ascensão
 }
 
 export interface WarFront {

@@ -169,7 +169,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
     
     return {
       totalGold: goldSum,
-      totalPopulation: popSum,
+      totalPopulation: Math.floor(popSum),
       totalDefense: defenseSum
     };
   }, [regionId, isMergedView, getContiguousRegions, regionIndexMap, gameState, getRegionDefense]);
@@ -317,7 +317,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoKey}>PopulaÃ§Ã£o:</Text>
-            <Text style={styles.infoVal}>{totalPopulation.toLocaleString()}</Text>
+            <Text style={styles.infoVal}>{Math.floor(totalPopulation).toLocaleString()}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoKey}>Defesa:</Text>

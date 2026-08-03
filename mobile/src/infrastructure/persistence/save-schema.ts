@@ -283,6 +283,15 @@ export function migrateStateToCurrent(state: GameState): GameState {
     if (typeof kingdom.religion.holyWarCooldownUntil !== "number") {
       kingdom.religion.holyWarCooldownUntil = 0;
     }
+    if (typeof kingdom.hasAscended !== "boolean") {
+      kingdom.hasAscended = false;
+    }
+    if (typeof kingdom.ascensionPostponed !== "boolean") {
+      kingdom.ascensionPostponed = false;
+    }
+    if (typeof (kingdom as any).governmentSystemId !== "string" || (kingdom as any).governmentSystemId.length === 0) {
+      (kingdom as any).governmentSystemId = kingdom.hasAscended === true ? "monarchy" : "band";
+    }
   }
 
   for (const regionId of Object.keys(migrated.world.regions).sort()) {

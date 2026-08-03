@@ -127,6 +127,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       // Filtro de Tick: Previne vazamento de referências e loops infinitos no React (Maximum update depth)
       let lastRenderedTick = -1;
       let lastEventsLength = -1;
+      let lastTopEventId = '';
 
       // Start UI sync bridge (4 FPS)
       syncInterval = setInterval(() => {
@@ -141,45 +142,87 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             // e?.stock?.gold estava sempre zerado pois a engine migrou para TypedArrays
             let ecsStock = { gold: 0, food: 0, wood: 0, iron: 0, faith: 0, legitimacy: 0 } as any;
             try { ecsStock = newSession.getPlayerEcsStock(); } catch (_) {}
-            useUIStore.setState({
-              tick: state?.meta?.tick ?? 0,
-              isPaused: state?.meta?.paused ?? false,
-              playerGold: ecsStock.gold ?? 0,
-              playerFood: ecsStock.food ?? 0,
-              playerWood: ecsStock.wood ?? 0,
-              playerIron: ecsStock.iron ?? 0,
-              playerFaith: ecsStock.faith ?? 0,
-              playerLegitimacy: ecsStock.legitimacy ?? 0,
-              playerGoldIncome: e?.incomePerTick?.gold ?? 0,
-              playerFoodIncome: e?.incomePerTick?.food ?? 0,
-              playerWoodIncome: e?.incomePerTick?.wood ?? 0,
-              playerIronIncome: e?.incomePerTick?.iron ?? 0,
-              playerFaithIncome: e?.incomePerTick?.faith ?? 0,
-              playerLegitimacyIncome: e?.incomePerTick?.legitimacy ?? 0,
-              playerPopulation: k?.population?.total ?? 0,
-              playerRegions: k?.ownedRegionIds?.length ?? 0,
-              playerCorruption: e?.corruption ?? 0,
-              playerInflation: e?.inflation ?? 0,
-              playerTaxBaseRate: t?.baseRate ?? 0.2,
-              playerTaxNobleRelief: t?.nobleRelief ?? 0.1,
-              playerTaxClergyExemption: t?.clergyExemption ?? 0.08,
-              playerTaxTariffRate: t?.tariffRate ?? 0.12,
-              playerBudgetEconomy: e?.budgetPriority?.economy ?? 0,
-              playerBudgetMilitary: e?.budgetPriority?.military ?? 0,
-              playerBudgetReligion: e?.budgetPriority?.religion ?? 0,
-              playerBudgetAdministration: e?.budgetPriority?.administration ?? 0,
-              playerBudgetTechnology: e?.budgetPriority?.technology ?? 0,
-              playerStability: Math.min(100, Math.max(0, (k as any)?.stats?.stability ?? 100)),
-              ...(state.events.length !== lastEventsLength ? { worldFeed: state.events.filter(e => (e as any).severity === 'log' || (e as any).severity === 'info').slice(-20) } : {})
-            });
-            lastEventsLength = state.events.length;
+
+            const currentTopEventId = state.events[0]?.id || '';
+            const shouldUpdateFeed = state.events.length !== lastEventsLength || currentTopEventId !== lastTopEventId;
+
+            const nextTick = state?.meta?.tick ?? 0;
+            const nextPaused = state?.meta?.paused ?? false;
+            const nextAscended = Boolean(k?.hasAscended);
+            const nextEligible = !k?.hasAscended && (k?.population?.total ?? 0) >= 1000 && nextTick >= 12 && Boolean(k?.technology?.unlocked?.includes('sedentism'));
+            const nextPostponed = Boolean(k?.ascensionPostponed);
+
+            const currStore = useUIStore.getState();
+            const nextUnlockedTechs = k?.technology?.unlocked ?? [];
+            const techsChanged =
+              currStore.playerUnlockedTechs.length !== nextUnlockedTechs.length ||
+              !currStore.playerUnlockedTechs.every((val, idx) => val === nextUnlockedTechs[idx]);
+
+            const shouldUpdateStore =
+              currStore.tick !== nextTick ||
+              currStore.isPaused !== nextPaused ||
+              shouldUpdateFeed ||
+              Math.abs(currStore.playerGold - (ecsStock.gold ?? 0)) > 0.01 ||
+              currStore.playerHasAscended !== nextAscended ||
+              currStore.playerAscensionEligible !== nextEligible ||
+              currStore.playerAscensionPostponed !== nextPostponed ||
+              techsChanged;
+
+            if (shouldUpdateStore) {
+              const stableTechs = techsChanged ? nextUnlockedTechs : currStore.playerUnlockedTechs;
+              requestAnimationFrame(() => {
+                useUIStore.setState({
+                  tick: nextTick,
+                  isPaused: nextPaused,
+                  playerGold: ecsStock.gold ?? 0,
+                  playerFood: ecsStock.food ?? 0,
+                  playerWood: ecsStock.wood ?? 0,
+                  playerIron: ecsStock.iron ?? 0,
+                  playerFaith: ecsStock.faith ?? 0,
+                  playerLegitimacy: ecsStock.legitimacy ?? 0,
+                  playerGoldIncome: e?.incomePerTick?.gold ?? 0,
+                  playerFoodIncome: e?.incomePerTick?.food ?? 0,
+                  playerWoodIncome: e?.incomePerTick?.wood ?? 0,
+                  playerIronIncome: e?.incomePerTick?.iron ?? 0,
+                  playerFaithIncome: e?.incomePerTick?.faith ?? 0,
+                  playerLegitimacyIncome: e?.incomePerTick?.legitimacy ?? 0,
+                  playerPopulation: Math.floor(k?.population?.total ?? 0),
+                  playerRegions: k?.ownedRegionIds?.length ?? 0,
+                  playerCorruption: e?.corruption ?? 0,
+                  playerInflation: e?.inflation ?? 0,
+                  playerTaxBaseRate: t?.baseRate ?? 0.2,
+                  playerTaxNobleRelief: t?.nobleRelief ?? 0.1,
+                  playerTaxClergyExemption: t?.clergyExemption ?? 0.08,
+                  playerTaxTariffRate: t?.tariffRate ?? 0.12,
+                  playerBudgetEconomy: e?.budgetPriority?.economy ?? 0,
+                  playerBudgetMilitary: e?.budgetPriority?.military ?? 0,
+                  playerBudgetReligion: e?.budgetPriority?.religion ?? 0,
+                  playerBudgetAdministration: e?.budgetPriority?.administration ?? 0,
+                  playerBudgetTechnology: e?.budgetPriority?.technology ?? 0,
+                  playerStability: Math.min(100, Math.max(0, (k as any)?.stability ?? 100)),
+                  speedMultiplier: state?.meta?.speedMultiplier ?? 1,
+                  playerUnlockedTechs: stableTechs,
+                  playerHasAscended: nextAscended,
+                  playerAscensionEligible: nextEligible,
+                  playerAscensionPostponed: nextPostponed,
+                  ...(shouldUpdateFeed ? { worldFeed: state.events.slice(-100) } : {})
+                });
+              });
+            }
+
+            if (shouldUpdateFeed) {
+              lastEventsLength = state.events.length;
+              lastTopEventId = currentTopEventId;
+            }
             
             // Vacina Cirúrgica (Contexto):
             // Só avança a árvore de contexto lenta se o Tick realmente progrediu.
             // Removemos o `{...state}` para preservar a referência de clones saudáveis da Engine.
             if (state.meta.tick !== lastRenderedTick) {
                 lastRenderedTick = state.meta.tick;
-                setGameState(state);
+                requestAnimationFrame(() => {
+                  setGameState(state);
+                });
             }
           }
         }
