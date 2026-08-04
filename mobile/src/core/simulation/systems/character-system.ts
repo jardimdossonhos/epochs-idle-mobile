@@ -4,6 +4,7 @@ import { createEventId } from "./utils";
 import type { Character } from "../../models/character";
 import { SOVEREIGN_TRAITS } from "../../models/character";
 import { CultureId, generateCulturalName, generatePortraitSeed, getRandomGender } from "./culture-generator";
+import { pruneWorldMemory } from "./memory-clamp";
 
 // Títulos para geração de herdeiros (mantemos os títulos de realeza)
 const HEIR_TITLES = ["Príncipe", "Princesa", "Herdeiro", "Herdeira", "Sucessor", "Sucessora"];
@@ -216,6 +217,9 @@ export function createCharacterSystem(): SimulationSystem {
           }
         }
       }
+
+      // Garbage Collection Cívico: executa 1x por ano simulado para evitar Out of Memory em 15x/30x
+      pruneWorldMemory(state);
     }
   };
 }
