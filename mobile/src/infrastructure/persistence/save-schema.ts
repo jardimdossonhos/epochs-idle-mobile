@@ -110,18 +110,55 @@ function migrateTreaties(state: GameState): void {
   }
 }
 
+function sanitizeEcsState(ecs: any): void {
+  if (!ecs) return;
+  const INT_KEYS = new Set(["regionOwner", "factionCasualties", "cmdType", "cmdFaction"]);
+  const SCALAR_KEYS = new Set(["accumulatedSimulatedTime", "conquestEpoch", "cmdHead", "cmdTail"]);
+
+  for (const key of Object.keys(ecs)) {
+    const data = ecs[key];
+    if (data === undefined || data === null) continue;
+    if (SCALAR_KEYS.has(key) || typeof data === "number") continue;
+
+    const values = Array.isArray(data) ? data : (typeof data === "object" ? Object.values(data) : []);
+    if (INT_KEYS.has(key)) {
+      if (!(data instanceof Int32Array)) {
+        ecs[key] = new Int32Array(values as number[]);
+      }
+    } else {
+      if (!(data instanceof Float64Array) && !(data instanceof Float32Array)) {
+        ecs[key] = new Float64Array(values as number[]);
+      }
+    }
+  }
+
+  // Sanear e restaurar campos do ECS que possam ter sido perdidos em saves truncados legados
+  const TOTAL_REGIONS = 10000;
+  const TOTAL_FACTIONS = 256;
+  if (!ecs.regionOwner) ecs.regionOwner = new Int32Array(TOTAL_REGIONS).fill(-1);
+  if (!ecs.regionCaptureProgress) ecs.regionCaptureProgress = new Float32Array(TOTAL_REGIONS);
+  if (!ecs.regionSupplyCapacity) ecs.regionSupplyCapacity = new Float32Array(TOTAL_REGIONS);
+  if (!ecs.regionCurrentSupply) ecs.regionCurrentSupply = new Float32Array(TOTAL_REGIONS);
+  if (!ecs.regionManpowerYield) ecs.regionManpowerYield = new Float32Array(TOTAL_REGIONS);
+  if (!ecs.regionManpowerCap) ecs.regionManpowerCap = new Float32Array(TOTAL_REGIONS);
+  if (!ecs.regionGoldYield) ecs.regionGoldYield = new Float32Array(TOTAL_REGIONS);
+  if (!ecs.factionManpowerCap) ecs.factionManpowerCap = new Float32Array(TOTAL_FACTIONS);
+  if (!ecs.factionGoldBalance) ecs.factionGoldBalance = new Float32Array(TOTAL_FACTIONS);
+  if (!ecs.factionManpowerReserve) ecs.factionManpowerReserve = new Float32Array(TOTAL_FACTIONS);
+  if (!ecs.factionCasualties) ecs.factionCasualties = new Int32Array(TOTAL_FACTIONS);
+  if (typeof ecs.accumulatedSimulatedTime !== "number") ecs.accumulatedSimulatedTime = 0;
+  if (typeof ecs.conquestEpoch !== "number") ecs.conquestEpoch = 0;
+  if (typeof ecs.cmdHead !== "number") ecs.cmdHead = 0;
+  if (typeof ecs.cmdTail !== "number") ecs.cmdTail = 0;
+}
+
 export function migrateStateToCurrent(state: GameState): GameState {
   const migrated = structuredClone(state);
   migrateWars(migrated);
   migrateTreaties(migrated);
 
   if (migrated.ecs) {
-    for (const key of Object.keys(migrated.ecs) as Array<keyof typeof migrated.ecs>) {
-      const data = migrated.ecs[key];
-      if (data && !(data instanceof Float64Array)) {
-        migrated.ecs[key] = new Float64Array(Object.values(data));
-      }
-    }
+    sanitizeEcsState(migrated.ecs);
   }
 
   const worldMutable = migrated.world as GameState["world"] & {

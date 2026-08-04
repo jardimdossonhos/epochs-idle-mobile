@@ -79,6 +79,21 @@ export interface RuntimeMetrics {
 // Cache de Indexação Global: Transforma buscas O(N) em O(1)
 const REGION_INDEX_MAP = new Map<string, number>();
 
+function serializeEcsState(ecs?: EcsState): any {
+  if (!ecs) return undefined;
+  const serialized: any = {};
+  for (const key of Object.keys(ecs) as Array<keyof EcsState>) {
+    const val = (ecs as any)[key];
+    if (val === undefined || val === null) continue;
+    if (val instanceof Float64Array || val instanceof Float32Array || val instanceof Int32Array || Array.isArray(val)) {
+      serialized[key] = Array.from(val);
+    } else {
+      serialized[key] = val;
+    }
+  }
+  return serialized;
+}
+
 export class GameSession {
   private readonly pipeline: TickPipeline;
   private readonly listeners = new Set<StateListener>();
@@ -302,17 +317,7 @@ export class GameSession {
     const safeState = structuredClone(this.currentState);
     if (safeState.ecs) {
       // Bypass no structuredClone: extraímos os arrays nativos da fonte viva imune à corrupção de Proxy
-      safeState.ecs = {
-        gold: Array.from(this.currentState.ecs?.gold || []),
-        food: Array.from(this.currentState.ecs?.food || []),
-        wood: Array.from(this.currentState.ecs?.wood || []),
-        iron: Array.from(this.currentState.ecs?.iron || []),
-        faith: Array.from(this.currentState.ecs?.faith || []),
-        legitimacy: Array.from(this.currentState.ecs?.legitimacy || []),
-        populationTotal: Array.from(this.currentState.ecs?.populationTotal || []),
-        populationGrowthRate: Array.from(this.currentState.ecs?.populationGrowthRate || []),
-        manpower: Array.from(this.currentState.ecs?.manpower || []),
-      } as any;
+      safeState.ecs = serializeEcsState(this.currentState.ecs);
     }
 
     if (sync) {
@@ -1652,17 +1657,7 @@ export class GameSession {
     this.doCommitAutosave();
     const safeState = structuredClone(this.currentState);
     if (safeState.ecs) {
-      safeState.ecs = {
-        gold: Array.from(this.currentState.ecs?.gold || []),
-        food: Array.from(this.currentState.ecs?.food || []),
-        wood: Array.from(this.currentState.ecs?.wood || []),
-        iron: Array.from(this.currentState.ecs?.iron || []),
-        faith: Array.from(this.currentState.ecs?.faith || []),
-        legitimacy: Array.from(this.currentState.ecs?.legitimacy || []),
-        populationTotal: Array.from(this.currentState.ecs?.populationTotal || []),
-        populationGrowthRate: Array.from(this.currentState.ecs?.populationGrowthRate || []),
-        manpower: Array.from(this.currentState.ecs?.manpower || []),
-      } as any;
+      safeState.ecs = serializeEcsState(this.currentState.ecs);
     }
     this.enqueueIo(async () => {
       await this.deps.gameStateRepository.saveCurrent(safeState);
@@ -2906,19 +2901,9 @@ export class GameSession {
       meta: { ...state.meta }
     };
 
-    // Converte os Float64Arrays do ECS para Arrays normais para garantir a serialização
+    // Converte os TypedArrays do ECS para Arrays normais sem truncar nenhuma propriedade do ECS
     if (state.ecs) {
-      stateCopy.ecs = {
-        gold: Array.from(state.ecs?.gold || []),
-        food: Array.from(state.ecs?.food || []),
-        wood: Array.from(state.ecs?.wood || []),
-        iron: Array.from(state.ecs?.iron || []),
-        faith: Array.from(state.ecs?.faith || []),
-        legitimacy: Array.from(state.ecs?.legitimacy || []),
-        populationTotal: Array.from(state.ecs?.populationTotal || []),
-        populationGrowthRate: Array.from(state.ecs?.populationGrowthRate || []),
-        manpower: Array.from(state.ecs?.manpower || []),
-      } as any;
+      stateCopy.ecs = serializeEcsState(state.ecs);
     }
 
     return {
