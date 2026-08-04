@@ -425,12 +425,19 @@ export class LocalWarResolver implements WarResolver {
     }
 
     const now = state.meta.lastUpdatedAt;
-    if (hasActivePeaceTreaty(state, attackerId, defenderId, now)) {
-      return state;
-    }
 
-    if (relationCooldownUntil(state, attackerId, defenderId) > now) {
-      return state;
+    // Rompimento explícito de Tratados de Paz/Trégua ou Não-Agressão existentes entre as nações
+    for (const kid of [attackerId, defenderId]) {
+      const kObj = state.kingdoms[kid];
+      if (kObj && kObj.diplomacy && kObj.diplomacy.treaties) {
+        kObj.diplomacy.treaties = kObj.diplomacy.treaties.filter(
+          t => !(
+            (t.type === TreatyType.Peace || t.type === TreatyType.NonAggression) &&
+            t.parties.includes(attackerId) &&
+            t.parties.includes(defenderId)
+          )
+        );
+      }
     }
 
     const attackers = new Set([attackerId]);

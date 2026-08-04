@@ -208,7 +208,9 @@ export class LocalDiplomacyResolver implements DiplomacyResolver {
           relation.grievance = roundTo(clamp(relation.grievance - 0.003, 0, 1));
         }
 
-        if (relation.grievance > 0.72 || (relation.score.rivalry > 0.64 && relation.score.trust < 0.28)) {
+        if (relation.status === DiplomaticRelation.Hostile) {
+          // Status Hostil é soberano e não é revertido por flutuações anuais de grievance/trust sem tratado de paz formal
+        } else if (relation.grievance > 0.72 || (relation.score.rivalry > 0.64 && relation.score.trust < 0.28)) {
           relation.status = DiplomaticRelation.Hostile;
         } else if (relation.score.trust > 0.78 && relation.score.rivalry < 0.28) {
           relation.status = DiplomaticRelation.Allied;
@@ -459,6 +461,19 @@ export class LocalDiplomacyResolver implements DiplomacyResolver {
         targetRelation.score.trust = roundTo(clamp(targetRelation.score.trust - 0.2, 0, 1));
         actorRelation.grievance = roundTo(clamp(actorRelation.grievance + 0.12, 0, 1));
         targetRelation.grievance = roundTo(clamp(targetRelation.grievance + 0.18, 0, 1));
+
+        for (const kid of [actor.id, target.id]) {
+          const kObj = state.kingdoms[kid];
+          if (kObj && kObj.diplomacy && kObj.diplomacy.treaties) {
+            kObj.diplomacy.treaties = kObj.diplomacy.treaties.filter(
+              t => !(
+                (t.type === TreatyType.Peace || t.type === TreatyType.NonAggression) &&
+                t.parties.includes(actor.id) &&
+                t.parties.includes(target.id)
+              )
+            );
+          }
+        }
 
         setPairStatus(state, actor.id, target.id, DiplomaticRelation.Hostile);
         break;
