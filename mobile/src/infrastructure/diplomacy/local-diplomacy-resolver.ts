@@ -370,19 +370,15 @@ export class LocalDiplomacyResolver implements DiplomacyResolver {
 
     switch (decision.actionType) {
       case "oferta_alianca": {
-        actorRelation.score.trust = roundTo(clamp(actorRelation.score.trust + 0.08, 0, 1));
-        targetRelation.score.trust = roundTo(clamp(targetRelation.score.trust + 0.06, 0, 1));
-        actorRelation.grievance = roundTo(clamp(actorRelation.grievance - 0.04, 0, 1));
-        targetRelation.grievance = roundTo(clamp(targetRelation.grievance - 0.05, 0, 1));
+        actorRelation.score.trust = roundTo(clamp(actorRelation.score.trust + 0.12, 0, 1));
+        targetRelation.score.trust = roundTo(clamp(targetRelation.score.trust + 0.12, 0, 1));
+        actorRelation.grievance = roundTo(clamp(actorRelation.grievance - 0.06, 0, 1));
+        targetRelation.grievance = roundTo(clamp(targetRelation.grievance - 0.06, 0, 1));
 
-        if (actorRelation.score.trust > 0.6 && targetRelation.score.trust > 0.55) {
-          registerPairTreaty(state, actor.id, target.id, TreatyType.Alliance, now, now + DEFAULT_TREATY_DURATION_MS * 2, {
-            militarySupport: true
-          });
-          setPairStatus(state, actor.id, target.id, DiplomaticRelation.Allied);
-        } else {
-          setPairStatus(state, actor.id, target.id, DiplomaticRelation.Friendly);
-        }
+        registerPairTreaty(state, actor.id, target.id, TreatyType.Alliance, now, now + DEFAULT_TREATY_DURATION_MS * 2, {
+          militarySupport: true
+        });
+        setPairStatus(state, actor.id, target.id, DiplomaticRelation.Allied);
 
         break;
       }

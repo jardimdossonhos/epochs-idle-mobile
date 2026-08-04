@@ -557,29 +557,112 @@ function createSeedRelations(state: GameState): void {
     const kingdom = state.kingdoms[id];
 
     for (const otherId of ids) {
-      if (id === otherId) {
-        continue;
+      if (id === otherId) continue;
+
+      let rivalry = 0.20;
+      let trust = 0.45;
+      let fear = 0.20;
+      let tradeValue = 0.35;
+      let borderTension = 0.18;
+      let grievance = 0.10;
+
+      // Personalidades e assimetrias diplomáticas distintas por arquétipo
+      if (otherId === "k_npc_1") { // Uruk - Expansivo e agressivo
+        rivalry = 0.38;
+        borderTension = 0.35;
+        trust = 0.35;
+      } else if (otherId === "k_npc_2") { // Nilo - Defensivo e cauteloso
+        trust = 0.55;
+        fear = 0.28;
+        grievance = 0.08;
+      } else if (otherId === "k_npc_3") { // Harappa - Mercantil e aberto
+        tradeValue = 0.65;
+        trust = 0.58;
+        rivalry = 0.12;
+      } else if (otherId === "k_npc_4") { // Xia - Hegemônico e solene
+        rivalry = 0.32;
+        fear = 0.34;
+        tradeValue = 0.42;
       }
 
-      const rivalryBias = state.kingdoms[otherId].isPlayer && !kingdom.isPlayer ? 0.24 : 0.18;
-      const trustBias = kingdom.isPlayer ? 0.5 : 0.42;
+      if (kingdom.isPlayer) {
+        trust += 0.05;
+      }
 
       kingdom.diplomacy.relations[otherId] = {
         withKingdomId: otherId,
         status: DiplomaticRelation.Neutral,
         score: {
-          trust: trustBias,
-          fear: 0.22,
-          rivalry: rivalryBias,
+          trust: clamp(trust, 0, 1),
+          fear: clamp(fear, 0, 1),
+          rivalry: clamp(rivalry, 0, 1),
           religiousTension: 0.18,
-          borderTension: 0.24,
-          tradeValue: 0.31
+          borderTension: clamp(borderTension, 0, 1),
+          tradeValue: clamp(tradeValue, 0, 1)
         },
-        grievance: 0.1,
+        grievance: clamp(grievance, 0, 1),
         allianceStrength: 0,
         actionCooldowns: {}
       };
     }
+  }
+}
+
+function createSeedRulers(state: GameState): void {
+  state.world.characters = state.world.characters || {};
+  const ids = Object.keys(state.kingdoms).filter(id => id !== "k_nature").sort();
+
+  for (const kid of ids) {
+    const kingdom = state.kingdoms[kid];
+    if (kid === "k_player") continue; // O jogador cria ou tem seu soberano gerado no fluxo do menu/onboarding
+
+    const rulerId = `char_${kid}_ruler`;
+    kingdom.rulerId = rulerId;
+    let cultureId = "latin";
+    let title = "Rei";
+    let name = "Soberano";
+
+    if (kid === "k_npc_1" || kingdom.name.includes("Uruk")) {
+      cultureId = "desert";
+      title = "Rei-Sacerdote";
+      name = "Gilgamesh de Uruk";
+    } else if (kid === "k_npc_2" || kingdom.name.includes("Nilo")) {
+      cultureId = "savanna";
+      title = "Faraó";
+      name = "Menés do Nilo";
+    } else if (kid === "k_npc_3" || kingdom.name.includes("Harappa")) {
+      cultureId = "vedic";
+      title = "Rajá";
+      name = "Dravida de Harappa";
+    } else if (kid === "k_npc_4" || kingdom.name.includes("Xia")) {
+      cultureId = "eastern";
+      title = "Imperador";
+      name = "Yu, o Grande";
+    }
+
+    state.world.characters[rulerId] = {
+      id: rulerId,
+      name,
+      title,
+      cultureId,
+      gender: "male",
+      portraitSeed: kid + "_initial_" + Math.floor(Math.random() * 9000 + 1000),
+      birthTick: 0,
+      deathTick: null,
+      isLegendary: true,
+      status: "ruler",
+      locationKingdomId: kid,
+      employerKingdomId: kid,
+      affinity: { institutionalLoyalty: 100, personalAffinity: 100 },
+      personalWealth: 500,
+      influence: 80,
+      memory: [],
+      stats: { administration: 6, martial: 6, diplomacy: 6, intrigue: 5, learning: 5 },
+      traits: [],
+      level: 2,
+      experience: 100,
+      unspentTalentPoints: 0
+    } as any;
   }
 }
 
@@ -740,6 +823,7 @@ export function createInitialState(staticData: StaticWorldData, playerStartRegio
   };
 
   createSeedRelations(state);
+  createSeedRulers(state);
 
   for (const regionId of Object.keys(state.world.regions).sort()) {
     const region = state.world.regions[regionId];

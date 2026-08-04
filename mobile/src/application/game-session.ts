@@ -1106,8 +1106,9 @@ export class GameSession {
     // A aplicação do custo agora modifica o estado do ECS (atualização otimista).
     this.applyCost(cost);
 
+    const isUnilateral = actionType === "war" || actionType === "embargo";
     const roll = this.nextRandom(state);
-    const success = roll <= chance;
+    const success = isUnilateral ? true : roll <= chance;
 
     relation.actionCooldowns[cooldownKey] = now + cooldownMs;
     const reverse = target.diplomacy.relations[player.id];
@@ -1135,6 +1136,11 @@ export class GameSession {
         if (this.deps.warResolver) {
           state = this.deps.warResolver.declareWar(state, player.id, target.id);
         }
+        // Garante reflexo visual imediato e indiscutível de hostilidade na UI e no ECS
+        const relPlayer = state.kingdoms[player.id]?.diplomacy?.relations?.[target.id];
+        const relTarget = state.kingdoms[target.id]?.diplomacy?.relations?.[player.id];
+        if (relPlayer) relPlayer.status = DiplomaticRelation.Hostile;
+        if (relTarget) relTarget.status = DiplomaticRelation.Hostile;
       }
 
       if (actionType === "tribute") {

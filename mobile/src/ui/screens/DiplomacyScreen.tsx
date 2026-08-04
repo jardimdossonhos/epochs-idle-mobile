@@ -100,6 +100,8 @@ export default function DiplomacyScreen() {
             const isSelected = selectedKingdom === id;
             const targetKingdom = gameState.kingdoms[id];
             const ruler = targetKingdom?.rulerId ? gameState.world.characters?.[targetKingdom.rulerId] : null;
+            const fallbackCulture = id === 'k_npc_1' ? 'desert' : id === 'k_npc_2' ? 'savanna' : id === 'k_npc_3' ? 'vedic' : id === 'k_npc_4' ? 'eastern' : 'latin';
+            const activeTreaties = player.diplomacy?.treaties?.filter(t => t.parties && t.parties.includes(id)) || [];
 
             return (
               <View key={id} style={[styles.card, isSelected && styles.cardSelected]}>
@@ -108,9 +110,9 @@ export default function DiplomacyScreen() {
                   onPress={() => handleSelectKingdom(id)}
                 >
                   <AvatarRenderer 
-                    cultureId={ruler?.cultureId} 
-                    seed={ruler?.portraitSeed} 
-                    gender={ruler?.gender} 
+                    cultureId={ruler?.cultureId || fallbackCulture} 
+                    seed={ruler?.portraitSeed || `${id}_ruler`} 
+                    gender={ruler?.gender || "male"} 
                     size={48} 
                   />
                   <View style={styles.cardTitleArea}>
@@ -118,6 +120,20 @@ export default function DiplomacyScreen() {
                     <Text style={[styles.charStatus, { color: getStatusColor(rel.status) }]}>
                       {RELATION_LABELS[rel.status]}
                     </Text>
+                    {activeTreaties.length > 0 && (
+                      <View style={styles.treatiesBadgeRow}>
+                        {activeTreaties.map((t, idx) => (
+                          <View key={idx} style={styles.treatyBadge}>
+                            <Text style={styles.treatyBadgeText}>
+                              {t.type === "alliance" ? "🛡️ Aliança" :
+                               t.type === "non_aggression" ? "🤝 Não Agressão" :
+                               t.type === "tribute" ? "💰 Tributário" :
+                               t.type === "peace" ? "🕊️ Trégua" : "📜 Tratado"}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
                   </View>
                   <Text style={styles.expandIcon}>{isSelected ? '▼' : '▶'}</Text>
                 </TouchableOpacity>
@@ -584,6 +600,25 @@ const styles = StyleSheet.create({
   },
   retryBtnText: {
     color: '#FFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  treatiesBadgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+    gap: 4,
+  },
+  treatyBadge: {
+    backgroundColor: '#1E2A38',
+    borderColor: '#D4AF37',
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  treatyBadgeText: {
+    color: '#D4AF37',
     fontSize: 10,
     fontWeight: 'bold',
   },
