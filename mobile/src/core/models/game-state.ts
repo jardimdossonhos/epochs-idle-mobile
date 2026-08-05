@@ -1,7 +1,7 @@
 import type { AdministrationState } from "./administration";
 import type { DiplomacyState } from "./diplomacy";
 import type { EconomyState } from "./economy";
-import type { EventLogEntry } from "./events";
+import type { DomainEvent, EventLogEntry } from "./events";
 import type { MilitaryState } from "./military";
 import type { NpcBehaviorState } from "./npc";
 import type { PopulationState } from "./population";
@@ -129,5 +129,6 @@ export interface GameState {
   victory: VictoryState;
   randomSeed: number;
   ecs?: EcsState;
+  domainEventQueue?: DomainEvent[];
 }
 

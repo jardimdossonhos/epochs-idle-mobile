@@ -115,6 +115,12 @@ export class TickPipeline {
 
     for (const system of this.systems) {
       system.run(context);
+      
+      // Merge pure infrastructure domain events that were pushed to the state queue
+      if (context.nextState.domainEventQueue && context.nextState.domainEventQueue.length > 0) {
+        context.events.push(...context.nextState.domainEventQueue);
+        context.nextState.domainEventQueue = [];
+      }
     }
 
     context.nextState.meta.tick += tickScale;

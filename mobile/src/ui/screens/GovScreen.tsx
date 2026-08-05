@@ -69,7 +69,7 @@ const DIRECTIVES: DirectiveDef[] = [
 
 export default function GovScreen() {
   const insets = useSafeAreaInsets();
-  const { session, playerKingdomId } = useGameState();
+  const { gameState, session, playerKingdomId } = useGameState();
   const [activeTab, setActiveTab] = useState<'economy' | 'laws' | 'automation' | 'events'>('economy');
 
   const bootstrapDone = React.useRef(false);
@@ -269,7 +269,7 @@ export default function GovScreen() {
       </View>
 
       {activeTab === 'events' ? (
-        <EventFeedTab worldFeed={worldFeed} />
+        <EventFeedTab worldFeed={worldFeed} gameState={gameState} session={session} playerKingdomId={playerKingdomId} />
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           {activeTab === 'economy' && (
@@ -497,6 +497,10 @@ export default function GovScreen() {
 }
 
 function getEventCategory(evt: any): 'all' | 'economy' | 'war' | 'diplomacy' {
+  if (evt.category && ['economy', 'war', 'diplomacy'].includes(evt.category)) {
+    return evt.category;
+  }
+  // Fallback para saves antigos que ainda usam text scraping:
   const text = `${evt.groupKey || ''} ${evt.title || ''} ${evt.details || ''} ${evt.type || ''}`.toLowerCase();
   if (
     text.includes('war') ||
@@ -549,7 +553,7 @@ function getEventCategory(evt: any): 'all' | 'economy' | 'war' | 'diplomacy' {
   return 'all';
 }
 
-function EventFeedTab({ worldFeed }: { worldFeed: any[] }) {
+function EventFeedTab({ worldFeed, gameState, session, playerKingdomId }: { worldFeed: any[], gameState: any, session: any, playerKingdomId: string }) {
   const [filter, setFilter] = useState<'all' | 'economy' | 'war' | 'diplomacy'>('all');
 
   const filteredEvents = React.useMemo(() => {
@@ -566,9 +570,17 @@ function EventFeedTab({ worldFeed }: { worldFeed: any[] }) {
     const severityColor =
       item.severity === 'critical'
         ? '#E24A4A'
+        : item.severity === 'danger'
+        ? '#FF3333'
         : item.severity === 'warning'
         ? '#F8E71C'
         : '#50E3C2';
+
+    const kingdom = gameState?.kingdoms?.[playerKingdomId];
+    const activeProposal = item.requiresAction && item.actionPayload?.proposalId
+      ? kingdom?.diplomacy?.proposals?.find((p: any) => p.id === item.actionPayload?.proposalId)
+      : null;
+
     return (
       <View style={styles.eventCard}>
         <View style={styles.eventHeader}>
@@ -578,6 +590,26 @@ function EventFeedTab({ worldFeed }: { worldFeed: any[] }) {
           <Text style={styles.eventTitle}>{item.title}</Text>
         </View>
         <Text style={styles.eventDetails}>{item.details}</Text>
+
+        {item.requiresAction && activeProposal && (
+           <View style={{ flexDirection: 'row', marginTop: 12, gap: 12 }}>
+              <TouchableOpacity 
+                style={{ backgroundColor: '#50E3C2', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 4, flex: 1, alignItems: 'center' }}
+                onPress={() => session.acceptProposal(activeProposal.id)}
+              >
+                <Text style={{ color: '#000', fontWeight: 'bold' }}>Aceitar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{ backgroundColor: '#E24A4A', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 4, flex: 1, alignItems: 'center' }}
+                onPress={() => session.rejectProposal(activeProposal.id)}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Recusar</Text>
+              </TouchableOpacity>
+           </View>
+        )}
+        {item.requiresAction && !activeProposal && (
+           <Text style={{ color: '#888', fontStyle: 'italic', marginTop: 8 }}>[ Proposta Expirada ou Resolvida ]</Text>
+        )}
       </View>
     );
   };

@@ -5,6 +5,7 @@ import type { GameState, KingdomState, WarFront, WarState } from "../../core/mod
 import { buildTreatyId, sortUniqueIds, buildWarIdFromSides } from "../../core/models/identifiers";
 import type { StaticWorldData } from "../../core/models/static-world-data";
 import type { KingdomId } from "../../core/models/types";
+import type { DomainEvent } from "../../core/models/events";
 
 const PEACE_TREATY_DURATION_MS = 1000 * 60 * 28;
 const WAR_DECLARATION_COOLDOWN_MS = 1000 * 60 * 6;
@@ -495,6 +496,16 @@ export class LocalWarResolver implements WarResolver {
       state.kingdoms[d].diplomacy.warExhaustion = roundTo(clamp(state.kingdoms[d].diplomacy.warExhaustion + 0.03, 0, 1));
     }
 
+    state.domainEventQueue = state.domainEventQueue || [];
+    state.domainEventQueue.push({
+      id: `war_dec_${now}_${attackerId}_${defenderId}`,
+      type: "diplomacy.war_declared",
+      payload: { attackerId, defenderId, warId, attackers: Array.from(attackers), defenders: Array.from(defenders) },
+      occurredAt: now,
+      actorKingdomId: attackerId,
+      targetKingdomId: defenderId
+    } as unknown as DomainEvent);
+
     return state;
   }
 
@@ -536,11 +547,6 @@ export class LocalWarResolver implements WarResolver {
       const attackerPower = participantPower(state, war.attackers);
       const defenderPower = participantPower(state, war.defenders);
       const combinedPower = Math.max(1, attackerPower + defenderPower);
-
-      if (attackerPower < 300 || defenderPower < 300) {
-        warsToPeace.push(war.id);
-        continue;
-      }
 
       const pressureDelta = (attackerPower - defenderPower) / combinedPower;
       war.warScore = roundTo(clamp(war.warScore + pressureDelta * 19, -100, 100));

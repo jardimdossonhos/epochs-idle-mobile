@@ -14,7 +14,8 @@ export interface EventLogEntry {
   id: EventId;
   title: string;
   details: string;
-  severity: "info" | "warning" | "critical";
+  severity: "info" | "warning" | "critical" | "danger" | "success";
+  category?: "economy" | "war" | "diplomacy";
   occurredAt: TimestampMs;
   groupKey?: string;
   count?: number;
@@ -22,4 +23,6 @@ export interface EventLogEntry {
   actorKingdomId?: KingdomId;
   targetKingdomId?: KingdomId;
   regionId?: string;
+  requiresAction?: boolean;
+  actionPayload?: Record<string, any>;
 }

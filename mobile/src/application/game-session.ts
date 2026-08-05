@@ -23,7 +23,9 @@ import type { StaticWorldData } from "../core/models/static-world-data";
 import { buildStateHash } from "../core/utils/state-fingerprint";
 import { hashDeterministic } from "../core/utils/stable-hash";
 import { cloneGameStateForSimulation } from "../core/utils/clone-game-state";
+import { resolveProposal } from "../infrastructure/diplomacy/local-diplomacy-resolver";
 import { TickPipeline, type SimulationSystem } from "../core/simulation/tick-pipeline";
+import { parseDomainEventToLogEntry } from "../core/simulation/systems/event-log-system";
 import { generateRoutineAdvice } from "../core/simulation/systems/council-system";
 import { AUTOSAVE_SLOT_ID, MANUAL_SLOT_ID } from "../infrastructure/persistence/save-slots";
 import { geminiService } from "./ai/gemini-service";
@@ -638,6 +640,24 @@ export class GameSession {
     return { ok: true, message: "Relatório arquivado." };
   }
 
+  public acceptProposal(proposalId: string): PlayerActionResult {
+    this.executeSyncAction((state) => {
+      const player = this.getPlayerKingdom(state);
+      resolveProposal(state, proposalId, player.id, true, state.meta.lastUpdatedAt);
+      return state;
+    });
+    return { ok: true, message: "Proposta aceita." };
+  }
+
+  public rejectProposal(proposalId: string): PlayerActionResult {
+    this.executeSyncAction((state) => {
+      const player = this.getPlayerKingdom(state);
+      resolveProposal(state, proposalId, player.id, false, state.meta.lastUpdatedAt);
+      return state;
+    });
+    return { ok: true, message: "Proposta recusada." };
+  }
+
   public interactMinister(role: MinisterRole, interaction: "praise" | "threaten" | "consult" | "raise_salary" | "cut_salary"): PlayerActionResult {
     const state = this.requireState();
     const player = this.getPlayerKingdom(state);
@@ -1190,8 +1210,7 @@ export class GameSession {
       roll: this.round(roll, 4),
       success
     });
-    this.persistCurrent();
-    this.emitState();
+    this.executeSyncAction((_) => state);
 
     return {
       ok: success,
@@ -2983,6 +3002,30 @@ export class GameSession {
     for (const stale of entries.slice(maxSnapshots)) {
       await repository.delete(stale.id);
     }
+  }
+
+  private executeSyncAction(actionFn: (state: GameState) => GameState): void {
+    let state = this.requireState();
+    
+    // 1. Executa a mutação de domínio
+    state = actionFn(state);
+    
+    // 2. Micro-Tick de Eventos (Flush Síncrono)
+    if (state.domainEventQueue && state.domainEventQueue.length > 0) {
+      const newLogEntries = state.domainEventQueue
+        .map((evt) => parseDomainEventToLogEntry(evt, state, this.deps.staticWorldData))
+        .filter(Boolean); // Remove nulos
+          
+      // Insere no Feed da UI imediatamente
+      state.events = [...newLogEntries, ...state.events].slice(0, 180);
+      
+      // Esvazia a fila para não ser duplicada no próximo TickPipeline
+      state.domainEventQueue = [];
+    }
+
+    this.currentState = state;
+    this.persistCurrent();
+    this.emitState();
   }
 
   private persistCurrent(): void {

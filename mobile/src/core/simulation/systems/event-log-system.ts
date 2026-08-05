@@ -7,14 +7,19 @@ interface EventDescriptor {
   title: string;
   details: string;
   severity: EventLogEntry["severity"];
+  category?: EventLogEntry["category"];
   groupKey?: string;
   suggestedAction?: string;
+  requiresAction?: boolean;
+  actionPayload?: Record<string, any>;
 }
 
 const SEVERITY_RANK: Record<EventLogEntry["severity"], number> = {
   info: 0,
+  success: 0,
   warning: 1,
-  critical: 2
+  danger: 2,
+  critical: 3
 };
 
 function kingdomName(state: GameState, kingdomId: string | undefined): string {
@@ -352,10 +357,76 @@ function describeEvent(event: DomainEvent, state: GameState, staticData: StaticW
         groupKey: `council.advice_issued|${event.actorKingdomId ?? "none"}`
       };
     }
-    default:
+    case "diplomacy.proposal_received": {
+      const senderName = kingdomName(state, String(event.payload.senderId));
+      const tType = Number(event.payload.treatyType);
+      
+      let tName = "um Tratado";
+      if (tType === 1) tName = "uma Aliança";
+      else if (tType === 2) tName = "um Pacto de Defesa";
+      else if (tType === 3) tName = "um Pacto de Não-Agressão";
+      else if (tType === 4) tName = "um Acordo Comercial";
+      else if (tType === 5) tName = "um Tratado de Paz";
+      else if (tType === 6) tName = "Suserania";
+      else if (tType === 7) tName = "Tributo";
+      else if (tType === 8) tName = "um Embargo";
+
       return {
-        title: "Evento estratégico",
-        details: JSON.stringify(event.payload),
+        title: "Proposta Diplomática",
+        details: `${senderName} propõe ${tName}. Aguardando sua decisão.`,
+        severity: "warning",
+        category: "diplomacy",
+        requiresAction: true,
+        actionPayload: { proposalId: event.payload.proposalId },
+        groupKey: `prop_${event.payload.proposalId}`
+      };
+    }
+    case "diplomacy.war_declared": {
+      const attackerName = kingdomName(state, String(event.payload.attackerId));
+      const defenderName = kingdomName(state, String(event.payload.defenderId));
+      
+      const playerKingdom = Object.values(state.kingdoms).find(k => k.isPlayer);
+      const isPlayerInvolved = playerKingdom && (event.payload.attackerId === playerKingdom.id || event.payload.defenderId === playerKingdom.id);
+
+      return {
+        title: "Guerra Declarada",
+        details: `${attackerName} declarou guerra formalmente contra ${defenderName}. As hostilidades foram iniciadas.`,
+        severity: isPlayerInvolved ? "danger" : "info",
+        category: "war",
+        groupKey: `war_${event.payload.warId}`
+      };
+    }
+    case "diplomacy.treaty_signed": {
+      const leftName = kingdomName(state, String(event.payload.leftId));
+      const rightName = kingdomName(state, String(event.payload.rightId));
+      const tType = Number(event.payload.treatyType);
+      
+      const playerKingdom = Object.values(state.kingdoms).find(k => k.isPlayer);
+      const isPlayerInvolved = playerKingdom && (event.payload.leftId === playerKingdom.id || event.payload.rightId === playerKingdom.id);
+
+      
+      let tName = "Tratado";
+      if (tType === 1) tName = "Aliança";
+      else if (tType === 2) tName = "Pacto de Defesa";
+      else if (tType === 3) tName = "Pacto de Não-Agressão";
+      else if (tType === 4) tName = "Acordo Comercial";
+      else if (tType === 5) tName = "Tratado de Paz";
+      else if (tType === 6) tName = "Suserania";
+      else if (tType === 7) tName = "Tributo";
+      else if (tType === 8) tName = "Embargo";
+
+      return {
+        title: "Acordo Diplomático",
+        details: `${leftName} e ${rightName} assinaram um(a) ${tName}.`,
+        severity: "success",
+        category: "diplomacy"
+      };
+    }
+    default:
+      console.warn("[EventLogSystem] Unmapped domain event leaked to default case:", event);
+      return {
+        title: "Movimentação Obscura",
+        details: "Rumores correm pelo continente sobre acontecimentos desconhecidos.",
         severity: "info"
       };
   }
@@ -403,7 +474,10 @@ export function createEventLogSystem(maxEntries = 180, dedupeWindowMs = 45_000):
             suggestedAction: descriptor.suggestedAction ?? previous.suggestedAction,
             actorKingdomId: event.actorKingdomId,
             targetKingdomId: event.targetKingdomId,
-            regionId: regionId ?? previous.regionId
+            regionId: regionId ?? previous.regionId,
+            category: descriptor.category ?? previous.category,
+            requiresAction: descriptor.requiresAction ?? previous.requiresAction,
+            actionPayload: descriptor.actionPayload ?? previous.actionPayload
           });
 
           continue;
@@ -420,7 +494,10 @@ export function createEventLogSystem(maxEntries = 180, dedupeWindowMs = 45_000):
           suggestedAction: descriptor.suggestedAction,
           actorKingdomId: event.actorKingdomId,
           targetKingdomId: event.targetKingdomId,
-          regionId
+          regionId,
+          category: descriptor.category,
+          requiresAction: descriptor.requiresAction,
+          actionPayload: descriptor.actionPayload
         });
       }
 
@@ -428,5 +505,28 @@ export function createEventLogSystem(maxEntries = 180, dedupeWindowMs = 45_000):
         .sort((left, right) => right.occurredAt - left.occurredAt)
         .slice(0, maxEntries);
     }
+  };
+}
+
+export function parseDomainEventToLogEntry(event: DomainEvent, state: GameState, staticData: StaticWorldData): EventLogEntry {
+  const descriptor = describeEvent(event, state, staticData);
+  const groupKey = buildGroupKey(event, descriptor.groupKey);
+  const regionId = typeof event.payload.regionId === "string" ? event.payload.regionId : undefined;
+
+  return {
+    id: event.id,
+    title: descriptor.title,
+    details: descriptor.details,
+    severity: descriptor.severity,
+    occurredAt: event.occurredAt,
+    count: 1,
+    groupKey,
+    suggestedAction: descriptor.suggestedAction,
+    actorKingdomId: event.actorKingdomId,
+    targetKingdomId: event.targetKingdomId,
+    regionId,
+    category: descriptor.category,
+    requiresAction: descriptor.requiresAction,
+    actionPayload: descriptor.actionPayload
   };
 }
