@@ -399,21 +399,30 @@ function describeEvent(event: DomainEvent, state: GameState, staticData: StaticW
     case "diplomacy.treaty_signed": {
       const leftName = kingdomName(state, String(event.payload.leftId));
       const rightName = kingdomName(state, String(event.payload.rightId));
-      const tType = Number(event.payload.treatyType);
+      const tTypeStr = String(event.payload.treatyType);
       
       const playerKingdom = Object.values(state.kingdoms).find(k => k.isPlayer);
       const isPlayerInvolved = playerKingdom && (event.payload.leftId === playerKingdom.id || event.payload.rightId === playerKingdom.id);
+      const isPlayerTarget = playerKingdom && event.payload.terms?.targetKingdomId === playerKingdom.id;
 
-      
+      if (tTypeStr === "secret_coalition" && isPlayerTarget) {
+         return {
+            title: "🚨 CRISE DIPLOMÁTICA: COALIZÃO FORMADA",
+            details: `Nossos espiões relatam que os enviados de ${leftName} convenceram ${rightName} a formarem uma coalizão secreta contra o nosso Império!`,
+            severity: "danger",
+            category: "diplomacy"
+         };
+      }
+
       let tName = "Tratado";
-      if (tType === 1) tName = "Aliança";
-      else if (tType === 2) tName = "Pacto de Defesa";
-      else if (tType === 3) tName = "Pacto de Não-Agressão";
-      else if (tType === 4) tName = "Acordo Comercial";
-      else if (tType === 5) tName = "Tratado de Paz";
-      else if (tType === 6) tName = "Suserania";
-      else if (tType === 7) tName = "Tributo";
-      else if (tType === 8) tName = "Embargo";
+      if (tTypeStr === "alliance" || tTypeStr === "1") tName = "Aliança";
+      else if (tTypeStr === "defensive_pact" || tTypeStr === "2") tName = "Pacto de Defesa";
+      else if (tTypeStr === "non_aggression" || tTypeStr === "3") tName = "Pacto de Não-Agressão";
+      else if (tTypeStr === "trade_agreement" || tTypeStr === "4") tName = "Acordo Comercial";
+      else if (tTypeStr === "peace" || tTypeStr === "5") tName = "Tratado de Paz";
+      else if (tTypeStr === "vassalage" || tTypeStr === "6") tName = "Suserania";
+      else if (tTypeStr === "tribute" || tTypeStr === "7") tName = "Tributo";
+      else if (tTypeStr === "embargo" || tTypeStr === "8") tName = "Embargo";
 
       return {
         title: "Acordo Diplomático",

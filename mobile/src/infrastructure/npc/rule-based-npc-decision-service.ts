@@ -196,6 +196,28 @@ export class RuleBasedNpcDecisionService implements INpcDecisionService {
           }
         });
       }
+
+      const globalThreats = potentialTargets.filter(t => t.diplomacy.coalitionThreat > 0.55 && t.id !== actor.id && t.id !== target.id);
+      if (globalThreats.length > 0 && allianceIndex > 0.3) {
+        for (const threat of globalThreats) {
+          const fearOfThreat = actor.diplomacy.relations[threat.id]?.score.fear ?? 0;
+          const hateForThreat = actor.diplomacy.relations[threat.id]?.score.rivalry ?? 0;
+          
+          const coalitionPriority = clamp((fearOfThreat * 0.4 + hateForThreat * 0.4) + allianceIndex * 0.3, 0, 1);
+          if (coalitionPriority > 0.48) {
+             decisions.push({
+               actorKingdomId,
+               actionType: "formar_coalizao",
+               priority: coalitionPriority,
+               targetKingdomId: target.id,
+               payload: {
+                 rationale: "contencao_de_ameaca",
+                 targetKingdomId: threat.id
+               }
+             });
+          }
+        }
+      }
     }
 
     return decisions

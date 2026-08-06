@@ -451,6 +451,19 @@ export class LocalDiplomacyResolver implements DiplomacyResolver {
           }
         }
       }
+      // SISTEMA DE COALIZÃO SECRETA: Ódio emerge matematicamente
+      for (const treaty of kingdom.diplomacy.treaties) {
+        if (treaty.type === TreatyType.SecretCoalition && (treaty.expiresAt === null || treaty.expiresAt > now)) {
+          const coalitionTargetId = String(treaty.terms?.targetKingdomId);
+          if (coalitionTargetId && coalitionTargetId !== "undefined") {
+            const relation = ensureRelation(kingdom, coalitionTargetId);
+            // Boost pesado de ódio. Em poucos ticks, a IA chegará ao teto e declarará guerra/embargo.
+            relation.grievance = roundTo(clamp(relation.grievance + 0.08, 0, 1));
+            relation.score.rivalry = roundTo(clamp(relation.score.rivalry + 0.12, 0, 1));
+            relation.score.fear = roundTo(clamp(relation.score.fear + 0.05, 0, 1));
+          }
+        }
+      }
 
       if (!kingdom.isPlayer) {
         const threatTargetId = dominantKingdomId ?? player?.id;
@@ -486,6 +499,15 @@ export class LocalDiplomacyResolver implements DiplomacyResolver {
     const targetRelation = ensureRelation(target, actor.id);
 
     switch (decision.actionType) {
+      case "formar_coalizao": {
+        const coalTargetId = String(decision.payload?.targetKingdomId);
+        executeBilateralTreaty(state, actor.id, target.id, TreatyType.SecretCoalition, now, DEFAULT_TREATY_DURATION_MS * 4, { targetKingdomId: coalTargetId }, () => {
+          actorRelation.score.trust = roundTo(clamp(actorRelation.score.trust + 0.15, 0, 1));
+          targetRelation.score.trust = roundTo(clamp(targetRelation.score.trust + 0.15, 0, 1));
+          setPairStatus(state, actor.id, target.id, DiplomaticRelation.Friendly);
+        });
+        break;
+      }
       case "oferta_alianca": {
         executeBilateralTreaty(state, actor.id, target.id, TreatyType.Alliance, now, DEFAULT_TREATY_DURATION_MS * 2, { militarySupport: true }, () => {
           actorRelation.score.trust = roundTo(clamp(actorRelation.score.trust + 0.12, 0, 1));

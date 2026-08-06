@@ -44,7 +44,8 @@ export enum TreatyType {
   Tribute = "tribute",
   Embargo = "embargo",
   TradeAgreement = "trade_agreement",
-  DefensivePact = "defensive_pact"
+  DefensivePact = "defensive_pact",
+  SecretCoalition = "secret_coalition"
 }
 
 export enum ArmyPosture {
