@@ -7,6 +7,7 @@ export function createWarSystem(warResolver: WarResolver): SimulationSystem {
   return {
     id: "war",
     run(context): void {
+      if (context.nextState.meta.tick === 0) return;
       const stateBefore = context.nextState;
       let eventSeq = 0;
       const ownersBefore = new Map(

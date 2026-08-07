@@ -574,6 +574,8 @@ function EventFeedTab({ worldFeed, gameState, session, playerKingdomId }: { worl
         ? '#FF3333'
         : item.severity === 'warning'
         ? '#F8E71C'
+        : item.severity === 'success'
+        ? '#2E8B57'
         : '#50E3C2';
 
     const kingdom = gameState?.kingdoms?.[playerKingdomId];

@@ -101,21 +101,29 @@ function scoreDeclareWar(ctx: ActionContext): number {
   return clamp(score, 0, 1);
 }
 
-function scoreProposePeace(ctx: ActionContext): number {
+function scoreProposeSurrender(ctx: ActionContext): number {
   if (!ctx.isAtWar) return 0;
 
   const strengthRatio = ctx.actorPerceivedPower / Math.max(1, ctx.targetPerceivedPower);
   
-  let score = 0;
-  score += ctx.actor.diplomacy.warExhaustion * 0.6; // Main driver for peace
-  score += (1 - (ctx.actor.stability / 100)) * 0.3;
-
-  // If losing, more likely to sue for peace
-  if (strengthRatio < 0.8) {
-    score += (1.0 - strengthRatio) * 0.4;
+  if (ctx.actor.diplomacy.warExhaustion > 0.9 && strengthRatio < 0.3) {
+    return 0.95; // Desperate for survival, willing to become a vassal
   }
 
-  return clamp(score, 0, 1);
+  return 0;
+}
+
+function scoreProposeWhitePeace(ctx: ActionContext): number {
+  if (!ctx.isAtWar) return 0;
+
+  const strengthRatio = ctx.actorPerceivedPower / Math.max(1, ctx.targetPerceivedPower);
+  
+  // Stalemate scenario: Both are exhausted, but forces are balanced
+  if (ctx.actor.diplomacy.warExhaustion > 0.85 && strengthRatio >= 0.7 && strengthRatio <= 1.3) {
+    return 0.90; // Proposes a mutual truce to save the economy
+  }
+
+  return 0;
 }
 
 function scoreOfferAlliance(ctx: ActionContext): number {
@@ -324,11 +332,22 @@ export class UtilityNpcDecisionService implements INpcDecisionService {
         });
       }
 
-      const peaceScore = scoreProposePeace(context);
-      if (peaceScore > 0.6) {
+      const surrenderScore = scoreProposeSurrender(context);
+      if (surrenderScore > 0.8) {
         decisions.push({
           actorKingdomId,
-          actionType: "proposta_paz",
+          actionType: "oferecer_rendicao",
+          priority: surrenderScore,
+          targetKingdomId: target.id,
+          payload: { rationale: "utility_calculation", score: surrenderScore }
+        });
+      }
+
+      const peaceScore = scoreProposeWhitePeace(context);
+      if (peaceScore > 0.8) {
+        decisions.push({
+          actorKingdomId,
+          actionType: "oferecer_paz_branca",
           priority: peaceScore,
           targetKingdomId: target.id,
           payload: { rationale: "utility_calculation", score: peaceScore }

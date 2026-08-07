@@ -124,6 +124,30 @@ export function registerPairTreaty(
     return;
   }
 
+  if (type !== TreatyType.Embargo && type !== TreatyType.JointWar) {
+    const warIds = Object.keys(state.wars || {}).filter(wId => {
+      const w = state.wars[wId];
+      const leftInWar = w.attackers.includes(leftId) || w.defenders.includes(leftId);
+      const rightInWar = w.attackers.includes(rightId) || w.defenders.includes(rightId);
+      return leftInWar && rightInWar;
+    });
+    
+    for (const wId of warIds) {
+      delete state.wars[wId];
+    }
+    
+    if (warIds.length > 0) {
+      const leftRel = left.diplomacy.relations[rightId];
+      if (leftRel && leftRel.status === DiplomaticRelation.Hostile) {
+        leftRel.status = DiplomaticRelation.Truce;
+      }
+      const rightRel = right.diplomacy.relations[leftId];
+      if (rightRel && rightRel.status === DiplomaticRelation.Hostile) {
+        rightRel.status = DiplomaticRelation.Truce;
+      }
+    }
+  }
+
   const parties = sortUniqueIds([leftId, rightId]);
   const treatyId = buildTreatyId(type, parties, now);
   const treaty: Treaty = {
@@ -323,16 +347,22 @@ export class LocalDiplomacyResolver implements DiplomacyResolver {
           relation.grievance = roundTo(clamp(relation.grievance - 0.003, 0, 1));
         }
 
-        if (relation.status === DiplomaticRelation.Hostile) {
-          // Status Hostil é soberano e não é revertido por flutuações anuais de grievance/trust sem tratado de paz formal
-        } else if (relation.grievance > 0.72 || (relation.score.rivalry > 0.64 && relation.score.trust < 0.28)) {
-          relation.status = DiplomaticRelation.Hostile;
-        } else if (relation.score.trust > 0.78 && relation.score.rivalry < 0.28) {
-          relation.status = DiplomaticRelation.Allied;
-        } else if (relation.score.trust > 0.62 && relation.score.rivalry < 0.45) {
-          relation.status = DiplomaticRelation.Friendly;
-        } else if (relation.status !== DiplomaticRelation.Truce) {
-          relation.status = DiplomaticRelation.Neutral;
+        const isSovereignStatus = [
+          DiplomaticRelation.Allied,
+          DiplomaticRelation.Truce,
+          DiplomaticRelation.Vassal,
+          DiplomaticRelation.Overlord,
+          DiplomaticRelation.Hostile
+        ].includes(relation.status);
+
+        if (!isSovereignStatus) {
+          if (relation.grievance > 0.72 || (relation.score.rivalry > 0.64 && relation.score.trust < 0.28)) {
+            relation.status = DiplomaticRelation.Hostile;
+          } else if (relation.score.trust > 0.62 && relation.score.rivalry < 0.45) {
+            relation.status = DiplomaticRelation.Friendly;
+          } else {
+            relation.status = DiplomaticRelation.Neutral;
+          }
         }
 
         // MECÂNICA DE CISMA: Ódio diplomático entre a fé-mãe e a heresia.
@@ -553,12 +583,30 @@ export class LocalDiplomacyResolver implements DiplomacyResolver {
         break;
       }
       case "exigir_tributo": {
-        executeBilateralTreaty(state, actor.id, target.id, TreatyType.Tribute, now, DEFAULT_TREATY_DURATION_MS, { tributeRate: 0.1 }, () => {
+        executeBilateralTreaty(state, actor.id, target.id, TreatyType.Tribute, now, null, { overlordId: actor.id, vassalId: target.id, tributeRate: 0.1 }, () => {
           actorRelation.score.fear = roundTo(clamp(actorRelation.score.fear + 0.09, 0, 1));
           targetRelation.score.fear = roundTo(clamp(targetRelation.score.fear + 0.12, 0, 1));
           targetRelation.grievance = roundTo(clamp(targetRelation.grievance + 0.08, 0, 1));
           actorRelation.score.tradeValue = roundTo(clamp(actorRelation.score.tradeValue + 0.04, 0, 1));
         });
+        break;
+      }
+      case "oferecer_tributo": {
+        executeBilateralTreaty(state, actor.id, target.id, TreatyType.Tribute, now, null, { overlordId: target.id, vassalId: actor.id, tributeRate: 0.1 }, () => {
+          actorRelation.score.trust = roundTo(clamp(actorRelation.score.trust + 0.15, 0, 1));
+          targetRelation.score.trust = roundTo(clamp(targetRelation.score.trust + 0.2, 0, 1));
+          targetRelation.grievance = roundTo(clamp(targetRelation.grievance - 0.2, 0, 1));
+        });
+        break;
+      }
+      case "romper_tributo": {
+        actor.diplomacy.treaties = actor.diplomacy.treaties.filter(t => t.type !== TreatyType.Tribute || !t.parties.includes(target.id));
+        target.diplomacy.treaties = target.diplomacy.treaties.filter(t => t.type !== TreatyType.Tribute || !t.parties.includes(actor.id));
+        
+        targetRelation.grievance = roundTo(clamp(targetRelation.grievance + 0.25, 0, 1));
+        targetRelation.score.trust = roundTo(clamp(targetRelation.score.trust - 0.3, 0, 1));
+        
+        // Breaking a tribute unilaterally causes massive relation hits
         break;
       }
       case "exigir_vassalagem": {
@@ -571,7 +619,23 @@ export class LocalDiplomacyResolver implements DiplomacyResolver {
         });
         break;
       }
-      case "proposta_paz": {
+      case "oferecer_rendicao": {
+        // NPC offers to become a vassal (TreatyType.Vassalage)
+        // If target accepts, target is Overlord, actor is Vassal.
+        executeBilateralTreaty(state, actor.id, target.id, TreatyType.Vassalage, now, null, { overlordId: target.id, vassalId: actor.id, tributeRate: 0.15 }, () => {
+          actorRelation.score.fear = roundTo(clamp(actorRelation.score.fear + 0.15, 0, 1));
+          targetRelation.score.fear = roundTo(clamp(targetRelation.score.fear + 0.2, 0, 1));
+          targetRelation.grievance = roundTo(clamp(targetRelation.grievance + 0.15, 0, 1));
+          ensureRelation(actor, target.id).status = DiplomaticRelation.Vassal;
+          ensureRelation(target, actor.id).status = DiplomaticRelation.Overlord;
+          
+          // Also set truce to stop the war
+          setPairStatus(state, actor.id, target.id, DiplomaticRelation.Truce);
+        });
+        break;
+      }
+      case "proposta_paz":
+      case "oferecer_paz_branca": {
         executeBilateralTreaty(state, actor.id, target.id, TreatyType.Peace, now, DEFAULT_TREATY_DURATION_MS, { borderFreeze: true }, () => {
           softenRelationForPeace(actorRelation);
           softenRelationForPeace(targetRelation);

@@ -113,26 +113,8 @@ export function createEconomySystem(): SimulationSystem {
         kingdom.economy.upkeepPerTick[ResourceType.Faith] = faithUpkeep;
         kingdom.economy.upkeepPerTick[ResourceType.Legitimacy] = legitimacyUpkeep;
 
-        for (const resource of Object.values(ResourceType)) {
-          // ACTION 3: Neutralizaï¿½ï¿½o Parcial do OO para Ouro.
-          // O ECS MacroeconomySystem ï¿½ a ï¿½nica fonte da verdade para o banco.
-          // Mantemos a conta no incomePerTick, mas nï¿½o creditamos no stock OO.
-          if (resource === ResourceType.Gold) {
-            const getFactionId = (kId: string) => { if (kId === 'k_nature') return -1; if (kId === 'k_player') return 1; if (kId.startsWith('k_npc_')) return parseInt(kId.replace('k_npc_', ''), 10) + 1; return -1; };
-            const factionId = getFactionId(kingdom.id);
-            if (factionId !== -1) {
-                context.nextState.ecs!.factionGoldBalance[factionId] += (kingdom.economy.incomePerTick[resource] - kingdom.economy.upkeepPerTick[resource]);
-            }
-            continue;
-          }
-          
-          kingdom.economy.stock[resource] = roundTo(
-            kingdom.economy.stock[resource] + kingdom.economy.incomePerTick[resource] - kingdom.economy.upkeepPerTick[resource]
-          );
-        }
-
-        ensureResourceNonNegative(kingdom);
-
+        // Remove the early ECS flush and Stock updating from this loop.
+        // We only set the raw income and upkeep here.
         kingdom.population.pressure.taxation = roundTo(clamp(taxLoad, 0, 1));
         kingdom.stability = roundTo(
           clamp(kingdom.stability - Math.max(0, taxLoad - 0.32) * 0.26 + economyBudgetFactor * 0.08 - kingdom.economy.corruption * 0.05, 0, 100)
@@ -150,23 +132,55 @@ export function createEconomySystem(): SimulationSystem {
         }
       }
 
-      // Processamento de Tributos Contï¿½nuos (Vassalagem)
+      // Passo 2: Processamento de Tributos (Modificadores Diplomáticos)
+      const getFactionId = (kId: string) => { if (kId === 'k_nature') return -1; if (kId === 'k_player') return 1; if (kId.startsWith('k_npc_')) return parseInt(kId.replace('k_npc_', ''), 10) + 1; return -1; };
+      
       for (const kingdomId of Object.keys(state.kingdoms)) {
         const kingdom = state.kingdoms[kingdomId];
         for (const treaty of kingdom.diplomacy.treaties) {
-          if (treaty.type === TreatyType.Vassalage && treaty.terms.vassalId === kingdom.id) {
+          if ((treaty.type === TreatyType.Vassalage || treaty.type === TreatyType.Tribute) && treaty.terms.vassalId === kingdom.id) {
              const overlord = state.kingdoms[treaty.terms.overlordId as string];
              if (overlord) {
-                 const tribute = roundTo(kingdom.economy.incomePerTick[ResourceType.Gold] * (treaty.terms.tributeRate as number || 0.15));
-                 kingdom.economy.incomePerTick[ResourceType.Gold] -= tribute;
+                 const rawTribute = kingdom.economy.incomePerTick[ResourceType.Gold] * (treaty.terms.tributeRate as number || 0.15);
                  
-                 // As mutaï¿½ï¿½es de estoque OO foram removidas para o ECS assumir o Ouro.
-                 // TODO: Mover a cobranï¿½a de Vassalagem no saldo real para o ECS MacroeconomySystem futuramente.
+                 // Clamping: Ensure the vassal has enough gold in the ECS bank to pay, or just take what they have.
+                 const vassalFactionId = getFactionId(kingdom.id);
+                 let maxPayable = Infinity;
+                 if (vassalFactionId !== -1 && context.nextState.ecs) {
+                     // Their current bank + their net gain this tick
+                     maxPayable = context.nextState.ecs.factionGoldBalance[vassalFactionId] + (kingdom.economy.incomePerTick[ResourceType.Gold] - kingdom.economy.upkeepPerTick[ResourceType.Gold]);
+                     maxPayable = Math.max(0, maxPayable);
+                 }
                  
-                 overlord.economy.incomePerTick[ResourceType.Gold] += tribute;
+                 const actualTribute = roundTo(Math.min(rawTribute, maxPayable));
+                 
+                 kingdom.economy.incomePerTick[ResourceType.Gold] -= actualTribute;
+                 overlord.economy.incomePerTick[ResourceType.Gold] += actualTribute;
              }
           }
         }
+      }
+
+      // Passo 3: Flush Final e Efetivação dos Saldos (ECS e Stock)
+      for (const kingdomId of Object.keys(state.kingdoms)) {
+          if (kingdomId === "k_nature") continue;
+          const kingdom = state.kingdoms[kingdomId];
+          
+          for (const resource of Object.values(ResourceType)) {
+              if (resource === ResourceType.Gold) {
+                  const factionId = getFactionId(kingdom.id);
+                  if (factionId !== -1 && context.nextState.ecs) {
+                      context.nextState.ecs.factionGoldBalance[factionId] += (kingdom.economy.incomePerTick[resource] - kingdom.economy.upkeepPerTick[resource]);
+                      context.nextState.ecs.factionGoldBalance[factionId] = Math.max(0, context.nextState.ecs.factionGoldBalance[factionId]);
+                  }
+                  continue;
+              }
+              
+              kingdom.economy.stock[resource] = roundTo(
+                  kingdom.economy.stock[resource] + kingdom.economy.incomePerTick[resource] - kingdom.economy.upkeepPerTick[resource]
+              );
+          }
+          ensureResourceNonNegative(kingdom);
       }
     }
   };

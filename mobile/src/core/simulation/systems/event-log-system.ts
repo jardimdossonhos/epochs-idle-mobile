@@ -2,6 +2,7 @@ import type { DomainEvent, EventLogEntry } from "../../models/events";
 import type { GameState } from "../../models/game-state";
 import type { SimulationSystem } from "../tick-pipeline";
 import type { StaticWorldData } from "../../models/static-world-data";
+import { getRegionName } from "./name-generator";
 
 interface EventDescriptor {
   title: string;
@@ -142,13 +143,14 @@ function describeEvent(event: DomainEvent, state: GameState, staticData: StaticW
     }
     case "administration.revolt_risk": {
       const actor = kingdomName(state, event.actorKingdomId);
-      const regionId = String(event.payload.regionId ?? "região");
+      const rId = String(event.payload.regionId ?? "");
+      const regionName = getRegionName(staticData.definitions[rId]) || rId || "região";
       return {
         title: "Risco de revolta",
-        details: `${actor} detectou risco elevado de revolta em ${regionId}.`,
+        details: `${actor} detectou risco elevado de revolta em ${regionName}.`,
         severity: "warning",
         suggestedAction: "Aplique pacificação e reforce guarnição local.",
-        groupKey: `administration.revolt_risk|${event.actorKingdomId ?? "none"}|${regionId}`
+        groupKey: `administration.revolt_risk|${event.actorKingdomId ?? "none"}|${rId}`
       };
     }
     case "war.started": {
@@ -178,14 +180,34 @@ function describeEvent(event: DomainEvent, state: GameState, staticData: StaticW
       };
     }
     case "war.region_captured": {
-      const regionId = String(event.payload.regionId ?? "região");
-      const actor = kingdomName(state, event.actorKingdomId);
+      const rId = String(event.payload.regionId);
+      const regionName = getRegionName(staticData.definitions[rId]);
+      const actorName = kingdomName(state, event.actorKingdomId);
+      
+      const playerKingdomId = Object.values(state.kingdoms).find(k => k.isPlayer)?.id;
+      const isPlayerConqueror = event.actorKingdomId === playerKingdomId;
+      const isPlayerVictim = event.payload.previousOwnerId === playerKingdomId || event.targetKingdomId === playerKingdomId;
+
+      let title = "Território conquistado";
+      let severity: "info" | "success" | "critical" = "info";
+      let suggestedAction = "A região mudou de mãos no cenário geopolítico.";
+
+      if (isPlayerConqueror) {
+          title = "Vitória: Território Conquistado!";
+          severity = "success";
+          suggestedAction = "Invista na nova região, mas pacifique a autonomia para evitar rebeliões.";
+      } else if (isPlayerVictim) {
+          title = "Alarme: Território Perdido!";
+          severity = "critical";
+          suggestedAction = "Mobilize seus exércitos imediatamente para retomar o controle.";
+      }
+
       return {
-        title: "Território conquistado",
-        details: `${actor} tomou controle de ${regionId}.`,
-        severity: "critical",
-        suggestedAction: "Invista e pacifique a região conquistada para evitar rebelião.",
-        groupKey: `war.region_captured|${regionId}|${event.actorKingdomId ?? "none"}`
+        title,
+        details: `${actorName} tomou controle de ${regionName}.`,
+        severity,
+        suggestedAction,
+        groupKey: `war.region_captured|${rId}|${event.actorKingdomId ?? "none"}`
       };
     }
     case "war.peace": {
@@ -338,7 +360,7 @@ function describeEvent(event: DomainEvent, state: GameState, staticData: StaticW
     case "automation.build_structure": {
       const actor = kingdomName(state, event.actorKingdomId);
       const bType = String(event.payload.buildingType);
-      const rName = staticData.definitions[String(event.payload.regionId)]?.name ?? "região";
+      const rName = getRegionName(staticData.definitions[String(event.payload.regionId)]);
       const bName = bType === "market" ? "Mercado" : bType === "barracks" ? "Quartel" : bType === "monastery" ? "Mosteiro" : bType === "university" ? "Universidade" : "Fortaleza";
       return {
         title: "Infraestrutura Automatizada",
@@ -403,7 +425,7 @@ function describeEvent(event: DomainEvent, state: GameState, staticData: StaticW
       
       const playerKingdom = Object.values(state.kingdoms).find(k => k.isPlayer);
       const isPlayerInvolved = playerKingdom && (event.payload.leftId === playerKingdom.id || event.payload.rightId === playerKingdom.id);
-      const isPlayerTarget = playerKingdom && event.payload.terms?.targetKingdomId === playerKingdom.id;
+      const isPlayerTarget = playerKingdom && (event.payload.terms as any)?.targetKingdomId === playerKingdom.id;
 
       if (tTypeStr === "secret_coalition" && isPlayerTarget) {
          return {
@@ -429,6 +451,32 @@ function describeEvent(event: DomainEvent, state: GameState, staticData: StaticW
         details: `${leftName} e ${rightName} assinaram um(a) ${tName}.`,
         severity: "success",
         category: "diplomacy"
+      };
+    }
+    case "population.migration": {
+      const payload = event.payload as any;
+      const amount = payload.amount;
+      const sourceId = payload.sourceId as string;
+      const targetId = payload.targetId as string;
+
+      const sourceName = getRegionName(staticData.definitions[sourceId]);
+      const targetName = getRegionName(staticData.definitions[targetId]);
+      
+      // Determine player's kingdom ID. Assuming player is always 'k_player' if not explicitly stored in meta,
+      // or check the keys of state.kingdoms for the player kingdom.
+      let playerKingdomId = 'k_player'; 
+      if (state.kingdoms['k_player']) {
+          playerKingdomId = 'k_player';
+      }
+      
+      const isPlayerInvolved = event.actorKingdomId === playerKingdomId;
+
+      return {
+        title: "Êxodo Populacional",
+        details: `Cerca de ${amount} habitantes deixaram ${sourceName} e migraram para ${targetName} em busca de estabilidade.`,
+        severity: "info",
+        category: "economy",
+        groupKey: isPlayerInvolved ? undefined : "SILENT_MIGRATION"
       };
     }
     default:

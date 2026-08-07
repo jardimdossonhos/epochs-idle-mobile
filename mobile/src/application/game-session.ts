@@ -49,7 +49,7 @@ export interface GameSessionDeps {
 
 type StateListener = (state: GameState) => void;
 
-export type DiplomaticActionType = "alliance" | "non_aggression" | "peace" | "tribute" | "embargo" | "war" | "demand_vassalage";
+export type DiplomaticActionType = "alliance" | "non_aggression" | "peace" | "offer_tribute" | "demand_tribute" | "break_tribute" | "embargo" | "war" | "demand_vassalage";
 export type ReligiousActionType = "send_missionaries";
 
 export type RegionActionType = "invest_agriculture" | "invest_infrastructure" | "garrison" | "pacify" | "change_capital" | "colonize" | "exodus";
@@ -1168,27 +1168,6 @@ export class GameSession {
         if (relTarget) relTarget.status = DiplomaticRelation.Hostile;
       }
 
-      if (actionType === "tribute") {
-        // Lógica de tributo agora lê e escreve no estado do ECS.
-        if (state.ecs) {
-          const targetStock = this.getKingdomTotalEcsStock(state, target.id);
-          const tribute = this.round(targetStock.gold * 0.08);
-
-          const playerCapitalIndex = this.getKingdomCapitalIndex(state, player.id);
-          const targetCapitalIndex = this.getKingdomCapitalIndex(state, target.id);
-
-          if (playerCapitalIndex !== -1 && targetCapitalIndex !== -1) {
-            state.ecs.gold[targetCapitalIndex] = Math.max(0, state.ecs.gold[targetCapitalIndex] - tribute);
-            state.ecs.gold[playerCapitalIndex] = this.round(state.ecs.gold[playerCapitalIndex] + tribute);
-          }
-        } else {
-          // Fallback para a lógica antiga se o ECS não estiver presente
-          const tribute = this.round(target.economy.stock.gold * 0.08);
-          target.economy.stock.gold = Math.max(0, target.economy.stock.gold - tribute);
-          player.economy.stock.gold = this.round(player.economy.stock.gold + tribute);
-        }
-      }
-
       this.appendActionLog(
         "Ação diplomática bem-sucedida",
         `${player.name} executou ${actionType} com ${target.name}.`,
@@ -1196,9 +1175,15 @@ export class GameSession {
       );
     } else {
       player.stability = this.round(this.clamp(player.stability - 0.4, 0, 100));
+      let rejectionReason = `${target.name} rejeitou a proposta.`;
+      if (actionType === "demand_tribute") rejectionReason = `A exigência de tributos falhou. ${target.name} recusa-se a ceder às nossas ameaças. Precisamos de mais intimidação militar.`;
+      if (actionType === "offer_tribute") rejectionReason = `${target.name} zombou dos nossos presentes e recusou a oferta de paz comprada.`;
+      if (actionType === "demand_vassalage") rejectionReason = `${target.name} declarou que prefere a morte à submissão. Exigência de vassalagem ignorada.`;
+      if (actionType === "alliance") rejectionReason = `${target.name} não confia em nós o suficiente para selar uma aliança formal.`;
+
       this.appendActionLog(
         "Ação diplomática recusada",
-        `${target.name} rejeitou ${actionType}.`,
+        rejectionReason,
         "warning"
       );
     }
@@ -2594,14 +2579,29 @@ export class GameSession {
         base.cooldownMs = 55_000;
         base.actionPt = "proposta_paz";
         break;
-      case "tribute":
+      case "offer_tribute":
+        base.cost = {
+          [ResourceType.Gold]: 50
+        };
+        base.chance = this.clamp(0.4 + fear * 0.2 + trust * 0.4, 0.1, 0.95);
+        base.cooldownMs = 40_000;
+        base.actionPt = "oferecer_tributo";
+        break;
+      case "demand_tribute":
         base.cost = {
           [ResourceType.Legitimacy]: 3,
-          [ResourceType.Gold]: 10
         };
-        base.chance = this.clamp(0.2 + fear * 0.55 + (1 - trust) * 0.2, 0.06, 0.85);
+        base.chance = this.clamp(0.1 + fear * 0.7 + (1 - trust) * 0.1, 0.05, 0.85);
         base.cooldownMs = 80_000;
         base.actionPt = "exigir_tributo";
+        break;
+      case "break_tribute":
+        base.cost = {
+          [ResourceType.Legitimacy]: 5,
+        };
+        base.chance = 1.0; // Breaking a treaty is unilateral
+        base.cooldownMs = 40_000;
+        base.actionPt = "romper_tributo";
         break;
       case "embargo":
         base.cost = {

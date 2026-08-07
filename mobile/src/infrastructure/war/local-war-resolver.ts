@@ -451,7 +451,7 @@ export class LocalWarResolver implements WarResolver {
             const ally = treaty.parties.find(p => p !== defenderId);
             if (ally && state.kingdoms[ally] && !areInActiveWar(state, ally, attackerId)) defenders.add(ally);
         }
-        if (treaty.type === TreatyType.Vassalage) {
+        if (treaty.type === TreatyType.Vassalage || treaty.type === TreatyType.Tribute) {
             const overlord = treaty.terms.overlordId as string;
             const vassal = treaty.terms.vassalId as string;
             if (vassal === defenderId && overlord !== attackerId && state.kingdoms[overlord]) defenders.add(overlord);
@@ -461,7 +461,7 @@ export class LocalWarResolver implements WarResolver {
 
     const attackerObj = state.kingdoms[attackerId];
     for (const treaty of attackerObj.diplomacy.treaties) {
-        if (treaty.type === TreatyType.Vassalage && treaty.terms.overlordId === attackerId) {
+        if ((treaty.type === TreatyType.Vassalage || treaty.type === TreatyType.Tribute) && treaty.terms.overlordId === attackerId) {
             const vassal = treaty.terms.vassalId as string;
             if (vassal !== defenderId && state.kingdoms[vassal]) attackers.add(vassal);
         }
@@ -540,8 +540,6 @@ export class LocalWarResolver implements WarResolver {
       this.maybeOpenAutonomousWar(state);
     }
 
-    const warsToPeace: string[] = [];
-
     for (const warId of Object.keys(state.wars).sort()) {
       const war = state.wars[warId];
       const attackerPower = participantPower(state, war.attackers);
@@ -595,24 +593,12 @@ export class LocalWarResolver implements WarResolver {
           war.warScore = roundTo(clamp(war.warScore + 12, -100, 100));
         }
       }
-
-      if ((ageTicks > 42 && Math.abs(war.warScore) < 12) || this.mustForcePeace(war, state)) {
-        warsToPeace.push(war.id);
-      }
-    }
-
-    for (const warId of warsToPeace) {
-      this.enforcePeace(state, warId);
     }
 
     return state;
   }
 
-  private mustForcePeace(war: WarState, state: GameState): boolean {
-    const participants = [...war.attackers, ...war.defenders];
-    const exhausted = participants.filter((id) => state.kingdoms[id]?.diplomacy.warExhaustion > 0.9).length;
-    return exhausted >= participants.length;
-  }
+
 
   private maybeOpenAutonomousWar(state: GameState): void {
     const npcKingdomIds = Object.keys(state.kingdoms)

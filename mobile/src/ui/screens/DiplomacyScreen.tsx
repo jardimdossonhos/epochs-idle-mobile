@@ -5,7 +5,7 @@ import { DiplomaticRelation } from '../../core/models/enums';
 import AvatarRenderer from '../components/AvatarRenderer';
 import { SOVEREIGN_TRAITS } from '../../core/models/character';
 
-export type DiplomaticActionType = "alliance" | "non_aggression" | "peace" | "tribute" | "embargo" | "war" | "demand_vassalage";
+export type DiplomaticActionType = "alliance" | "non_aggression" | "peace" | "offer_tribute" | "demand_tribute" | "break_tribute" | "embargo" | "war" | "demand_vassalage";
 
 const RELATION_LABELS: Record<DiplomaticRelation, string> = {
   [DiplomaticRelation.Hostile]: "Hostil",
@@ -194,6 +194,7 @@ export default function DiplomacyScreen() {
                       <StatBox label="Confiança" value={(rel.score.trust * 100).toFixed(0)} color="#50E3C2" />
                       <StatBox label="Medo" value={(rel.score.fear * 100).toFixed(0)} color="#F8E71C" />
                       <StatBox label="Rivalidade" value={(rel.score.rivalry * 100).toFixed(0)} color="#E24A4A" />
+                      <StatBox label="Agravo" value={((rel.grievance || 0) * 100).toFixed(0)} color="#FF3B30" />
                       <StatBox label="Tensão Relig." value={(rel.score.religiousTension * 100).toFixed(0)} color="#9013FE" />
                     </View>
 
@@ -210,8 +211,17 @@ export default function DiplomacyScreen() {
                         disabled={rel.status === DiplomaticRelation.Hostile}
                       />
                       <ActionBtn 
-                        label="Enviar Tributo" 
-                        onPress={() => handleAction(id, "tribute")} 
+                        label="Oferecer Tributo" 
+                        onPress={() => handleAction(id, "offer_tribute")} 
+                      />
+                      <ActionBtn 
+                        label="Exigir Tributo" 
+                        onPress={() => handleAction(id, "demand_tribute")} 
+                      />
+                      <ActionBtn 
+                        label="Romper Tributo" 
+                        onPress={() => handleAction(id, "break_tribute")} 
+                        danger
                       />
                       <ActionBtn 
                         label="Embargo" 

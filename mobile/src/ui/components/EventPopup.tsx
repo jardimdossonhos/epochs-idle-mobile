@@ -45,14 +45,16 @@ export default function EventPopup() {
       // Bloqueia tipos que são inerentemente "feed-only"
       if (FEED_ONLY_TYPES.has((e as any).type)) return false;
 
-      // Bloqueia eventos de outros reinos (NPCs)
-      if ((e as any).actorKingdomId && (e as any).actorKingdomId !== playerKingdomId) return false;
+      // Bloqueia eventos de outros reinos (NPCs), a menos que o jogador seja o alvo
+      const isPlayerActor = (e as any).actorKingdomId === playerKingdomId;
+      const isPlayerTarget = (e as any).targetKingdomId === playerKingdomId || (e as any).payload?.previousOwnerId === playerKingdomId;
+      if ((e as any).actorKingdomId && !isPlayerActor && !isPlayerTarget) return false;
 
-      // Bloqueia severity 'info' — não é urgente o suficiente para interromper o jogador
+      // Bloqueia severity 'info' — no  urgente o suficiente para interromper o jogador
       if ((e as any).severity === 'info') return false;
 
-      // Passa: warning ou critical do próprio reino do jogador
-      return (e as any).severity === 'warning' || (e as any).severity === 'critical';
+      // Passa: warning, critical ou success do prprio reino do jogador
+      return (e as any).severity === 'warning' || (e as any).severity === 'critical' || (e as any).severity === 'success';
     }).slice(0, MAX_BURST);
 
     if (newEvents.length > 0) {
@@ -84,6 +86,7 @@ export default function EventPopup() {
     switch (currentEvent.severity) {
       case 'critical': return '#8B0000'; // Red
       case 'warning': return '#E6A817'; // Orange-gold
+      case 'success': return '#2E8B57'; // Forest Green for Victory
       default: return '#D4AF37'; // Majestic Gold (default instead of cyan)
     }
   };

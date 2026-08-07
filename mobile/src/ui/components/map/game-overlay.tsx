@@ -1,6 +1,8 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { useUiStore } from '../../stores/use-ui-store';
+import { useGameState } from '../../GameProvider';
+import { getRegionName } from '../../../core/simulation/systems/name-generator';
 import { CommandType } from '../../../core/types/commands';
 import { GameConfig } from '../../../core/config/game-config';
 
@@ -10,6 +12,7 @@ export interface GameOverlayProps {
 
 export function GameOverlay({ dispatchCommand }: GameOverlayProps) {
   const store = useUiStore();
+  const { staticWorldData } = useGameState();
 
   const handleMove = () => {
     store.setUiMode('COMMAND_MOVE');
@@ -61,7 +64,7 @@ export function GameOverlay({ dispatchCommand }: GameOverlayProps) {
       
       <View style={styles.panel}>
         <Text style={styles.title}>
-          Província: {store.selectedHex.name} ({store.selectedHex.biome})
+          Província: {staticWorldData && store.selectedHex ? getRegionName(staticWorldData.definitions[String(store.selectedHex.id)]) : store.selectedHex?.name} ({store.selectedHex?.biome})
         </Text>
         <Text style={styles.subtitle}>
           Domínio: Facção {store.selectedHex.ownerFaction}

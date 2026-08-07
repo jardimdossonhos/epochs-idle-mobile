@@ -275,9 +275,10 @@ function createNpcBehavior(archetype: NpcArchetype, strategicGoal: string): NpcB
 function createKingdom(
   blueprint: KingdomBlueprint,
   capitalRegionId: string,
-  ownedRegionCount: number,
+  ownedRegions: string[],
   stateFaith: ReligionId
 ): KingdomState {
+  const ownedRegionCount = ownedRegions.length;
   const isNature = blueprint.id === "k_nature";
   const populationTotal = isNature ? 0 : 20; // A aurora da humanidade comeÃƒÆ’Ã‚Â§a com uma minÃƒÆ’Ã‚Âºscula tribo de 20 pessoas
   const armyManpower = isNature ? 0 : 5; // Apenas uns poucos caÃƒÆ’Ã‚Â§adores/guerreiros
@@ -290,6 +291,7 @@ function createKingdom(
     color: blueprint.color,
     capitalRegionId,
     heirs: [], // Inicialmente sem herdeiros - serÃƒÆ’Ã‚Â£o gerados quando o monarca for definido
+    ownedRegionIds: ownedRegions,
     economy: createBaseEconomy(),
     population: createBasePopulation(populationTotal),
     technology: {
@@ -352,7 +354,14 @@ function createKingdom(
         assimilationInvestment: 0.3,
         antiCorruptionBudget: 0.2
       },
-      regionalControl: [],
+      regionalControl: ownedRegions.map(regionId => ({ 
+        regionId, 
+        governorId: undefined,
+        localAutonomy: 0.1,
+        taxationEfficiency: 0.9,
+        integration: 1.0,
+        revoltRisk: 0
+      } as any)),
       automation: {
         economy: blueprint.isPlayer ? AutomationLevel.Assisted : AutomationLevel.NearlyAutomatic,
         construction: blueprint.isPlayer ? AutomationLevel.Assisted : AutomationLevel.NearlyAutomatic,
@@ -676,7 +685,7 @@ function createKingdoms(ownerByRegionId: Record<string, string>, capitalByOwner:
     const capitalRegionId = capitalByOwner[blueprint.id] ?? blueprint.preferredCapitalRegionId;
     const capitalZone = definitionsById[capitalRegionId]?.zone ?? "europe";
     const chosenFaith = religionByZone(capitalZone, staticData);
-    kingdoms[blueprint.id] = createKingdom(blueprint, capitalRegionId, ownedRegions.length, chosenFaith);
+    kingdoms[blueprint.id] = createKingdom(blueprint, capitalRegionId, ownedRegions, chosenFaith);
   }
 
   // Entidade de contenÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o global (Terra Selvagem)
@@ -686,7 +695,7 @@ function createKingdoms(ownerByRegionId: Record<string, string>, capitalByOwner:
     adjective: "Selvagem",
     isPlayer: false,
     preferredCapitalRegionId: "r_hex_0"
-  }, "r_hex_0", 0, "tengriism");
+  }, "r_hex_0", [], "tengriism");
 
   return kingdoms;
 }

@@ -106,6 +106,7 @@ export function createNpcDecisionSystem(
   return {
     id: "npc_decision",
     run(context): void {
+      if (context.nextState.meta.tick === 0) return;
       const state = context.nextState;
       let eventSeq = 0;
 

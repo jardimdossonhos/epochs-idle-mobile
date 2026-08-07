@@ -92,6 +92,7 @@ function MainTabs() {
 
   return (
     <Tab.Navigator
+      initialRouteName="Map"
       screenOptions={{
         headerShown: false,
         tabBarStyle: {

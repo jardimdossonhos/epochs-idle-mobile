@@ -18,6 +18,81 @@ export function createDisasterSystem(): SimulationSystem {
         for (const kingdomId of allKingdomIds) {
           const kingdom = state.kingdoms[kingdomId];
 
+          // DESASTRES DE GUERRA (Apenas se Exaustão > 0.8) - 10% de chance por década (loop roda a cada 10 meses, então 1% por tick decenal é ~12% ao ano)
+          // Usaremos 5% de chance a cada 10 ciclos (meses) para não causar SPAM, mas ser uma ameaça real.
+          if (kingdom.diplomacy.warExhaustion > 0.8 && Math.random() < 0.05) {
+            const warDisasterType = Math.random();
+
+            if (warDisasterType < 0.4) {
+              // Fome de Guerra (Famine)
+              const foodLoss = Math.floor(kingdom.economy.stock[ResourceType.Food] * 0.6);
+              kingdom.economy.stock[ResourceType.Food] = Math.max(0, kingdom.economy.stock[ResourceType.Food] - foodLoss);
+              
+              context.events.push({
+                id: createEventId({
+                  prefix: "evt_war_famine",
+                  tick: state.meta.tick,
+                  systemId: "disaster",
+                  actorId: kingdom.id,
+                  sequence: eventSeq++
+                }),
+                type: "disaster.famine",
+                actorKingdomId: kingdom.id,
+                payload: { impact: "food_loss", amount: foodLoss, cause: "war_exhaustion" },
+                occurredAt: context.now,
+                title: "Fome de Guerra",
+                details: `O belicismo implacável destruiu a mão-de-obra agrícola de ${kingdom.name}. Uma fome devastadora consumiu ${foodLoss} unidades de comida!`,
+                severity: "critical"
+              } as any);
+            } else if (warDisasterType < 0.7) {
+              // Praga (Plague) trazida pelos exércitos
+              const popLoss = Math.floor(kingdom.population.total * 0.15) + 1;
+              kingdom.population.total = Math.max(1, kingdom.population.total - popLoss);
+
+              context.events.push({
+                id: createEventId({
+                  prefix: "evt_war_plague",
+                  tick: state.meta.tick,
+                  systemId: "disaster",
+                  actorId: kingdom.id,
+                  sequence: eventSeq++
+                }),
+                type: "disaster.plague",
+                actorKingdomId: kingdom.id,
+                payload: { impact: "population_loss", amount: popLoss, cause: "war_exhaustion" },
+                occurredAt: context.now,
+                title: "Praga dos Campos de Batalha",
+                details: `Exércitos exaustos trouxeram doenças de volta para ${kingdom.name}. Uma praga terrível ceifou a vida de ${popLoss} súditos!`,
+                severity: "critical"
+              } as any);
+            } else {
+              // Revolta Popular (Unrest extrema)
+              const stabilityLoss = Math.floor(Math.random() * 25) + 15;
+              kingdom.stability = Math.max(0, kingdom.stability - stabilityLoss);
+              kingdom.population.unrest = roundTo(clamp(kingdom.population.unrest + 0.3, 0, 1));
+
+              context.events.push({
+                id: createEventId({
+                  prefix: "evt_war_revolt",
+                  tick: state.meta.tick,
+                  systemId: "disaster",
+                  actorId: kingdom.id,
+                  sequence: eventSeq++
+                }),
+                type: "event.revolt",
+                actorKingdomId: kingdom.id,
+                payload: { impact: "stability_loss", amount: stabilityLoss, cause: "war_exhaustion" },
+                occurredAt: context.now,
+                title: "Revolta Contra a Guerra",
+                details: `O povo de ${kingdom.name} não aguenta mais lutar! Uma revolta massiva reduziu a estabilidade em ${stabilityLoss} pontos. Eles exigem PAZ!`,
+                severity: "critical"
+              } as any);
+            }
+            
+            // Se ocorreu um desastre de guerra, pula os desastres naturais neste ciclo para não massacrar demais
+            continue;
+          }
+
           // DESASTRES NATURAIS (~2% de chance)
           if (Math.random() < 0.02) {
             const disasterType = Math.random();
