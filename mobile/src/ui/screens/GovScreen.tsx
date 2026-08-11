@@ -508,8 +508,8 @@ export default function GovScreen({ forcedTab }: GovScreenProps = {}) {
   );
 }
 
-function getEventCategory(evt: any): 'all' | 'economy' | 'war' | 'diplomacy' {
-  if (evt.category && ['economy', 'war', 'diplomacy'].includes(evt.category)) {
+function getEventCategory(evt: any): 'all' | 'economy' | 'war' | 'diplomacy' | 'religion' {
+  if (evt.category && ['economy', 'war', 'diplomacy', 'religion'].includes(evt.category)) {
     return evt.category;
   }
   // Fallback para saves antigos que ainda usam text scraping:

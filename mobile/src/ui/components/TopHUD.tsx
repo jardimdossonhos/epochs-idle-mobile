@@ -193,7 +193,7 @@ function TreasuryTooltip({ visible, onClose }: { visible: boolean; onClose: () =
               color={inflation > 0.15 ? '#E24A4A' : '#666'}
             />
             <Text style={styles.tooltipHint}>
-              Toque em "Estado > Economia" para ajustar impostos e orçamentos e melhorar seu balanço.
+              Toque em "Estado {'>'} Economia" para ajustar impostos e orçamentos e melhorar seu balanço.
             </Text>
           </View>
         </Pressable>

@@ -24,34 +24,53 @@ export interface SimulationCanvasProps {
   visibilityMask?: SharedValue<Uint8Array>;
   visionUpdateTrigger?: SharedValue<number>;
   dispatchCommand: (cmd: [number, number, number, number]) => void;
+  playerFactionId?: number;
 }
 
-const spatialMap = new Map<string, any>();
-const centroidMap = new Map<number, {x: number, y: number}>();
-// Guard defensivo: regions pode ser undefined se o JSON for um mock vazio
-(worldMapData.regions ?? []).forEach((region: any) => {
+// ─── Module-level lookup tables (built once from the JSON) ────────────────────
+const spatialMap  = new Map<string, any>();
+const centroidMap = new Map<number, { x: number; y: number }>();
+const regions: any[] = worldMapData.regions ?? worldMapData.hexagons ?? [];
+
+regions.forEach((region: any) => {
   spatialMap.set(`${region.q},${region.r}`, region);
   centroidMap.set(region.id, { x: region.cx, y: region.cy });
 });
 
 const RADIUS = worldMapData.hexRadius ?? 20;
-const SQRT3 = Math.sqrt(3);
+const SQRT3  = Math.sqrt(3);
 
+// ─── Visual palette ───────────────────────────────────────────────────────────
+// Biome names match world-definitions-v1.json: tundra, temperate, desert, tropical
 const BIOME_COLORS: Record<string, string> = {
-  "WATER": "#1E3A8A",
-  "DESERT": "#B45309",
-  "LAND": "#15803D"
+  TUNDRA:   '#2D3748',   // cold grey-blue (arctic/boreal)
+  LAND:     '#14532D',   // dark forest green (temperate → mapped as LAND)
+  DESERT:   '#92400E',   // amber-brown
+  TROPICAL: '#065F46',   // deep emerald (jungle)
+  WATER:    '#0F2D5E',   // deep navy (fallback)
 };
 
+// Faction colour palette (index 0 = neutral, 1 = player, 2-N = AI factions)
+const FACTION_COLORS: string[] = [
+  'transparent',   // 0 — neutral / unclaimed
+  '#D4AF37',       // 1 — Player (gold)
+  '#991B1B',       // 2 — AI Red
+  '#1E40AF',       // 3 — AI Blue
+  '#065F46',       // 4 — AI Green
+  '#6B21A8',       // 5 — AI Purple
+  '#9A3412',       // 6 — AI Orange
+  '#0E7490',       // 7 — AI Cyan
+];
+
+const PLAYER_FACTION_ALPHA = 'CC';  // ~80% opacity overlay for player territory
+const AI_FACTION_ALPHA     = '88';  // ~53% opacity for AI territory
+
+// ─── Utility helpers ──────────────────────────────────────────────────────────
 function getHexPoints(cx: number, cy: number, radius: number) {
   const pts = [];
   for (let i = 0; i < 6; i++) {
-    const angle_deg = 60 * i - 30;
-    const angle_rad = (Math.PI / 180) * angle_deg;
-    pts.push({
-      x: cx + radius * Math.cos(angle_rad),
-      y: cy + radius * Math.sin(angle_rad)
-    });
+    const angle_rad = (Math.PI / 180) * (60 * i - 30);
+    pts.push({ x: cx + radius * Math.cos(angle_rad), y: cy + radius * Math.sin(angle_rad) });
   }
   return pts;
 }
@@ -60,42 +79,64 @@ function lerp(start: number, end: number, t: number) {
   return start + (end - start) * t;
 }
 
-export function SimulationCanvas({ regionOwner, currentArmyData, lastArmyData, mapUpdateTrigger, tickProgress, hexStructures, structureUpdateTrigger, combatEventHead, combatEventX, combatEventY, combatEventTs, dispatchCommand }: SimulationCanvasProps) {
-  const hexagons = worldMapData.regions ?? worldMapData.hexagons ?? [];
-  if (!hexagons || hexagons.length === 0) {
+// ─── SimulationCanvas ─────────────────────────────────────────────────────────
+export function SimulationCanvas({
+  regionOwner,
+  currentArmyData,
+  lastArmyData,
+  mapUpdateTrigger,
+  tickProgress,
+  hexStructures,
+  structureUpdateTrigger,
+  combatEventHead,
+  combatEventX,
+  combatEventY,
+  combatEventTs,
+  dispatchCommand,
+  playerFactionId = 1,
+}: SimulationCanvasProps) {
+
+  if (!regions || regions.length === 0) {
     return null;
   }
 
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const scale = useSharedValue(1);
+  // ── Viewport state ──────────────────────────────────────────────────────────
+  // Start zoomed out so the full world is visible (canvas is 3000x2000, device ~400px wide)
+  const INITIAL_SCALE = 0.13;
+  const translateX = useSharedValue(-200);
+  const translateY = useSharedValue(-130);
+  const scale      = useSharedValue(INITIAL_SCALE);
 
-  const savedTranslateX = useSharedValue(0);
-  const savedTranslateY = useSharedValue(0);
-  const savedScale = useSharedValue(1);
+  const savedTranslateX = useSharedValue(-200);
+  const savedTranslateY = useSharedValue(-130);
+  const savedScale      = useSharedValue(INITIAL_SCALE);
 
+  // ── Images ──────────────────────────────────────────────────────────────────
   const tokenImage = useImage(require('../../assets/images/token_base.png'));
-  
-  const atlasSprites = useMemo(() => {
-    return new Array(2048).fill(Skia.XYWHRect(0, 0, 32, 32));
-  }, []);
+  const cityImage  = useImage(require('../../assets/images/city_base.png'));
+  const battleImage = useImage(require('../../assets/images/battle_icon.png'));
 
-  // JS handler for React side
+  // ── Sprite arrays (fixed-length for Atlas) ──────────────────────────────────
+  const atlasSprites = useMemo(() => new Array(2048).fill(Skia.XYWHRect(0, 0, 32, 32)), []);
+  const citySprites  = useMemo(() => new Array(2000).fill(Skia.XYWHRect(0, 0, 32, 32)), []);
+  const battleSprites = useMemo(() => new Array(1024).fill(Skia.XYWHRect(0, 0, 32, 32)), []);
+
+  // ── JS tap handler (runs on React thread) ───────────────────────────────────
   const handleMapTapJS = (
-    hitHexId: number, 
-    hitHexName: string, 
-    hitHexBiome: string, 
-    ownerFaction: number, 
-    hitArmyIndex: number | null, 
-    hitArmyFaction: number | null, 
-    hitArmyManpower: number | null
+    hitHexId: number,
+    hitHexName: string,
+    hitHexBiome: string,
+    ownerFaction: number,
+    hitArmyIndex: number | null,
+    hitArmyFaction: number | null,
+    hitArmyManpower: number | null,
   ) => {
     const store = useUiStore.getState();
-
     if (store.uiMode === 'DEFAULT') {
-      const hex = { id: hitHexId, name: hitHexName, biome: hitHexBiome, ownerFaction };
-      const army = hitArmyIndex !== null ? { index: hitArmyIndex, faction: hitArmyFaction!, manpower: hitArmyManpower! } : null;
-      store.setSelection(hex, army);
+      store.setSelection(
+        { id: hitHexId, name: hitHexName, biome: hitHexBiome, ownerFaction },
+        hitArmyIndex !== null ? { index: hitArmyIndex, faction: hitArmyFaction!, manpower: hitArmyManpower! } : null,
+      );
     } else if (store.uiMode === 'COMMAND_MOVE') {
       if (store.selectedArmy) {
         dispatchCommand([CommandType.MOVE_ARMY, store.playerFactionId, store.selectedArmy.index, hitHexId]);
@@ -106,6 +147,7 @@ export function SimulationCanvas({ regionOwner, currentArmyData, lastArmyData, m
     }
   };
 
+  // ── Gestures ─────────────────────────────────────────────────────────────────
   const panGesture = Gesture.Pan()
     .onUpdate((e) => {
       translateX.value = savedTranslateX.value + e.translationX;
@@ -118,138 +160,139 @@ export function SimulationCanvas({ regionOwner, currentArmyData, lastArmyData, m
 
   const pinchGesture = Gesture.Pinch()
     .onUpdate((e) => {
-      scale.value = savedScale.value * e.scale;
+      const next = savedScale.value * e.scale;
+      scale.value = Math.max(0.08, Math.min(next, 3.0)); // clamp zoom
     })
-    .onEnd(() => {
-      savedScale.value = scale.value;
-    });
+    .onEnd(() => { savedScale.value = scale.value; });
 
-  const tapGesture = Gesture.Tap()
-    .onEnd((e) => {
-      const worldX = (e.x - translateX.value) / scale.value;
-      const worldY = (e.y - translateY.value) / scale.value;
+  const tapGesture = Gesture.Tap().onEnd((e) => {
+    const worldX = (e.x - translateX.value) / scale.value;
+    const worldY = (e.y - translateY.value) / scale.value;
 
-      const qFrac = (SQRT3 / 3 * worldX - 1 / 3 * worldY) / RADIUS;
-      const rFrac = (2 / 3 * worldY) / RADIUS;
+    const qFrac = (SQRT3 / 3 * worldX - 1 / 3 * worldY) / RADIUS;
+    const rFrac = (2 / 3 * worldY) / RADIUS;
 
-      let q = Math.round(qFrac);
-      let s = Math.round(-qFrac - rFrac);
-      let r = Math.round(rFrac);
+    let q = Math.round(qFrac);
+    let s = Math.round(-qFrac - rFrac);
+    let r = Math.round(rFrac);
 
-      const qDiff = Math.abs(q - qFrac);
-      const sDiff = Math.abs(s - (-qFrac - rFrac));
-      const rDiff = Math.abs(r - rFrac);
+    const qDiff = Math.abs(q - qFrac);
+    const sDiff = Math.abs(s - (-qFrac - rFrac));
+    const rDiff = Math.abs(r - rFrac);
 
-      if (qDiff > sDiff && qDiff > rDiff) {
-        q = -s - r;
-      } else if (sDiff > rDiff) {
-        s = -q - r;
-      } else {
-        r = -q - s;
+    if      (qDiff > sDiff && qDiff > rDiff) q = -s - r;
+    else if (sDiff > rDiff)                  s = -q - r;
+    else                                     r = -q - s;
+
+    const hitRegion = spatialMap.get(`${q},${r}`);
+    if (!hitRegion) return;
+
+    let hitArmyIndex: number | null = null;
+    let hitArmyFaction: number | null = null;
+    let hitArmyManpower: number | null = null;
+
+    const data = currentArmyData.value;
+    for (let i = 0; i < 2048; i++) {
+      const offset = i * 4;
+      const faction = data[offset];
+      if (faction === -1) continue;
+      if (data[offset + 1] === hitRegion.id) {
+        hitArmyIndex   = i;
+        hitArmyFaction = faction;
+        hitArmyManpower = data[offset + 3];
+        break;
       }
+    }
 
-      const key = `${q},${r}`;
-      const hitRegion = spatialMap.get(key);
-
-      if (hitRegion) {
-        let hitArmyIndex: number | null = null;
-        let hitArmyFaction: number | null = null;
-        let hitArmyManpower: number | null = null;
-
-        const data = currentArmyData.value;
-        for (let i = 0; i < 2048; i++) {
-          const offset = i * 4;
-          const faction = data[offset];
-          if (faction === -1) continue;
-          
-          const stationedIndex = data[offset + 1];
-          if (stationedIndex === hitRegion.id) {
-            hitArmyIndex = i;
-            hitArmyFaction = faction;
-            hitArmyManpower = data[offset + 3];
-            break;
-          }
-        }
-
-        const owner = regionOwner.value[hitRegion.id];
-        runOnJS(handleMapTapJS)(
-          hitRegion.id, hitRegion.name, hitRegion.biome, owner, 
-          hitArmyIndex, hitArmyFaction, hitArmyManpower
-        );
-      }
-    });
+    const owner = regionOwner.value[hitRegion.id] ?? 0;
+    runOnJS(handleMapTapJS)(hitRegion.id, hitRegion.name, hitRegion.biome, owner, hitArmyIndex, hitArmyFaction, hitArmyManpower);
+  });
 
   const composedGestures = Gesture.Simultaneous(panGesture, pinchGesture, tapGesture);
 
   const transform = useDerivedValue(() => [
     { translateX: translateX.value },
     { translateY: translateY.value },
-    { scale: scale.value }
+    { scale: scale.value },
   ]);
 
+  // ── STATIC LAYER: biome fill + stroke (computed once at mount) ──────────────
   const staticLayers = useMemo(() => {
     const biomeMap = new Map<string, ReturnType<typeof Skia.Path.Make>>();
-    const strokeP = Skia.Path.Make();
+    const strokeP  = Skia.Path.Make();
 
-    (worldMapData.regions ?? []).forEach((r: any) => {
-      const bColor = BIOME_COLORS[r.biome] || "#333333";
+    regions.forEach((r: any) => {
+      const bColor = BIOME_COLORS[r.biome] ?? '#2D2D2D';
       let bp = biomeMap.get(bColor);
-      if (!bp) {
-        bp = Skia.Path.Make();
-        biomeMap.set(bColor, bp);
-      }
-      
+      if (!bp) { bp = Skia.Path.Make(); biomeMap.set(bColor, bp); }
       const pts = getHexPoints(r.cx, r.cy, RADIUS);
       bp.addPoly(pts, true);
-      strokeP.addPoly(pts, true);
+      // Only draw grid strokes on non-water hex to reduce visual noise
+      if (!r.isWater) strokeP.addPoly(pts, true);
     });
 
     return {
       biomePaths: Array.from(biomeMap.entries()).map(([color, path]) => ({ color, path })),
-      strokePath: strokeP
+      strokePath: strokeP,
     };
   }, []);
 
+  // ── DYNAMIC LAYER: territory ownership (re-runs when mapUpdateTrigger changes) ──
+  // Each faction gets its own batched path — 1 draw call per faction present.
+  const ownerPaths = useDerivedValue(() => {
+    const _trigger = mapUpdateTrigger.value; // reactive dependency
+    const owners   = regionOwner.value;
+
+    // faction id → Skia.Path
+    const factionPaths = new Map<number, ReturnType<typeof Skia.Path.Make>>();
+
+    regions.forEach((r: any) => {
+      if (r.isWater) return; // skip water tiles
+      const owner = owners[r.id] ?? 0;
+      if (owner <= 0) return; // neutral — no overlay
+      let fp = factionPaths.get(owner);
+      if (!fp) { fp = Skia.Path.Make(); factionPaths.set(owner, fp); }
+      fp.addPoly(getHexPoints(r.cx, r.cy, RADIUS - 1), true); // slightly inset
+    });
+
+    return Array.from(factionPaths.entries()).map(([faction, path]) => {
+      const base  = FACTION_COLORS[faction] ?? FACTION_COLORS[FACTION_COLORS.length - 1];
+      const alpha = faction === playerFactionId ? PLAYER_FACTION_ALPHA : AI_FACTION_ALPHA;
+      return { color: base + alpha, path };
+    });
+  });
+
+  // ── DYNAMIC LAYER: selected hex highlight ───────────────────────────────────
+  const pendingMoves = useUiStore((state) => state.pendingMoves);
+
+  // ── DYNAMIC LAYER: army sprites (Atlas) ─────────────────────────────────────
   const atlasTransforms = useDerivedValue(() => {
-    const p = tickProgress.value;
+    const p       = tickProgress.value;
     const current = currentArmyData.value;
-    const last = lastArmyData.value;
+    const last    = lastArmyData.value;
     const rsx: ReturnType<typeof Skia.RSXform>[] = [];
-    
+
     for (let i = 0; i < 2048; i++) {
-      const offset = i * 4;
+      const offset  = i * 4;
       const faction = current[offset];
-      
-      if (faction === -1) {
-        rsx.push(Skia.RSXform(0, 0, -9999, -9999));
-        continue;
-      }
-      
+      if (faction === -1) { rsx.push(Skia.RSXform(0, 0, -9999, -9999)); continue; }
+
       const currStationed = current[offset + 1];
       const lastStationed = last[offset + 1];
-      
       const startID = last[offset] === -1 ? currStationed : lastStationed;
-      
-      const startPos = centroidMap.get(startID) || {x: -9999, y: -9999};
-      const endPos = centroidMap.get(currStationed) || {x: -9999, y: -9999};
-      
-      const tx = lerp(startPos.x, endPos.x, p);
-      const ty = lerp(startPos.y, endPos.y, p);
-      
-      rsx.push(Skia.RSXform(1, 0, tx - 16, ty - 16));
+
+      const startPos = centroidMap.get(startID) ?? { x: -9999, y: -9999 };
+      const endPos   = centroidMap.get(currStationed) ?? { x: -9999, y: -9999 };
+
+      rsx.push(Skia.RSXform(1, 0, lerp(startPos.x, endPos.x, p) - 16, lerp(startPos.y, endPos.y, p) - 16));
     }
-    
     return rsx;
   });
 
-  // PathingLayer: Gera as linhas Otimistas
-  const pendingMoves = useUiStore((state) => state.pendingMoves);
-  const cityImage = useImage(require('../../assets/images/city_base.png'));
-
+  // ── DYNAMIC LAYER: city sprites (Atlas) ─────────────────────────────────────
   const CITY_SPRITES_COUNT = 2000;
-
   const cityTransforms = useDerivedValue(() => {
-    const trigger = structureUpdateTrigger.value; // Força reatividade apenas sob demanda
+    const _trigger = structureUpdateTrigger.value;
     const structures = hexStructures.value;
     const rsx: ReturnType<typeof Skia.RSXform>[] = [];
     let activeIdx = 0;
@@ -257,139 +300,106 @@ export function SimulationCanvas({ regionOwner, currentArmyData, lastArmyData, m
     for (let i = 0; i < structures.length && activeIdx < CITY_SPRITES_COUNT; i++) {
       if (structures[i] > 0) {
         const pos = centroidMap.get(i);
-        if (pos) {
-          rsx.push(Skia.RSXform(1, 0, pos.x - 16, pos.y - 16));
-          activeIdx++;
-        }
+        if (pos) { rsx.push(Skia.RSXform(1, 0, pos.x - 16, pos.y - 16)); activeIdx++; }
       }
     }
-    // Preenche o restante com entradas fantasma para manter o comprimento cravado
-    while (rsx.length < CITY_SPRITES_COUNT) {
-      rsx.push(Skia.RSXform(0, 0, -9999, -9999));
-    }
+    while (rsx.length < CITY_SPRITES_COUNT) rsx.push(Skia.RSXform(0, 0, -9999, -9999));
     return rsx;
   });
 
-  const citySprites = useMemo(() => {
-    return new Array(2000).fill(Skia.XYWHRect(0, 0, 32, 32));
-  }, []);
-
-  const battleImage = useImage(require('../../assets/images/battle_icon.png'));
-
+  // ── DYNAMIC LAYER: battle flash sprites ─────────────────────────────────────
   const BATTLE_SPRITES_COUNT = 1024;
-
   const battleTransforms = useDerivedValue(() => {
     const rsx: ReturnType<typeof Skia.RSXform>[] = [];
-
     if (combatEventHead && combatEventX && combatEventY && combatEventTs) {
-      const cx = combatEventX.value;
-      const cy = combatEventY.value;
+      const cx  = combatEventX.value;
+      const cy  = combatEventY.value;
       const cts = combatEventTs.value;
       const now = Date.now();
-
       for (let i = 0; i < BATTLE_SPRITES_COUNT; i++) {
         const ts = cts[i];
         if (ts > 0 && now - ts < 1000) {
-          const age = now - ts;
-          const s = 1 - (age / 1000);
-          rsx.push(Skia.RSXform(s, 0, cx[i] - (16 * s), cy[i] - (16 * s)));
+          const s = 1 - (now - ts) / 1000;
+          rsx.push(Skia.RSXform(s, 0, cx[i] - 16 * s, cy[i] - 16 * s));
         } else {
-          // Entrada fantasma: invisível mas mantém o comprimento do array
           rsx.push(Skia.RSXform(0, 0, -9999, -9999));
         }
       }
     } else {
-      // Sem dados de combate: preenche tudo com entradas fantasma
-      for (let i = 0; i < BATTLE_SPRITES_COUNT; i++) {
-        rsx.push(Skia.RSXform(0, 0, -9999, -9999));
-      }
+      for (let i = 0; i < BATTLE_SPRITES_COUNT; i++) rsx.push(Skia.RSXform(0, 0, -9999, -9999));
     }
     return rsx;
   });
 
-  const battleSprites = useMemo(() => {
-    return new Array(1024).fill(Skia.XYWHRect(0, 0, 32, 32));
-  }, []);
-
+  // ── DYNAMIC LAYER: army movement lines ──────────────────────────────────────
   const pathingPath = useDerivedValue(() => {
-    const path = Skia.Path.Make();
+    const path    = Skia.Path.Make();
     const current = currentArmyData.value;
-    const p = tickProgress.value;
-    const last = lastArmyData.value;
+    const last    = lastArmyData.value;
+    const p       = tickProgress.value;
 
     for (const [armyIdxStr, targetId] of Object.entries(pendingMoves)) {
-      const i = parseInt(armyIdxStr, 10);
+      const i      = parseInt(armyIdxStr, 10);
       const offset = i * 4;
-      const faction = current[offset];
-      
-      if (faction === -1) continue;
+      if (current[offset] === -1) continue;
 
       const currStationed = current[offset + 1];
       const lastStationed = last[offset + 1];
       const startID = last[offset] === -1 ? currStationed : lastStationed;
-      
-      const startPos = centroidMap.get(startID) || {x: 0, y: 0};
-      const endPos = centroidMap.get(currStationed) || {x: 0, y: 0};
-      
+
+      const startPos = centroidMap.get(startID) ?? { x: 0, y: 0 };
+      const endPos   = centroidMap.get(currStationed) ?? { x: 0, y: 0 };
       const tx = lerp(startPos.x, endPos.x, p);
       const ty = lerp(startPos.y, endPos.y, p);
 
       const targetPos = centroidMap.get(targetId);
-      if (targetPos) {
-        path.moveTo(tx, ty);
-        path.lineTo(targetPos.x, targetPos.y);
-      }
+      if (targetPos) { path.moveTo(tx, ty); path.lineTo(targetPos.x, targetPos.y); }
     }
     return path;
   });
 
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <GestureDetector gesture={composedGestures}>
       <View style={styles.container}>
         <Canvas style={styles.canvas}>
           <Group transform={transform as any}>
-            
+
+            {/* ── Layer 1: Biome fill (static, batched per biome) ── */}
             {staticLayers.biomePaths.map(bp => (
               <Path key={bp.color} path={bp.path} color={bp.color} />
             ))}
-            
-            <Path 
-              path={staticLayers.strokePath} 
-              color="rgba(0,0,0,0.15)" 
-              style="stroke" 
-              strokeWidth={1} 
+
+            {/* ── Layer 2: Hex grid stroke (static) ── */}
+            <Path
+              path={staticLayers.strokePath}
+              color="rgba(0,0,0,0.20)"
+              style="stroke"
+              strokeWidth={0.8}
             />
 
+            {/* ── Layer 3: Territory ownership overlay (dynamic, batched per faction) ── */}
+            {ownerPaths.value.map((op: { color: string; path: any }) => (
+              <Path key={op.color} path={op.path} color={op.color} />
+            ))}
+
+            {/* ── Layer 4: City sprites ── */}
             {cityImage && (
-              <Atlas 
-                image={cityImage} 
-                sprites={citySprites} 
-                transforms={cityTransforms} 
-              />
+              <Atlas image={cityImage} sprites={citySprites} transforms={cityTransforms} />
             )}
 
+            {/* ── Layer 5: Army sprites ── */}
             {tokenImage && (
-              <Atlas 
-                image={tokenImage} 
-                sprites={atlasSprites} 
-                transforms={atlasTransforms} 
-              />
+              <Atlas image={tokenImage} sprites={atlasSprites} transforms={atlasTransforms} />
             )}
 
+            {/* ── Layer 6: Battle flash ── */}
             {battleImage && (
-              <Atlas 
-                image={battleImage} 
-                sprites={battleSprites} 
-                transforms={battleTransforms} 
-              />
+              <Atlas image={battleImage} sprites={battleSprites} transforms={battleTransforms} />
             )}
 
-            <Path
-              path={pathingPath}
-              color="#FBBF24"
-              style="stroke"
-              strokeWidth={4}
-            >
+            {/* ── Layer 7: Pending move lines ── */}
+            <Path path={pathingPath} color="#FBBF24" style="stroke" strokeWidth={3}>
               <DashPathEffect intervals={[10, 10]} />
             </Path>
 
@@ -401,12 +411,6 @@ export function SimulationCanvas({ regionOwner, currentArmyData, lastArmyData, m
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A' },
-  canvas: { flex: 1 }
+  container: { flex: 1, backgroundColor: '#0A1628' },
+  canvas:    { flex: 1 },
 });
-
-
-
-
-
-
