@@ -2,7 +2,6 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SimulationCanvas } from '../components/map/simulation-canvas';
 import { useGameEngine } from '../hooks/use-game-engine';
-import TopHUD from '../components/TopHUD';
 import { ImperialOverlay } from '../components/map/imperial-overlay';
 
 export default function MapScreen() {
@@ -30,7 +29,6 @@ export default function MapScreen() {
       </View>
 
       <View style={styles.uiLayer} pointerEvents="box-none">
-        <TopHUD />
         <ImperialOverlay />
       </View>
     </View>

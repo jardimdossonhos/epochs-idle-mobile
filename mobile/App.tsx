@@ -1,95 +1,104 @@
+/**
+ * App.tsx — Epochs Idle
+ *
+ * Navegação principal: 5 Bottom Tabs (Regra do Polegar) + TopHUD global.
+ *
+ * Tab Structure:
+ *   🗺️  Mundo     → MapScreen     (mapa hexagonal SVG + overlays)
+ *   🏛️  Estado    → EstadoScreen  (Corte | Economia | Idle | Leis) — Top Pills
+ *   🧪  Ciência   → TechScreen    (árvore de tecnologias)
+ *   🌍  Diplomacia → DiplomacyScreen
+ *   ⚙️  Sistema   → SistemaScreen (Crônicas | Jogo | Config) — Top Pills
+ *
+ * Global Always-on:
+ *   TopHUD — Data, Play/Pause, Ouro (+ income), Estabilidade, Sino de alertas
+ */
+
 import React, { useState, useEffect } from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Platform } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
 import { GameProvider, useGameState } from './src/ui/GameProvider';
 import { useUIStore } from './src/ui/store/game-store';
 import { AuthProvider, useAuth } from './src/ui/context/AuthContext';
-import { LanguageProvider, useLanguage } from './src/ui/context/LanguageContext';
+import { LanguageProvider } from './src/ui/context/LanguageContext';
 
-import SplashScreen from './src/ui/components/SplashScreen';
-import EventPopup from './src/ui/components/EventPopup';
-import AscensionModal from './src/ui/components/AscensionModal';
+// ── Global overlays (render on top of everything) ──────────────────────────
+import SplashScreen       from './src/ui/components/SplashScreen';
+import EventPopup         from './src/ui/components/EventPopup';
+import AscensionModal     from './src/ui/components/AscensionModal';
+import TopHUD             from './src/ui/components/TopHUD';
 
-// Import Screens
-import MapScreen from './src/ui/screens/MapScreen';
-import GovScreen from './src/ui/screens/GovScreen';
-import CharacterScreen from './src/ui/screens/CharacterScreen';
-import MenuScreen from './src/ui/screens/MenuScreen';
-import TechScreen from './src/ui/screens/TechScreen';
-import DiplomacyScreen from './src/ui/screens/DiplomacyScreen';
-import SettingsScreen from './src/ui/screens/SettingsScreen';
-
-// M1 Screens
-import AuthScreen from './src/ui/screens/AuthScreen';
-import MainMenuScreen from './src/ui/screens/MainMenuScreen';
+// ── Pre-game flow ──────────────────────────────────────────────────────────
+import AuthScreen            from './src/ui/screens/AuthScreen';
+import MainMenuScreen        from './src/ui/screens/MainMenuScreen';
 import CharacterCreationScreen from './src/ui/screens/character-creation/CharacterCreationScreen';
 
+// ── 5 Main Game Tabs ───────────────────────────────────────────────────────
+import MapScreen        from './src/ui/screens/MapScreen';
+import EstadoScreen     from './src/ui/screens/EstadoScreen';
+import TechScreen       from './src/ui/screens/TechScreen';
+import DiplomacyScreen  from './src/ui/screens/DiplomacyScreen';
+import SistemaScreen    from './src/ui/screens/SistemaScreen';
+
+// ─── Navigation ────────────────────────────────────────────────────────────
 const Tab = createBottomTabNavigator();
 
 const EmpireTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    primary: '#D4AF37', // Gold for active tabs
+    primary: '#D4AF37',
     background: '#121212',
-    card: '#1A1A1A', // Bottom nav bar color
+    card: 'rgba(13, 13, 18, 0.95)',
     text: '#E0E0E0',
-    border: '#2C2C2C',
-    notification: '#8B0000', // Crimson red for alerts
+    border: 'rgba(212,175,55,0.3)',
+    notification: '#E24A4A',
   },
 };
 
-const renderTechIcon = ({ color, size }: { color: string; size: number }) => (
-  <Text style={{ fontSize: size, color }}>💡</Text>
+// ─── Tab Icon Components ────────────────────────────────────────────────────
+// Using a small component pattern so hooks (useUIStore) can be used safely inside.
+const MapTabIcon = ({ color, size }: { color: string; size: number }) => (
+  <Text style={{ fontSize: size * 0.9, color }}>🗺️</Text>
 );
-const renderMapIcon = ({ color, size }: { color: string; size: number }) => (
-  <Text style={{ fontSize: size, color }}>🌍</Text>
-);
-const EvolutionGovTabIcon = ({ color, size }: { color: string; size: number }) => {
-  const isEvolved = useUIStore(s => s.playerHasAscended);
-  const icon = isEvolved ? '🏛️' : '⛺';
-  return <Text style={{ fontSize: size, color }}>{icon}</Text>;
+const EstadoTabIcon = ({ color, size }: { color: string; size: number }) => {
+  const isEvolved = useUIStore((s) => s.playerHasAscended);
+  return <Text style={{ fontSize: size * 0.9, color }}>{isEvolved ? '🏛️' : '⛺'}</Text>;
 };
-const renderGovIcon = ({ color, size }: { color: string; size: number }) => (
-  <EvolutionGovTabIcon color={color} size={size} />
+const TechTabIcon = ({ color, size }: { color: string; size: number }) => (
+  <Text style={{ fontSize: size * 0.9, color }}>🧪</Text>
 );
-const EvolutionGovTabLabel = ({ focused, color }: { focused: boolean; color: string }) => {
-  const isEvolved = useUIStore(s => s.playerHasAscended);
-  const label = isEvolved ? 'Governo' : 'Tribo';
-  return <Text style={{ color, fontSize: 10, fontWeight: focused ? 'bold' : 'normal' }}>{label}</Text>;
-};
-const renderDiplomacyIcon = ({ color, size }: { color: string; size: number }) => (
-  <Text style={{ fontSize: size, color }}>📜</Text>
+const DiplomacyTabIcon = ({ color, size }: { color: string; size: number }) => (
+  <Text style={{ fontSize: size * 0.9, color }}>🌍</Text>
 );
-// Ícone e label da aba de Personagens/Corte muda conforme a era do jogo
-// (mesmo padrão da aba Governo/Tribo)
-const EvolutionCharactersTabIcon = ({ color, size }: { color: string; size: number }) => {
-  const isEvolved = useUIStore(s => s.playerHasAscended);
-  const icon = isEvolved ? '👑' : '🔥';
-  return <Text style={{ fontSize: size, color }}>{icon}</Text>;
-};
-const renderCharactersIcon = ({ color, size }: { color: string; size: number }) => (
-  <EvolutionCharactersTabIcon color={color} size={size} />
-);
-const EvolutionCharactersTabLabel = ({ focused, color }: { focused: boolean; color: string }) => {
-  const isEvolved = useUIStore(s => s.playerHasAscended);
-  const label = isEvolved ? 'Corte' : 'Clã';
-  return <Text style={{ color, fontSize: 10, fontWeight: focused ? 'bold' : 'normal' }}>{label}</Text>;
-};
-const renderMenuIcon = ({ color, size }: { color: string; size: number }) => (
-  <Text style={{ fontSize: size, color }}>⚙️</Text>
-);
-const renderSettingsIcon = ({ color, size }: { color: string; size: number }) => (
-  <Text style={{ fontSize: size, color }}>🔧</Text>
+const SistemaTabIcon = ({ color, size }: { color: string; size: number }) => (
+  <Text style={{ fontSize: size * 0.9, color }}>⚙️</Text>
 );
 
+// Renderers (required by React Navigation API)
+const renderMapIcon        = (p: { color: string; size: number }) => <MapTabIcon {...p} />;
+const renderEstadoIcon     = (p: { color: string; size: number }) => <EstadoTabIcon {...p} />;
+const renderTechIcon       = (p: { color: string; size: number }) => <TechTabIcon {...p} />;
+const renderDiplomacyIcon  = (p: { color: string; size: number }) => <DiplomacyTabIcon {...p} />;
+const renderSistemaIcon    = (p: { color: string; size: number }) => <SistemaTabIcon {...p} />;
+
+// Evolution-aware labels
+const EstadoTabLabel = ({ focused, color }: { focused: boolean; color: string }) => {
+  const isEvolved = useUIStore((s) => s.playerHasAscended);
+  return (
+    <Text style={{ color, fontSize: 10, fontWeight: focused ? 'bold' : 'normal' }}>
+      {isEvolved ? 'Estado' : 'Tribo'}
+    </Text>
+  );
+};
+
+// ─── Main Tabs ──────────────────────────────────────────────────────────────
 function MainTabs() {
-  const { t } = useLanguage();
-
   return (
     <Tab.Navigator
       initialRouteName="Map"
@@ -100,77 +109,82 @@ function MainTabs() {
           bottom: 0,
           left: 0,
           right: 0,
-          backgroundColor: 'rgba(20, 20, 25, 0.85)',
-          borderTopColor: 'rgba(212, 175, 55, 0.4)',
+          backgroundColor: 'rgba(13, 13, 18, 0.95)',
+          borderTopColor: 'rgba(212, 175, 55, 0.35)',
           borderTopWidth: 1,
-          paddingBottom: 5,
-          height: 60,
+          paddingBottom: 6,
+          height: 62,
           elevation: 0,
         },
         tabBarActiveTintColor: '#D4AF37',
-        tabBarInactiveTintColor: '#666',
+        tabBarInactiveTintColor: '#555',
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '600',
+          marginTop: 2,
+        },
       }}
     >
-      <Tab.Screen 
-        name="Tech" 
+      <Tab.Screen
+        name="Map"
+        component={MapScreen}
+        options={{
+          tabBarLabel: 'Mundo',
+          tabBarIcon: renderMapIcon,
+        }}
+      />
+      <Tab.Screen
+        name="Estado"
+        component={EstadoScreen}
+        options={{
+          tabBarLabel: ({ focused, color }) => <EstadoTabLabel focused={focused} color={color} />,
+          tabBarIcon: renderEstadoIcon,
+        }}
+      />
+      <Tab.Screen
+        name="Tech"
         component={TechScreen}
         options={{
+          tabBarLabel: 'Ciência',
           tabBarIcon: renderTechIcon,
-          tabBarLabel: t('tabs.knowledge')
         }}
       />
-      <Tab.Screen 
-        name="Map" 
-        component={MapScreen} 
-        options={{ 
-          tabBarLabel: t('tabs.world'),
-          tabBarIcon: renderMapIcon
+      <Tab.Screen
+        name="Diplomacy"
+        component={DiplomacyScreen}
+        options={{
+          tabBarLabel: 'Diplomacia',
+          tabBarIcon: renderDiplomacyIcon,
         }}
       />
-      <Tab.Screen 
-        name="Government" 
-        component={GovScreen} 
-        options={{ 
-          tabBarLabel: ({ focused, color }) => <EvolutionGovTabLabel focused={focused} color={color} />,
-          tabBarIcon: renderGovIcon
-        }}
-      />
-      <Tab.Screen 
-        name="Diplomacy" 
-        component={DiplomacyScreen} 
-        options={{ 
-          tabBarLabel: t('tabs.diplomacy'),
-          tabBarIcon: renderDiplomacyIcon
-        }}
-      />
-      <Tab.Screen 
-        name="Characters" 
-        component={CharacterScreen} 
-        options={{ 
-          tabBarLabel: ({ focused, color }) => <EvolutionCharactersTabLabel focused={focused} color={color} />,
-          tabBarIcon: renderCharactersIcon
-        }}
-      />
-      <Tab.Screen 
-        name="Menu" 
-        component={MenuScreen} 
-        options={{ 
-          tabBarLabel: t('tabs.menu'),
-          tabBarIcon: renderMenuIcon
-        }}
-      />
-      <Tab.Screen 
-        name="Settings" 
-        component={SettingsScreen} 
-        options={{ 
-          tabBarLabel: t('tabs.config'),
-          tabBarIcon: renderSettingsIcon
+      <Tab.Screen
+        name="Sistema"
+        component={SistemaScreen}
+        options={{
+          tabBarLabel: 'Sistema',
+          tabBarIcon: renderSistemaIcon,
         }}
       />
     </Tab.Navigator>
   );
 }
 
+// ─── In-Game Shell (TopHUD + Tabs + Global Modals) ─────────────────────────
+function InGameShell() {
+  return (
+    <View style={{ flex: 1, backgroundColor: '#121212' }}>
+      {/* Tabs fill the screen */}
+      <MainTabs />
+      {/* TopHUD floats above everything (position:absolute internally) */}
+      <TopHUD />
+      {/* Global popup overlays */}
+      <EventPopup />
+      <AscensionModal />
+    </View>
+  );
+}
+
+// ─── App State Machine ──────────────────────────────────────────────────────
 export type RootAppState = 'splash' | 'auth' | 'main_menu' | 'character_creation' | 'in_game';
 
 function AppContent() {
@@ -183,17 +197,14 @@ function AppContent() {
       setAppState('splash');
       return;
     }
-
     if (authStatus === 'unauthenticated') {
       setAppState('auth');
     } else {
       setAppState((prev) => (prev === 'splash' || prev === 'auth' ? 'main_menu' : prev));
     }
-  }, [authStatus, isAuthLoading, appState]);
+  }, [authStatus, isAuthLoading]);
 
-  if (appState === 'splash') {
-    return <SplashScreen />;
-  }
+  if (appState === 'splash') return <SplashScreen />;
 
   if (appState === 'auth') {
     return <AuthScreen onAuthenticated={() => setAppState('main_menu')} />;
@@ -217,21 +228,12 @@ function AppContent() {
     );
   }
 
-  if (!gameState) {
-    return <SplashScreen />;
-  }
+  if (!gameState) return <SplashScreen />;
 
-  return (
-    <>
-      <MainTabs />
-      <EventPopup />
-      <AscensionModal />
-    </>
-  );
+  return <InGameShell />;
 }
 
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-
+// ─── Root ───────────────────────────────────────────────────────────────────
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

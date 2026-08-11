@@ -67,10 +67,20 @@ const DIRECTIVES: DirectiveDef[] = [
   },
 ];
 
-export default function GovScreen() {
+interface GovScreenProps {
+  /** When set, GovScreen renders only this tab (no internal tab bar shown). */
+  forcedTab?: 'economy' | 'laws' | 'automation' | 'events';
+}
+
+export default function GovScreen({ forcedTab }: GovScreenProps = {}) {
   const insets = useSafeAreaInsets();
   const { gameState, session, playerKingdomId } = useGameState();
-  const [activeTab, setActiveTab] = useState<'economy' | 'laws' | 'automation' | 'events'>('economy');
+  const [activeTab, setActiveTab] = useState<'economy' | 'laws' | 'automation' | 'events'>(
+    forcedTab ?? 'economy'
+  );
+
+  // If a forcedTab was provided, always honour it (EstadoScreen drives the content)
+  const displayTab = forcedTab ?? activeTab;
 
   const bootstrapDone = React.useRef(false);
 
@@ -239,40 +249,42 @@ export default function GovScreen() {
   const draftTotal = Object.values(activeBudget).reduce((a,b)=>a+b,0);
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
-      {/* Tabs */}
+    <View style={[styles.container, { paddingTop: forcedTab ? 4 : Math.max(insets.top, 16) }]}>
+      {/* Internal Tabs — hidden when driven by EstadoScreen's Top Pills */}
+      {!forcedTab && (
       <View style={styles.tabContainer}>
         <TouchableOpacity 
-          style={[styles.tab, activeTab === 'economy' && styles.activeTab]}
+          style={[styles.tab, displayTab === 'economy' && styles.activeTab]}
           onPress={() => setActiveTab('economy')}
         >
-          <Text style={[styles.tabText, activeTab === 'economy' && styles.activeTabText]}>{isEvolved ? 'Economia' : 'Coleta & Espólio'}</Text>
+          <Text style={[styles.tabText, displayTab === 'economy' && styles.activeTabText]}>{isEvolved ? 'Economia' : 'Coleta & Espólio'}</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.tab, activeTab === 'laws' && styles.activeTab]}
+          style={[styles.tab, displayTab === 'laws' && styles.activeTab]}
           onPress={() => setActiveTab('laws')}
         >
-          <Text style={[styles.tabText, activeTab === 'laws' && styles.activeTabText]}>{isEvolved ? 'Estado' : 'Tradição'}</Text>
+          <Text style={[styles.tabText, displayTab === 'laws' && styles.activeTabText]}>{isEvolved ? 'Estado' : 'Tradição'}</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.tab, activeTab === 'automation' && styles.activeTab]}
+          style={[styles.tab, displayTab === 'automation' && styles.activeTab]}
           onPress={() => setActiveTab('automation')}
         >
-          <Text style={[styles.tabText, activeTab === 'automation' && styles.activeTabText]}>{isEvolved ? 'Idle / Auto' : 'Foco do Bando'}</Text>
+          <Text style={[styles.tabText, displayTab === 'automation' && styles.activeTabText]}>{isEvolved ? 'Idle / Auto' : 'Foco do Bando'}</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.tab, activeTab === 'events' && styles.activeTab]}
+          style={[styles.tab, displayTab === 'events' && styles.activeTab]}
           onPress={() => setActiveTab('events')}
         >
-          <Text style={[styles.tabText, activeTab === 'events' && styles.activeTabText]}>Feed Mundo</Text>
+          <Text style={[styles.tabText, displayTab === 'events' && styles.activeTabText]}>Feed Mundo</Text>
         </TouchableOpacity>
       </View>
+      )}
 
-      {activeTab === 'events' ? (
+      {displayTab === 'events' ? (
         <EventFeedTab worldFeed={worldFeed} gameState={gameState} session={session} playerKingdomId={playerKingdomId} />
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
-          {activeTab === 'economy' && (
+          {displayTab === 'economy' && (
           <View>
             <Text style={styles.sectionTitle}>{isEvolved ? 'Tesouro & Estoques' : 'Provimentos da Tribo'}</Text>
             <View style={styles.resourceGrid}>
@@ -329,7 +341,7 @@ export default function GovScreen() {
           </View>
         )}
 
-        {activeTab === 'laws' && (
+        {displayTab === 'laws' && (
           <View>
             <Text style={styles.sectionTitle}>{isEvolved ? 'Indicadores do Estado' : 'Coesão do Bando'}</Text>
             <View style={styles.card}>
@@ -418,7 +430,7 @@ export default function GovScreen() {
           </View>
         )}
 
-        {activeTab === 'automation' && (
+        {displayTab === 'automation' && (
           <View>
             <Text style={styles.sectionTitle}>{isEvolved ? 'Diretrizes Estratégicas (Idle)' : 'Instintos e Hábitos da Tribo (Idle)'}</Text>
             <Text style={styles.taxHelperText}>
