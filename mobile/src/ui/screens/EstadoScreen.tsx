@@ -112,6 +112,8 @@ export default function EstadoScreen() {
             </TouchableOpacity>
           );
         })}
+        {/* Dummy view to force Android ScrollView to respect right padding/margin */}
+        <View style={{ width: 24 }} />
       </ScrollView>
 
       {/* ── Content ─────────────────────────────────────────────────────────── */}
@@ -135,7 +137,8 @@ const styles = StyleSheet.create({
   },
   pillBarContent: {
     flexDirection: 'row',
-    paddingHorizontal: 12,
+    paddingLeft: 12,
+    paddingRight: 32, // Extra padding to prevent right clipping on Android
     alignItems: 'center',
     paddingVertical: 8,
     gap: 8,
