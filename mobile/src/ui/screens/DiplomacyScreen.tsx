@@ -4,6 +4,7 @@ import { useGameState } from '../GameProvider';
 import { DiplomaticRelation } from '../../core/models/enums';
 import AvatarRenderer from '../components/AvatarRenderer';
 import { SOVEREIGN_TRAITS } from '../../core/models/character';
+import { HudAwareScreen } from '../components/HudAwareScreen';
 
 export type DiplomaticActionType = "alliance" | "non_aggression" | "peace" | "offer_tribute" | "demand_tribute" | "break_tribute" | "embargo" | "war" | "demand_vassalage";
 
@@ -26,9 +27,9 @@ export default function DiplomacyScreen() {
 
   if (!gameState || !playerKingdomId) {
     return (
-      <View style={styles.container}>
+      <HudAwareScreen>
         <Text style={styles.emptyText}>Estado do mundo não carregado.</Text>
-      </View>
+      </HudAwareScreen>
     );
   }
 
@@ -82,7 +83,7 @@ export default function DiplomacyScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <HudAwareScreen>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Diplomacia Mundial</Text>
         <Text style={styles.headerSub}>
@@ -312,7 +313,7 @@ export default function DiplomacyScreen() {
           })
         )}
       </ScrollView>
-    </View>
+    </HudAwareScreen>
   );
 }
 

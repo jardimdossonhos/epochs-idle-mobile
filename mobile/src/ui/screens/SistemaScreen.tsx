@@ -90,8 +90,7 @@ function CronicasTab() {
 export default function SistemaScreen() {
   const insets = useSafeAreaInsets();
   const [activePill, setActivePill] = useState<PillKey>('game');
-
-  const hudHeight = 72;
+  const hudHeight = useUIStore((s) => s.hudHeight);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + hudHeight }]}>

@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useGameState } from '../GameProvider';
 import { listTechnologyNodes, isTechnologyUnlocked, isTechnologyAvailable } from '../../core/data/technology-tree';
+import { HudAwareScreen } from '../components/HudAwareScreen';
 
 export default function TechScreen() {
   const { gameState, session, playerKingdomId } = useGameState();
@@ -39,7 +40,7 @@ export default function TechScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <HudAwareScreen style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Árvore do Conhecimento</Text>
         <Text style={styles.subtitle}>Progresso: {Math.floor(techState.accumulatedResearch)} Pts (Foco: {techState.researchFocus?.toUpperCase() || 'LIVRE'})</Text>
@@ -86,7 +87,7 @@ export default function TechScreen() {
           );
         })}
       </ScrollView>
-    </View>
+    </HudAwareScreen>
   );
 }
 

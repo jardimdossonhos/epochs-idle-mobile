@@ -38,6 +38,8 @@ export interface UIDeltas {
   playerHasAscended: boolean;
   playerAscensionEligible: boolean;
   playerAscensionPostponed: boolean;
+  /** Measured height of the floating TopHUD (updated via onLayout). Screens use this for paddingTop. */
+  hudHeight: number;
 }
 
 export const useUIStore = create<UIDeltas>(() => ({
@@ -78,9 +80,9 @@ export const useUIStore = create<UIDeltas>(() => ({
   playerHasAscended: false,
   playerAscensionEligible: false,
   playerAscensionPostponed: false,
+  hudHeight: 80,
 }));
 
 export const syncUI = (deltas: Partial<UIDeltas>) => {
   useUIStore.setState(deltas);
 };
-

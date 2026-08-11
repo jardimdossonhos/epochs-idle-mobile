@@ -82,10 +82,9 @@ function GovScreenShim({ defaultTab }: { defaultTab: 'economy' | 'laws' | 'autom
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function EstadoScreen() {
   const insets = useSafeAreaInsets();
-  const isEvolved = useUIStore((s) => s.playerHasAscended);
+  const isEvolved  = useUIStore((s) => s.playerHasAscended);
+  const hudHeight  = useUIStore((s) => s.hudHeight);
   const [activePill, setActivePill] = useState<PillKey>('court');
-
-  const hudHeight = 72; // approximate height of TopHUD to avoid overlap
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + hudHeight }]}>
