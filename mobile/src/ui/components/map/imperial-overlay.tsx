@@ -28,10 +28,7 @@ export function ImperialOverlay() {
 
   return (
     <>
-      {/* Toast Animado */}
-      <Animated.View style={[styles.toast, { opacity: toastAnim, transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]} pointerEvents="none">
-        <Text style={styles.toastText}>Novo Conselho Imperial Recebido!</Text>
-      </Animated.View>
+      {/* Toast Animado Removido a pedido do usuário (usando apenas o badge) */}
 
       {/* Botão Flutuante (FAB) */}
       <TouchableOpacity style={styles.fab} onPress={togglePanel}>

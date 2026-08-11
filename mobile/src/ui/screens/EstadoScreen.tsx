@@ -25,7 +25,7 @@ import CharacterScreen from './CharacterScreen';
 import GovScreen from './GovScreen';
 
 // ─── Top Pills ─────────────────────────────────────────────────────────────
-type PillKey = 'court' | 'economy' | 'idle' | 'laws';
+type PillKey = 'court' | 'events' | 'economy' | 'idle' | 'laws';
 
 interface Pill {
   key: PillKey;
@@ -36,6 +36,7 @@ interface Pill {
 
 const PILLS: Pill[] = [
   { key: 'court',   icon: '👑', label: 'Clã',        evolvedLabel: 'Corte'      },
+  { key: 'events',  icon: '📰', label: 'Feed',       evolvedLabel: 'Crônicas'   },
   { key: 'economy', icon: '💰', label: 'Espólio',     evolvedLabel: 'Economia'   },
   { key: 'idle',    icon: '⚙️', label: 'Foco do Bando', evolvedLabel: 'Automação' },
   { key: 'laws',    icon: '📜', label: 'Tradição',    evolvedLabel: 'Leis & Fé'  },
@@ -67,6 +68,10 @@ function PillContent({ pill }: { pill: PillKey }) {
     return <GovScreenShim defaultTab="laws" />;
   }
 
+  if (pill === 'events') {
+    return <GovScreenShim defaultTab="events" />;
+  }
+
   return null;
 }
 
@@ -75,7 +80,7 @@ function PillContent({ pill }: { pill: PillKey }) {
  * GovScreen reads its own useState; this wrapper remounts it with a key
  * so it always starts on the desired tab.
  */
-function GovScreenShim({ defaultTab }: { defaultTab: 'economy' | 'laws' | 'automation' }) {
+function GovScreenShim({ defaultTab }: { defaultTab: 'economy' | 'laws' | 'automation' | 'events' }) {
   return <GovScreen forcedTab={defaultTab} />;
 }
 
@@ -91,7 +96,7 @@ export default function EstadoScreen() {
       {/* ── Top Pills ──────────────────────────────────────────────────────── */}
       <ScrollView
         horizontal
-        showsHorizontalScrollIndicator={false}
+        showsHorizontalScrollIndicator={true}
         style={styles.pillBar}
         contentContainerStyle={styles.pillBarContent}
       >
@@ -130,7 +135,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#121212',
   },
   pillBar: {
-    maxHeight: 52,
+    maxHeight: 40,
     backgroundColor: '#0D0D12',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(212,175,55,0.2)',
@@ -140,7 +145,7 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
     paddingRight: 32, // Extra padding to prevent right clipping on Android
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 2,
     gap: 8,
   },
   pill: {

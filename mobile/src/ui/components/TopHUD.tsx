@@ -215,6 +215,16 @@ export default function TopHUD() {
 
         {/* ── Single compact row ───────────────────────────────────────── */}
         <View style={styles.singleRow}>
+          
+          {/* Bell Icon (discrete top-left) */}
+          <TouchableOpacity style={styles.bellBtn} onPress={() => setAlertsVisible(true)}>
+            <Text style={styles.bellIcon}>🔔</Text>
+            {alertCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{alertCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
           {/* Gold chip — left */}
           <View style={styles.statChip}>
@@ -275,14 +285,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(212, 175, 55, 0.35)',
     paddingHorizontal: 10,
-    paddingBottom: 7,
+    paddingBottom: 4,
     zIndex: 1000,
     elevation: 10,
   },
   loadingText: {
     color: '#D4AF37',
     textAlign: 'center',
-    paddingVertical: 8,
+    paddingVertical: 4,
     fontStyle: 'italic',
     fontSize: 13,
   },
