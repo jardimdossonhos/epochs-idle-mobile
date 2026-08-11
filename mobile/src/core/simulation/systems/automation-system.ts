@@ -322,7 +322,7 @@ export function createAutomationSystem(orderedDefinitions: RegionDefinition[]): 
 
         if (isEnabled(kingdom.administration.automation.technology)) {
           const goalId = kingdom.technology.researchGoalId;
-          if (!goalId || kingdom.technology.unlocked.includes(goalId)) {
+          if (!goalId || kingdom.technology.unlocked[goalId]) {
             const domain = selectResearchDomain(kingdom, threat, warCount);
             kingdom.technology.researchFocus = domain;
           }
@@ -433,6 +433,9 @@ export function createAutomationSystem(orderedDefinitions: RegionDefinition[]): 
             const success = roll <= chance;
 
             if (success) {
+              if (!targetKingdom.religion.externalInfluenceIn) {
+                targetKingdom.religion.externalInfluenceIn = {};
+              }
               const currentInfluence = targetKingdom.religion.externalInfluenceIn[kingdom.id] ?? 0;
               const boostedInfluence = clamp(currentInfluence + pressureGain, 0, 1);
               targetKingdom.religion.externalInfluenceIn[kingdom.id] = roundTo(boostedInfluence, 4);

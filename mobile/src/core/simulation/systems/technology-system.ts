@@ -64,7 +64,7 @@ function applyResearchEffects(kingdom: KingdomState, node: TechnologyNode): void
 function ensureActiveResearch(kingdom: KingdomState): TechnologyNode | null {
   const goalId = kingdom.technology.researchGoalId;
   if (goalId) {
-    if (kingdom.technology.unlocked.includes(goalId)) {
+    if (kingdom.technology.unlocked[goalId]) {
       kingdom.technology.researchGoalId = null;
     } else {
       const goalNode = selectResearchNodeTowardsTarget(kingdom.technology, goalId);
@@ -78,9 +78,9 @@ function ensureActiveResearch(kingdom: KingdomState): TechnologyNode | null {
 
   const activeId = kingdom.technology.activeResearchId;
   const activeNode = activeId ? getTechnologyNode(activeId) : undefined;
-  const isUnlocked = activeId ? kingdom.technology.unlocked.includes(activeId) : false;
+  const isUnlocked = activeId ? !!kingdom.technology.unlocked[activeId] : false;
 
-  if (!isUnlocked && activeNode && activeNode.required.every((requiredId) => kingdom.technology.unlocked.includes(requiredId))) {
+  if (!isUnlocked && activeNode && activeNode.required.every((requiredId) => kingdom.technology.unlocked[requiredId])) {
     return activeNode;
   }
 
@@ -92,7 +92,7 @@ function ensureActiveResearch(kingdom: KingdomState): TechnologyNode | null {
 function selectNextResearchNode(kingdom: KingdomState): TechnologyNode | null {
   const goalId = kingdom.technology.researchGoalId;
   if (goalId) {
-    if (kingdom.technology.unlocked.includes(goalId)) {
+    if (kingdom.technology.unlocked[goalId]) {
       kingdom.technology.researchGoalId = null;
     } else {
       const goalNode = selectResearchNodeTowardsTarget(kingdom.technology, goalId);
@@ -105,7 +105,11 @@ function selectNextResearchNode(kingdom: KingdomState): TechnologyNode | null {
   return selectDefaultResearchNode(kingdom.technology, kingdom.technology.researchFocus);
 }
 
-
+function getEffectiveCost(node: TechnologyNode, kingdom: KingdomState): number {
+  if (!node.repeatable) return node.cost;
+  const level = (kingdom.technology.repeatableLevels[node.id] || 0) + 1;
+  return Math.floor(node.cost * Math.pow(node.costScaling ?? 1.5, level - 1));
+}
 
 export function createTechnologySystem(): SimulationSystem {
   return {
@@ -130,14 +134,33 @@ export function createTechnologySystem(): SimulationSystem {
           continue;
         }
 
-        if (kingdom.technology.accumulatedResearch < activeNode.cost) {
+        const cost = getEffectiveCost(activeNode, kingdom);
+        if (kingdom.technology.accumulatedResearch < cost) {
           continue;
         }
 
-        kingdom.technology.accumulatedResearch = roundTo(kingdom.technology.accumulatedResearch - activeNode.cost);
+        kingdom.technology.accumulatedResearch = roundTo(kingdom.technology.accumulatedResearch - cost);
 
-        if (!kingdom.technology.unlocked.includes(activeNode.id)) {
-          kingdom.technology.unlocked.push(activeNode.id);
+        if (activeNode.repeatable) {
+          kingdom.technology.repeatableLevels[activeNode.id] = (kingdom.technology.repeatableLevels[activeNode.id] || 0) + 1;
+        } else {
+          kingdom.technology.unlocked[activeNode.id] = true;
+        }
+
+        if (activeNode.unlockCapabilities) {
+          for (const cap of activeNode.unlockCapabilities) {
+            (kingdom.capabilities as any)[cap] = true;
+          }
+        }
+
+        if (activeNode.isGateway) {
+          const eraOrder = ["stone_age", "bronze_age", "iron_age"];
+          const currentEraIndex = eraOrder.indexOf(kingdom.technology.currentEra);
+          const nextEra = eraOrder[currentEraIndex + 1];
+          if (nextEra && !kingdom.technology.unlockedEras.includes(nextEra as any)) {
+            kingdom.technology.unlockedEras.push(nextEra as any);
+            kingdom.technology.currentEra = nextEra as any;
+          }
         }
 
         applyResearchEffects(kingdom, activeNode);
@@ -146,9 +169,9 @@ export function createTechnologySystem(): SimulationSystem {
 
         const evt = buildEvent("technology.completed", context.now, {
             technologyId: activeNode.id,
-            technologyName: activeNode.name,
+            technologyName: activeNode.repeatable ? `${activeNode.name} Nv.${kingdom.technology.repeatableLevels[activeNode.id]}` : activeNode.name,
             domain: activeNode.domain,
-            unlockedCount: kingdom.technology.unlocked.length,
+            unlockedCount: Object.keys(kingdom.technology.unlocked).length,
             focus: kingdom.technology.researchFocus,
             goalId: kingdom.technology.researchGoalId
           }, kingdom.id, undefined);

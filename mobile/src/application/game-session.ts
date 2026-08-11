@@ -27,6 +27,7 @@ import { resolveProposal } from "../infrastructure/diplomacy/local-diplomacy-res
 import { TickPipeline, type SimulationSystem } from "../core/simulation/tick-pipeline";
 import { parseDomainEventToLogEntry } from "../core/simulation/systems/event-log-system";
 import { generateRoutineAdvice } from "../core/simulation/systems/council-system";
+import { recalculateAdminModifiers } from "../core/simulation/systems/modifier-cache";
 import { AUTOSAVE_SLOT_ID, MANUAL_SLOT_ID } from "../infrastructure/persistence/save-slots";
 import { geminiService } from "./ai/gemini-service";
 
@@ -183,6 +184,37 @@ export class GameSession {
           founderId: null,
           foundedAt: now,
           parentReligionId: null
+        };
+      }
+    }
+    
+    // Technology & Capabilities migration
+    for (const kingdomId of Object.keys(state.kingdoms)) {
+      const kingdom = state.kingdoms[kingdomId];
+      if (!kingdom.technology) continue;
+
+      if (Array.isArray(kingdom.technology.unlocked)) {
+        const unlockedMap: Record<string, boolean> = {};
+        for (const techId of kingdom.technology.unlocked) {
+          unlockedMap[techId] = true;
+        }
+        kingdom.technology.unlocked = unlockedMap;
+      } else if (!kingdom.technology.unlocked) {
+        kingdom.technology.unlocked = {};
+      }
+
+      kingdom.technology.currentEra = kingdom.technology.currentEra || "stone_age" as any;
+      kingdom.technology.unlockedEras = kingdom.technology.unlockedEras || ["stone_age" as any];
+      kingdom.technology.repeatableLevels = kingdom.technology.repeatableLevels || {};
+
+      if (!kingdom.capabilities) {
+        kingdom.capabilities = {
+          canTraverseWater: false,
+          canBuildFleets: false,
+          canTradeOverseas: false,
+          canColonizeIslands: false,
+          hasWrittenLaw: false,
+          hasCurrency: false,
         };
       }
     }
@@ -503,6 +535,8 @@ export class GameSession {
     admin.candidatePool.splice(candidateIndex, 1);
     admin.council[targetRole] = candidate;
     
+    recalculateAdminModifiers(admin);
+    
     this.appendActionLog("Novo Conselheiro", `${candidate.name} foi nomeado para o cargo de ${targetRole}.`, "info");
     this.recordPlayerCommand("council.hire", { candidateId, role: candidate.role });
     this.persistCurrent();
@@ -535,6 +569,8 @@ export class GameSession {
       delete admin.council[currentRole];
     }
 
+    recalculateAdminModifiers(admin);
+
     this.appendActionLog("Reestruturação da Corte", `${sourceMinister.name} foi remanejado para o cargo de ${targetRole}.`, "info");
     this.recordPlayerCommand("council.reassign", { ministerId: sourceMinister.id, from: currentRole, to: targetRole });
     this.persistCurrent();
@@ -558,6 +594,8 @@ export class GameSession {
     delete admin.council[role];
     minister.loyalty = Math.max(0, minister.loyalty - 25);
     admin.candidatePool.push(minister);
+
+    recalculateAdminModifiers(admin);
 
     this.appendActionLog("Conselheiro Demitido", `${minister.name} foi removido do cargo de ${role}.`, "warning");
     this.recordPlayerCommand("council.fire", { role });
@@ -1040,7 +1078,7 @@ export class GameSession {
       return { ok: false, message: "Tecnologia inválida para meta." };
     }
 
-    if (player.technology.unlocked.includes(technologyId)) {
+    if (player.technology.unlocked[technologyId]) {
       return { ok: false, message: "Essa tecnologia já foi concluída." };
     }
 
@@ -1070,7 +1108,7 @@ export class GameSession {
     const state = this.requireState();
     const player = this.getPlayerKingdom(state);
     const availableIds = new Set(listAvailableTechnologyNodes(player.technology).map((node) => node.id));
-    const unlockedIds = new Set(player.technology.unlocked);
+    const unlockedIds = new Set(Object.keys(player.technology.unlocked));
     const activeId = player.technology.activeResearchId;
 
     return listTechnologyNodes().map((node) => {
@@ -1722,8 +1760,8 @@ export class GameSession {
     if (activeId) {
       const activeNode = getTechnologyNode(activeId);
       if (activeNode) {
-        if (!player.technology.unlocked.includes(activeId)) {
-          player.technology.unlocked.push(activeId);
+        if (!player.technology.unlocked[activeId]) {
+          player.technology.unlocked[activeId] = true;
           for (const effectObj of activeNode.effects) {
             const effect = effectObj.target;
             const value = effectObj.value;
@@ -1790,8 +1828,8 @@ export class GameSession {
 
     const allNodes = listTechnologyNodes();
     for (const node of allNodes) {
-      if (!player.technology.unlocked.includes(node.id)) {
-        player.technology.unlocked.push(node.id);
+      if (!player.technology.unlocked[node.id]) {
+        player.technology.unlocked[node.id] = true;
         for (const effectObj of node.effects) {
           const effect = effectObj.target;
           const value = effectObj.value;
@@ -2231,6 +2269,9 @@ export class GameSession {
     }
 
     if (success) {
+      if (!target.religion.externalInfluenceIn) {
+        target.religion.externalInfluenceIn = {};
+      }
       const currentInfluence = target.religion.externalInfluenceIn[player.id] ?? 0;
       const boostedInfluence = this.clamp(currentInfluence + config.pressureGain, 0, 1);
       target.religion.externalInfluenceIn[player.id] = this.round(boostedInfluence, 4);

@@ -6,6 +6,7 @@ import { clamp, createEventId, getPlayerKingdom, roundTo } from "./utils";
 import type { StaticWorldData } from "../../models/static-world-data";
 import type { GameState } from "../../models/game-state";
 import { getRandomCulture, generateCulturalName, generatePortraitSeed, getRandomGender } from "./culture-generator";
+import { recalculateAdminModifiers } from "./modifier-cache";
 
 const ORIGINS = ["Nobreza da Capital", "Clero Ortodoxo", "Mercadores do Leste", "Veterano de Fronteira", "Aristocracia Decadente", "Academia Real", "Plebeu Ascendido", "Ordem dos Inquisidores"];
 
@@ -410,7 +411,7 @@ function generateAdvice(minister: Minister, state: GameState, kingdomId: string,
         { id: "opt_1", label: "Aprovar: Construir Universidade (-400 Ouro)", actionType: "build_structure", payload: { regionId: kingdom.capitalRegionId, buildingType: BuildingType.University }, loyaltyImpact: 20 },
         { id: "opt_2", label: "Ignorar Conselho", actionType: "ignore", loyaltyImpact: -15 }
       ];
-    } else if (kingdom.technology.unlocked.length < 3 && !kingdom.technology.researchGoalId) {
+    } else if (Object.keys(kingdom.technology.unlocked).length < 3 && !kingdom.technology.researchGoalId) {
       urgency = "medium";
       title = "EstagnaÃ§Ã£o CientÃ­fica";
       text = "Nosso povo vive na ignorÃ¢ncia enquanto o mundo avanÃ§a. Defina uma Meta TecnolÃ³gica para orientar os mentes do impÃ©rio.";
@@ -533,6 +534,7 @@ export function createCouncilSystem(): SimulationSystem {
 
       let eventSeq = 0;
       const currentCouncil = player.administration.council;
+      let councilChanged = false;
 
       for (const role of Object.keys(currentCouncil) as MinisterRole[]) {
         const minister = currentCouncil[role];
@@ -563,6 +565,7 @@ export function createCouncilSystem(): SimulationSystem {
           }
           
           delete currentCouncil[role];
+          councilChanged = true;
           continue; // Pula para o prÃ³ximo, pois este jÃ¡ foi embora
         }
 
@@ -593,6 +596,10 @@ export function createCouncilSystem(): SimulationSystem {
           }
           }
         }
+      }
+      
+      if (councilChanged) {
+        recalculateAdminModifiers(player.administration);
       }
     }
   };

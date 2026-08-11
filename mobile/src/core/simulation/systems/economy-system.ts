@@ -2,6 +2,7 @@ import { buildEvent } from "../../ecs/event-pool";
 import { ResourceType, TreatyType } from "../../models/enums";
 import { createEmptyStock } from "../../models/economy";
 import { getGovernmentModifiers } from "../../data/government-types";
+import { DEFAULT_ADMIN_MODIFIERS } from "./modifier-cache";
 import type { SimulationSystem } from "../tick-pipeline";
 import { clamp, createEventId, ensureResourceNonNegative, getOwnedRegionIds, roundTo } from "./utils";
 
@@ -60,8 +61,10 @@ export function createEconomySystem(): SimulationSystem {
         const militaryBudgetFactor = budget.military / 100;
         const economyBudgetFactor = budget.economy / 100;
         const administrationBudgetFactor = budget.administration / 100;
+        
+        const mods = kingdom.administration.modifierCache || DEFAULT_ADMIN_MODIFIERS;
 
-        const taxIncomeFactor = 0.72 + taxLoad * 1.05;
+        const taxIncomeFactor = (0.72 + taxLoad * 1.05) * mods.taxMultiplier;
 
         const goldIncome = roundTo(
           (regionEconomy.economy * (0.78 + merchantShare * 0.62) + populationFactor * 0.24) * taxIncomeFactor
@@ -70,7 +73,7 @@ export function createEconomySystem(): SimulationSystem {
         const woodIncome = roundTo(regionEconomy.economy * (0.4 + economyBudgetFactor * 0.15));
         const ironIncome = roundTo(regionEconomy.military * (0.26 + militaryBudgetFactor * 0.22));
         const faithIncome = roundTo(ownedRegionIds.length * 0.12 * (1 + kingdom.religion.authority));
-        const legitimacyIncome = roundTo(0.06 + kingdom.stability / 560 + kingdom.legitimacy / 1_200);
+        const legitimacyIncome = roundTo(0.06 + kingdom.stability / 560 + kingdom.legitimacy / 1_200) + mods.legitimacyFlat;
 
         const adminPenalty = clamp(kingdom.administration.usedCapacity / Math.max(1, kingdom.administration.adminCapacity), 0.4, 1.9);
         
@@ -82,15 +85,15 @@ export function createEconomySystem(): SimulationSystem {
         }
 
         const goldUpkeep = roundTo(
-          armyManpower / 8_300 +
+          (armyManpower / 8_300) * mods.militaryUpkeepMultiplier +
             kingdom.administration.usedCapacity * 0.042 +
             kingdom.economy.corruption * 1.8 +
             adminPenalty * (0.12 - administrationBudgetFactor * 0.04) +
             councilSalaryTotal
         );
-        const foodUpkeep = roundTo(kingdom.population.total / 95_000 + armyManpower / 5_500);
-        const woodUpkeep = roundTo(armyManpower / 30_000);
-        const ironUpkeep = roundTo((armyManpower / 22_000) * (0.8 + soldierShare));
+        const foodUpkeep = roundTo(kingdom.population.total / 95_000 + (armyManpower / 5_500) * mods.militaryUpkeepMultiplier);
+        const woodUpkeep = roundTo((armyManpower / 30_000) * mods.militaryUpkeepMultiplier);
+        const ironUpkeep = roundTo(((armyManpower / 22_000) * (0.8 + soldierShare)) * mods.militaryUpkeepMultiplier);
         const faithUpkeep = roundTo(0.04 + (1 - kingdom.religion.tolerance) * 0.2);
         const legitimacyUpkeep = roundTo((100 - kingdom.stability) / 900 + Math.max(0, taxLoad - 0.34) * 0.07);
 

@@ -52,6 +52,15 @@ export interface EcsState {
   visibilityMask: Uint8Array | number[];
 }
 
+export interface KingdomCapabilities {
+  canTraverseWater: boolean;
+  canBuildFleets: boolean;
+  canTradeOverseas: boolean;
+  canColonizeIslands: boolean;
+  hasWrittenLaw: boolean;
+  hasCurrency: boolean;
+}
+
 export interface KingdomState {
   id: KingdomId;
   name: string;
@@ -61,6 +70,7 @@ export interface KingdomState {
   rulerId?: string; // NOVO: O ID do Personagem que governa o impÃ©rio
   heirs: string[]; // IDs dos herdeiros em ordem de sucessÃ£o
   ownedRegionIds?: string[]; // Cached list of owned region IDs
+  capabilities: KingdomCapabilities;
   economy: EconomyState;
   population: PopulationState;
   technology: TechnologyState;

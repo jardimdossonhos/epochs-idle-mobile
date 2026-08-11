@@ -1,4 +1,4 @@
-import { TechnologyDomain } from "./enums";
+import { TechnologyDomain, TechnologyEra } from "./enums";
 
 export type ModifierTarget =
   | "economy.food_production_multiplier"
@@ -33,19 +33,27 @@ export interface TechnologyEffect {
 export interface TechnologyNode {
   id: string;
   domain: TechnologyDomain;
+  era: TechnologyEra;
   name: string;
   description: string;
   required: string[];
   cost: number;
   effects: TechnologyEffect[];
+  isGateway?: boolean;
+  unlockCapabilities?: string[];
+  repeatable?: boolean;
+  costScaling?: number;
 }
 
 export interface TechnologyState {
-  unlocked: string[];
+  unlocked: Record<string, boolean>;
   activeResearchId: string | null;
   researchFocus: TechnologyDomain;
   researchGoalId: string | null;
   accumulatedResearch: number;
+  currentEra: TechnologyEra;
+  unlockedEras: TechnologyEra[];
+  repeatableLevels: Record<string, number>;
 }
 
 export type CalculatedTechnologyEffects = Map<string, number>;

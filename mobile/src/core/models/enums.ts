@@ -24,6 +24,12 @@ export enum TechnologyDomain {
   Engineering = "engineering"
 }
 
+export enum TechnologyEra {
+  StoneAge = "stone_age",
+  BronzeAge = "bronze_age",
+  IronAge = "iron_age"
+}
+
 export enum DiplomaticRelation {
   Hostile = "hostile",
   Neutral = "neutral",

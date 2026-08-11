@@ -149,11 +149,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             const nextTick = state?.meta?.tick ?? 0;
             const nextPaused = state?.meta?.paused ?? false;
             const nextAscended = Boolean(k?.hasAscended);
-            const nextEligible = !k?.hasAscended && (k?.population?.total ?? 0) >= 1000 && nextTick >= 12 && Boolean(k?.technology?.unlocked?.includes('sedentism'));
+            const nextEligible = !k?.hasAscended && (k?.population?.total ?? 0) >= 1000 && nextTick >= 12 && Boolean(k?.technology?.unlocked?.['sedentism']);
             const nextPostponed = Boolean(k?.ascensionPostponed);
 
             const currStore = useUIStore.getState();
-            const nextUnlockedTechs = k?.technology?.unlocked ?? [];
+            const nextUnlockedTechs = k?.technology?.unlocked ? Object.keys(k.technology.unlocked) : [];
             const techsChanged =
               currStore.playerUnlockedTechs.length !== nextUnlockedTechs.length ||
               !currStore.playerUnlockedTechs.every((val, idx) => val === nextUnlockedTechs[idx]);

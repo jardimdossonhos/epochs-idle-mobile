@@ -290,16 +290,27 @@ function createKingdom(
     isPlayer: blueprint.isPlayer,
     color: blueprint.color,
     capitalRegionId,
-    heirs: [], // Inicialmente sem herdeiros - serÃƒÆ’Ã‚Â£o gerados quando o monarca for definido
+    heirs: [], // Inicialmente sem herdeiros - serÃ£o gerados quando o monarca for definido
     ownedRegionIds: ownedRegions,
     economy: createBaseEconomy(),
     population: createBasePopulation(populationTotal),
+    capabilities: {
+      canTraverseWater: false,
+      canBuildFleets: false,
+      canTradeOverseas: false,
+      canColonizeIslands: false,
+      hasWrittenLaw: false,
+      hasCurrency: false,
+    },
     technology: {
-      unlocked: isNature ? [] : ["fire_mastery"], // O fogo ÃƒÆ’Ã‚Â© o berÃƒÆ’Ã‚Â§o de tudo
+      unlocked: isNature ? {} : { fire_mastery: true },
       activeResearchId: isNature ? null : "bone_tools",
       researchGoalId: null,
       accumulatedResearch: 0,
-      researchFocus: TechnologyDomain.Administration
+      researchFocus: TechnologyDomain.Administration,
+      currentEra: "stone_age" as any,
+      unlockedEras: ["stone_age" as any],
+      repeatableLevels: {}
     },
     religion: {
       stateFaith,

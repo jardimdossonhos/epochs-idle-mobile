@@ -70,6 +70,13 @@ export interface MinisterAdvice {
   isRead?: boolean;
 }
 
+export interface AdministrationModifierCache {
+  taxMultiplier: number; // starts at 1.0
+  unrestReduction: number; // starts at 0
+  militaryUpkeepMultiplier: number; // starts at 1.0
+  legitimacyFlat: number; // starts at 0
+}
+
 export interface AdministrationState {
   adminCapacity: number;
   usedCapacity: number;
@@ -81,4 +88,5 @@ export interface AdministrationState {
   candidatePool: Minister[]; // Mercado de talentos: Ministros disponíveis para contratação
   activeAdvice: MinisterAdvice[];
   directives?: Record<string, boolean>;
+  modifierCache?: AdministrationModifierCache; // Caching for Procedural Traits
 }

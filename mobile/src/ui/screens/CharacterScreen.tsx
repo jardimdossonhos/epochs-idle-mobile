@@ -5,6 +5,7 @@ import type { Character } from '../../core/models/character';
 import type { Minister } from '../../core/models/administration';
 import { MinisterRole } from '../../core/models/enums';
 import { getGovernmentDefinition } from '../../core/data/government-types';
+import { getCharacterIdentity } from '../../core/simulation/systems/character-interpreter';
 import GovernmentPolicyModal from '../components/GovernmentPolicyModal';
 
 // ---------------------------------------------------------------------------
@@ -370,6 +371,8 @@ function CouncilCard({
   const [showInteract, setShowInteract] = useState(false);
   const [showReassign, setShowReassign] = useState(false);
 
+  const identity = React.useMemo(() => getCharacterIdentity(minister.id, minister.cultureId), [minister.id, minister.cultureId]);
+
   const roleLabels: Record<MinisterRole, string> = {
     [MinisterRole.Steward]: "Administrador",
     [MinisterRole.Marshal]: "Marechal",
@@ -420,6 +423,16 @@ function CouncilCard({
       </View>
 
       <Text style={styles.originText}>Origem: {minister.origin}</Text>
+      
+      {identity.traits.length > 0 && (
+        <View style={{ flexDirection: 'row', marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
+          {identity.traits.map(t => (
+            <View key={t.id} style={{ backgroundColor: '#2C2C2C', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 }}>
+              <Text style={{ color: '#D4AF37', fontSize: 11 }}>{t.name}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Stats Row */}
       {minister.stats && (
@@ -496,6 +509,7 @@ function CandidateCard({
   occupiedRoles: MinisterRole[];
 }) {
   const [showRoles, setShowRoles] = useState(false);
+  const identity = React.useMemo(() => getCharacterIdentity(candidate.id, candidate.cultureId), [candidate.id, candidate.cultureId]);
 
   const roleLabels: Record<MinisterRole, string> = {
     [MinisterRole.Steward]: "Administrador",
@@ -531,6 +545,16 @@ function CandidateCard({
       </View>
 
       <Text style={styles.originText}>Origem: {candidate.origin}</Text>
+      
+      {identity.traits.length > 0 && (
+        <View style={{ flexDirection: 'row', marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
+          {identity.traits.map(t => (
+            <View key={t.id} style={{ backgroundColor: '#2C2C2C', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 }}>
+              <Text style={{ color: '#D4AF37', fontSize: 11 }}>{t.name}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Stats Row */}
       {candidate.stats && (

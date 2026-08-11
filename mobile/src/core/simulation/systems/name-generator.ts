@@ -2,7 +2,7 @@ import { BiomeType } from "../../models/enums";
 import type { RegionDefinition } from "../../models/world";
 
 // Hash puro e determinístico para ancorar o nome
-function hashString(input: string): number {
+export function hashString(input: string): number {
   let hash = 0;
   for (let index = 0; index < input.length; index += 1) {
     hash = (Math.imul(hash, 31) + input.charCodeAt(index)) >>> 0;
@@ -84,4 +84,21 @@ export function getRegionName(definition: RegionDefinition | undefined): string 
 
   // 6. Retorna a composição gerada a custo quase zero de CPU
   return `${prefix} ${suffix}`;
+}
+
+export const FACTION_TYPES = ["Irmandade", "Culto", "Legião", "Ordem", "Exército", "Aliança", "Rebeldes", "Vanguarda"];
+export const BIOME_FACTION_SUFFIX: Record<BiomeType, string[]> = {
+  [BiomeType.Ocean]: ["das Marés", "do Abismo", "da Costa", "do Horizonte", "dos Mares", "das Ilhas"],
+  [BiomeType.Desert]: ["das Areias", "do Sol", "da Sede", "Vermelha", "Escaldante", "das Dunas"],
+  [BiomeType.Tundra]: ["do Gelo", "da Nevasca", "do Inverno", "dos Lobos", "do Frio", "da Tundra"],
+  [BiomeType.Temperate]: ["dos Bosques", "do Vale", "Verde", "dos Campos", "da Terra", "da Colina"],
+  [BiomeType.Tropical]: ["da Selva", "das Sombras", "do Pântano", "Verde-Escuro", "das Árvores", "da Chuva"]
+};
+
+export function getFactionName(regionId: string, biome: BiomeType): string {
+    const seed = hashString(regionId);
+    const type = FACTION_TYPES[seed % FACTION_TYPES.length];
+    const suffixList = BIOME_FACTION_SUFFIX[biome] || BIOME_FACTION_SUFFIX[BiomeType.Temperate];
+    const suffix = suffixList[(seed >> 4) % suffixList.length];
+    return `${type} ${suffix}`;
 }

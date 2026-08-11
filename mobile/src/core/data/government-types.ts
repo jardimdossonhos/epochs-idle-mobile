@@ -186,7 +186,7 @@ export function getGovernmentModifiers(id?: string): GovernmentModifiers {
 /**
  * Checks if a specific government system is unlocked for a kingdom.
  */
-export function isGovernmentUnlocked(kingdom: { population?: { total: number }; technology?: { unlocked: string[] } }, def: GovernmentTypeDefinition, currentYear: number = 1): boolean {
+export function isGovernmentUnlocked(kingdom: { population?: { total: number }; technology?: { unlocked: Record<string, boolean> } }, def: GovernmentTypeDefinition, currentYear: number = 1): boolean {
   const pop = kingdom.population?.total ?? 0;
   if (def.prerequisites.minPopulation && pop < def.prerequisites.minPopulation) {
     return false;
@@ -195,9 +195,9 @@ export function isGovernmentUnlocked(kingdom: { population?: { total: number }; 
     return false;
   }
   if (def.prerequisites.requiredTechIds && def.prerequisites.requiredTechIds.length > 0) {
-    const unlocked = kingdom.technology?.unlocked ?? [];
+    const unlocked = kingdom.technology?.unlocked ?? {};
     for (const req of def.prerequisites.requiredTechIds) {
-      if (!unlocked.includes(req)) {
+      if (!unlocked[req]) {
         return false;
       }
     }
@@ -208,7 +208,7 @@ export function isGovernmentUnlocked(kingdom: { population?: { total: number }; 
 /**
  * Returns all government systems available/unlocked for a kingdom.
  */
-export function getUnlockedGovernments(kingdom: { population?: { total: number }; technology?: { unlocked: string[] } }, currentYear: number = 1): GovernmentTypeDefinition[] {
+export function getUnlockedGovernments(kingdom: { population?: { total: number }; technology?: { unlocked: Record<string, boolean> } }, currentYear: number = 1): GovernmentTypeDefinition[] {
   return Object.values(GOVERNMENT_REGISTRY).filter((def) => isGovernmentUnlocked(kingdom, def, currentYear));
 }
 

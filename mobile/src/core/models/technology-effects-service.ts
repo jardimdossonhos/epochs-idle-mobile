@@ -11,7 +11,7 @@ import type { CalculatedTechnologyEffects, TechnologyState } from "../models/tec
 export function calculateTechnologyBonuses(state: TechnologyState): CalculatedTechnologyEffects {
   const bonuses: CalculatedTechnologyEffects = new Map<string, number>();
 
-  for (const techId of state.unlocked) {
+  for (const techId of Object.keys(state.unlocked)) {
     const node = getTechnologyNode(techId);
     if (!node || !Array.isArray(node.effects)) {
       continue;
