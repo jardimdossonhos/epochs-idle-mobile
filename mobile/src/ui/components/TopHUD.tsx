@@ -179,8 +179,6 @@ export default function TopHUD() {
   ).length;
 
   const year  = Math.floor(tick / 12) + 1;
-  const month = (tick % 12) + 1;
-
   const goldColor = goldIncome >= 0 ? '#50E3C2' : '#E24A4A';
   const stabilityColor =
     stability >= 70 ? '#50E3C2' : stability >= 40 ? '#F8E71C' : '#E24A4A';
@@ -211,38 +209,14 @@ export default function TopHUD() {
             style={styles.devModeBanner}
             onPress={() => setIsDevPanelVisible(true)}
           >
-            <Text style={styles.devModeBannerText}>⚠️ MODO DESENVOLVEDOR ATIVO ⚠️</Text>
+            <Text style={styles.devModeBannerText}>⚠️ DEV MODE ⚠️</Text>
           </TouchableOpacity>
         )}
 
-        {/* ── Row 1: Date | Play/Pause | Bell ─────────────────────────── */}
-        <View style={styles.topRow}>
-          {/* Date — left anchor */}
-          <Text style={styles.dateText}>Ano {year} · M{month}</Text>
+        {/* ── Single compact row ───────────────────────────────────────── */}
+        <View style={styles.singleRow}>
 
-          {/* Play/Pause — center */}
-          <TouchableOpacity style={styles.playBtn} onPress={handleTogglePause}>
-            <Text style={styles.playBtnText}>{isPaused ? '▶  Retomar' : '⏸  Pausar'}</Text>
-          </TouchableOpacity>
-
-          {/* Bell — right anchor */}
-          <TouchableOpacity
-            style={styles.bellBtn}
-            onPress={() => setAlertsVisible(true)}
-            hitSlop={8}
-          >
-            <Text style={styles.bellIcon}>🔔</Text>
-            {alertCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{alertCount > 9 ? '9+' : alertCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Row 2: Stats chips — evenly spaced ──────────────────────── */}
-        <View style={styles.statsRow}>
-          {/* Gold chip */}
+          {/* Gold chip — left */}
           <View style={styles.statChip}>
             <Text style={styles.chipIcon}>💰</Text>
             <View style={styles.chipTextBlock}>
@@ -253,8 +227,10 @@ export default function TopHUD() {
             </View>
           </View>
 
-          {/* Divider */}
-          <View style={styles.statDivider} />
+          {/* Play/Pause — center icon only */}
+          <TouchableOpacity style={styles.playBtn} onPress={handleTogglePause} hitSlop={10}>
+            <Text style={styles.playIcon}>{isPaused ? '▶' : '⏸'}</Text>
+          </TouchableOpacity>
 
           {/* Stability chip — tappable */}
           <TouchableOpacity style={styles.statChip} onPress={() => setStabilityVisible(true)}>
@@ -298,8 +274,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(10, 10, 15, 0.94)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(212, 175, 55, 0.35)',
-    paddingHorizontal: 14,
-    paddingBottom: 10,
+    paddingHorizontal: 10,
+    paddingBottom: 7,
     zIndex: 1000,
     elevation: 10,
   },
@@ -311,96 +287,80 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-  // Row 1 — Date / Play-Pause / Bell
-  topRow: {
+  // ── Single compact row
+  singleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  dateText: {
-    color: '#888',
-    fontSize: 11,
-    fontWeight: '600',
-    minWidth: 80,
-  },
-  playBtn: {
-    backgroundColor: '#1E1E2A',
-    paddingHorizontal: 16,
-    paddingVertical: 5,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.4)',
-  },
-  playBtnText: {
-    color: '#D4AF37',
-    fontSize: 12,
-    fontWeight: 'bold',
-    letterSpacing: 0.3,
-  },
-  bellBtn: {
-    position: 'relative',
-    minWidth: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 4,
-  },
-  bellIcon: { fontSize: 20 },
-  badge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: '#E24A4A',
-    borderRadius: 7,
-    minWidth: 14,
-    height: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 2,
-  },
-  badgeText: { color: '#FFF', fontSize: 9, fontWeight: 'bold' },
-
-  // Row 2 — Stats
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#13131C',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#22222E',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
   },
   statChip: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 5,
   },
-  statDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: '#2A2A3A',
-    marginHorizontal: 8,
+  dateText: {  // kept to avoid TS errors if referenced elsewhere
+    color: '#888',
+    fontSize: 10,
   },
-  chipIcon: { fontSize: 18 },
-  chipTextBlock: { alignItems: 'flex-start' },
+  playBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#1E1E2A',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 6,
+  },
+  playIcon: {
+    color: '#D4AF37',
+    fontSize: 13,
+    lineHeight: 15,
+    textAlign: 'center',
+  },
+  bellBtn: {
+    position: 'relative',
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellIcon: { fontSize: 17 },
+  badge: {
+    position: 'absolute',
+    top: 1,
+    right: 1,
+    backgroundColor: '#E24A4A',
+    borderRadius: 6,
+    minWidth: 13,
+    height: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  badgeText: { color: '#FFF', fontSize: 8, fontWeight: 'bold' },
+
+  // Row 2 styles removed — merged into singleRow
+  chipIcon: { fontSize: 16 },
+  chipTextBlock: { alignItems: 'flex-start' as const },
   chipValue: {
     color: '#E0E0E0',
-    fontSize: 13,
-    fontWeight: 'bold',
-    lineHeight: 16,
+    fontSize: 12,
+    fontWeight: 'bold' as const,
+    lineHeight: 14,
   },
   chipIncome: {
-    fontSize: 10,
-    fontWeight: '600',
-    lineHeight: 12,
+    fontSize: 9,
+    fontWeight: '600' as const,
+    lineHeight: 11,
   },
   chipLabel: {
     color: '#666',
-    fontSize: 10,
-    lineHeight: 12,
+    fontSize: 9,
+    lineHeight: 11,
   },
 
   // Dev banner
