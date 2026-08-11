@@ -38,7 +38,7 @@ function AlertsDrawer({ visible, onClose }: { visible: boolean; onClose: () => v
     if (!worldFeed?.length) return [];
     return [...worldFeed]
       .sort((a, b) => (b.occurredAt || 0) - (a.occurredAt || 0))
-      .filter((e) => e.requiresAction || e.severity === 'critical' || e.severity === 'danger')
+      .filter((e) => e.requiresAction || e.severity === 'critical' || e.severity === 'danger' || e.severity === 'warning')
       .slice(0, 10);
   }, [worldFeed]);
 
@@ -148,6 +148,60 @@ function StabilityTooltip({ visible, onClose }: { visible: boolean; onClose: () 
   );
 }
 
+// ─── Treasury Tooltip ──────────────────────────────────────────────────────────
+function TreasuryTooltip({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const gold = useUIStore((s) => s.playerGold);
+  const goldIncome = useUIStore((s) => s.playerGoldIncome);
+  const taxBase = useUIStore((s) => s.playerTaxBaseRate);
+  const corruption = useUIStore((s) => s.playerCorruption);
+  const inflation = useUIStore((s) => s.playerInflation);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.drawerOverlay} onPress={onClose}>
+        <Pressable style={[styles.drawerContainer, { maxHeight: 340 }]}>
+          <View style={styles.drawerHeader}>
+            <Text style={styles.drawerTitle}>💰 Tesouro do Reino</Text>
+            <TouchableOpacity onPress={onClose} style={styles.drawerClose} hitSlop={8}>
+              <Text style={styles.drawerCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ padding: 16 }}>
+            <BreakdownRow
+              label="Ouro Total"
+              value={Math.floor(gold).toLocaleString()}
+              color="#D4AF37"
+            />
+            <BreakdownRow
+              label="Balanço Mensal"
+              value={`${goldIncome >= 0 ? '+' : ''}${goldIncome.toFixed(1)}/t`}
+              color={goldIncome >= 0 ? '#50E3C2' : '#E24A4A'}
+            />
+            <BreakdownRow
+              label="Taxa de Imposto Base"
+              value={`${(taxBase * 100).toFixed(0)}%`}
+              color="#FFF"
+            />
+            <BreakdownRow
+              label="Perda por Corrupção"
+              value={`-${(corruption * 100).toFixed(1)}%`}
+              color={corruption > 0.2 ? '#E24A4A' : '#666'}
+            />
+            <BreakdownRow
+              label="Aumento por Inflação"
+              value={`+${(inflation * 100).toFixed(1)}%`}
+              color={inflation > 0.15 ? '#E24A4A' : '#666'}
+            />
+            <Text style={styles.tooltipHint}>
+              Toque em "Estado > Economia" para ajustar impostos e orçamentos e melhorar seu balanço.
+            </Text>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 function BreakdownRow({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <View style={styles.breakdownRow}>
@@ -166,6 +220,7 @@ export default function TopHUD() {
   const [isDevPanelVisible,  setIsDevPanelVisible]  = useState(false);
   const [alertsVisible,      setAlertsVisible]      = useState(false);
   const [stabilityVisible,   setStabilityVisible]   = useState(false);
+  const [treasuryVisible,    setTreasuryVisible]    = useState(false);
 
   const tick           = useUIStore((s) => s.tick);
   const isPaused       = useUIStore((s) => s.isPaused);
@@ -226,16 +281,16 @@ export default function TopHUD() {
             )}
           </TouchableOpacity>
 
-          {/* Gold chip — left */}
-          <View style={styles.statChip}>
-            <Text style={styles.chipIcon}>💰</Text>
+          {/* Gold chip — left (TAPPABLE) */}
+          <TouchableOpacity style={styles.statChip} onPress={() => setTreasuryVisible(true)}>
+            <Text style={styles.chipIcon}>🪙</Text>
             <View style={styles.chipTextBlock}>
               <Text style={styles.chipValue}>{Math.floor(gold).toLocaleString()}</Text>
               <Text style={[styles.chipIncome, { color: goldColor }]}>
                 {goldIncome >= 0 ? '+' : ''}{goldIncome.toFixed(1)}/t
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
           {/* Play/Pause — center icon only */}
           <TouchableOpacity style={styles.playBtn} onPress={handleTogglePause} hitSlop={10}>
@@ -269,6 +324,7 @@ export default function TopHUD() {
 
       <AlertsDrawer    visible={alertsVisible}    onClose={() => setAlertsVisible(false)} />
       <StabilityTooltip visible={stabilityVisible} onClose={() => setStabilityVisible(false)} />
+      <TreasuryTooltip  visible={treasuryVisible}  onClose={() => setTreasuryVisible(false)} />
       <DevModeModal    visible={isDevPanelVisible} onClose={() => setIsDevPanelVisible(false)} />
     </>
   );

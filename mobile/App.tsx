@@ -29,7 +29,6 @@ import { LanguageProvider } from './src/ui/context/LanguageContext';
 
 // ── Global overlays (render on top of everything) ──────────────────────────
 import SplashScreen       from './src/ui/components/SplashScreen';
-import EventPopup         from './src/ui/components/EventPopup';
 import AscensionModal     from './src/ui/components/AscensionModal';
 import TopHUD             from './src/ui/components/TopHUD';
 
@@ -178,7 +177,6 @@ function InGameShell() {
       {/* TopHUD floats above everything (position:absolute internally) */}
       <TopHUD />
       {/* Global popup overlays */}
-      <EventPopup />
       <AscensionModal />
     </View>
   );

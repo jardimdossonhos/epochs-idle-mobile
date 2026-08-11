@@ -543,22 +543,20 @@ function getEventCategory(evt: any): 'all' | 'economy' | 'war' | 'diplomacy' {
   }
   if (
     text.includes('economy') ||
+    text.includes('religi') ||
+    text.includes('missão') ||
+    text.includes('deus') ||
+    text.includes('fé') ||
+    text.includes('conversão')
+  ) {
+    return 'religion';
+  }
+  if (
+    text.includes('econ') ||
+    text.includes('comida') ||
     text.includes('ouro') ||
-    text.includes('food') ||
-    text.includes('fome') ||
-    text.includes('shortage') ||
-    text.includes('escassez') ||
-    text.includes('imposto') ||
-    text.includes('tribut') ||
-    text.includes('constru') ||
-    text.includes('edifí') ||
-    text.includes('budget') ||
-    text.includes('taxa') ||
-    text.includes('tesouro') ||
-    text.includes('comércio') ||
-    text.includes('mercad') ||
-    text.includes('celei') ||
-    text.includes('economic')
+    text.includes('mercado') ||
+    text.includes('fome')
   ) {
     return 'economy';
   }
@@ -566,7 +564,7 @@ function getEventCategory(evt: any): 'all' | 'economy' | 'war' | 'diplomacy' {
 }
 
 function EventFeedTab({ worldFeed, gameState, session, playerKingdomId }: { worldFeed: any[], gameState: any, session: any, playerKingdomId: string }) {
-  const [filter, setFilter] = useState<'all' | 'economy' | 'war' | 'diplomacy'>('all');
+  const [filter, setFilter] = useState<'all' | 'economy' | 'war' | 'diplomacy' | 'religion'>('all');
 
   const filteredEvents = React.useMemo(() => {
     if (!worldFeed || worldFeed.length === 0) return [];
@@ -587,8 +585,8 @@ function EventFeedTab({ worldFeed, gameState, session, playerKingdomId }: { worl
         : item.severity === 'warning'
         ? '#F8E71C'
         : item.severity === 'success'
-        ? '#2E8B57'
-        : '#50E3C2';
+        ? '#50E3C2'
+        : '#4A90E2';
 
     const kingdom = gameState?.kingdoms?.[playerKingdomId];
     const activeProposal = item.requiresAction && item.actionPayload?.proposalId
@@ -633,30 +631,34 @@ function EventFeedTab({ worldFeed, gameState, session, playerKingdomId }: { worl
       <Text style={[styles.sectionTitle, { marginHorizontal: 16, marginTop: 12 }]}>
         Eventos em Tempo Real (Mundo Vivo)
       </Text>
-      <View style={styles.filterBar}>
-        {(['all', 'economy', 'war', 'diplomacy'] as const).map((cat) => {
-          const label =
-            cat === 'all'
-              ? 'Tudo'
-              : cat === 'economy'
-              ? 'Economia'
-              : cat === 'war'
-              ? 'Guerra'
-              : 'Diplomacia';
-          const active = filter === cat;
-          return (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.filterChip, active && styles.filterChipActive]}
-              onPress={() => setFilter(cat)}
-            >
-              <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                {label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8, flexGrow: 0 }}>
+        <View style={styles.filterBar}>
+          {(['all', 'economy', 'war', 'diplomacy', 'religion'] as const).map((cat) => {
+            const label =
+              cat === 'all'
+                ? 'Tudo'
+                : cat === 'economy'
+                ? 'Economia'
+                : cat === 'war'
+                ? 'Guerra'
+                : cat === 'religion'
+                ? 'Religião'
+                : 'Diplomacia';
+            const active = filter === cat;
+            return (
+              <TouchableOpacity
+                key={cat}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+                onPress={() => setFilter(cat)}
+              >
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </ScrollView>
 
       {filteredEvents.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -1031,10 +1033,12 @@ const styles = StyleSheet.create({
     color: '#A0A6AD',
     fontSize: 12,
     fontWeight: '600',
+    lineHeight: 18,
   },
   filterChipTextActive: {
     color: '#0D1117',
     fontSize: 12,
     fontWeight: '700',
+    lineHeight: 18,
   },
 });

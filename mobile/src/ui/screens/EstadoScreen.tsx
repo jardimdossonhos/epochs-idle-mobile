@@ -92,34 +92,39 @@ export default function EstadoScreen() {
   const [activePill, setActivePill] = useState<PillKey>('court');
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + hudHeight }]}>
-      {/* ── Top Pills ──────────────────────────────────────────────────────── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={true}
-        style={styles.pillBar}
-        contentContainerStyle={styles.pillBarContent}
-      >
-        {PILLS.map((pill) => {
-          const isActive = activePill === pill.key;
-          const label = isEvolved && pill.evolvedLabel ? pill.evolvedLabel : pill.label;
-          return (
-            <TouchableOpacity
-              key={pill.key}
-              style={[styles.pill, isActive && styles.pillActive]}
-              onPress={() => setActivePill(pill.key)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.pillIcon}>{pill.icon}</Text>
-              <Text style={[styles.pillLabel, isActive && styles.pillLabelActive]}>
-                {label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-        {/* Dummy view to force Android ScrollView to respect right padding/margin */}
-        <View style={{ width: 24 }} />
-      </ScrollView>
+    <View style={[styles.container, { paddingTop: hudHeight }]}>
+      {/* ── Top Pills ──────────────────────────────────────────────────────────── */}
+      <View style={styles.pillBarContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.pillBar}
+          contentContainerStyle={styles.pillBarContent}
+        >
+          {PILLS.map((pill) => {
+            const isActive = activePill === pill.key;
+            const label = isEvolved && pill.evolvedLabel ? pill.evolvedLabel : pill.label;
+            return (
+              <TouchableOpacity
+                key={pill.key}
+                style={[styles.pill, isActive && styles.pillActive]}
+                onPress={() => setActivePill(pill.key)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.pillIcon}>{pill.icon}</Text>
+                <Text style={[styles.pillLabel, isActive && styles.pillLabelActive]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+          {/* Dummy view to force Android ScrollView to respect right padding/margin */}
+          <View style={{ width: 24 }} />
+        </ScrollView>
+        <View pointerEvents="none" style={styles.scrollHint}>
+          <Text style={styles.scrollHintIcon}>»</Text>
+        </View>
+      </View>
 
       {/* ── Content ─────────────────────────────────────────────────────────── */}
       <View style={styles.content}>
@@ -134,16 +139,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#121212',
   },
-  pillBar: {
-    maxHeight: 40,
+  pillBarContainer: {
+    position: 'relative',
     backgroundColor: '#0D0D12',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(212,175,55,0.2)',
   },
+  pillBar: {
+    maxHeight: 34,
+  },
+  scrollHint: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(13,13,18,0.85)',
+  },
+  scrollHintIcon: {
+    color: 'rgba(212,175,55,0.6)',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   pillBarContent: {
     flexDirection: 'row',
     paddingLeft: 12,
-    paddingRight: 32, // Extra padding to prevent right clipping on Android
+    paddingRight: 32,
     alignItems: 'center',
     paddingVertical: 2,
     gap: 8,
@@ -151,9 +174,9 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#2C2C3A',
     backgroundColor: '#1A1A24',

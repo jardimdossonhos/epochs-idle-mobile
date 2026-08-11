@@ -7,13 +7,16 @@
  *   </HudAwareScreen>
  *
  * Lê hudHeight do store (publicado pelo TopHUD via onLayout) e aplica
- * paddingTop = insets.top + hudHeight para que o conteúdo nunca seja
- * encoberto pelo header flutuante.
+ * paddingTop = hudHeight para que o conteúdo fique logo abaixo do header
+ * flutuante.
+ *
+ * IMPORTANTE: NÃO somar insets.top aqui. O TopHUD já se mede com o notch
+ * incluído (paddingTop: insets.top + 4) e publica esse valor total em
+ * hudHeight. Somar insets.top novamente causaria o "Abismo Negro".
  */
 
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUIStore } from '../store/game-store';
 
 interface HudAwareScreenProps {
@@ -22,11 +25,10 @@ interface HudAwareScreenProps {
 }
 
 export function HudAwareScreen({ children, style }: HudAwareScreenProps) {
-  const insets    = useSafeAreaInsets();
   const hudHeight = useUIStore((s) => s.hudHeight);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + hudHeight }, style]}>
+    <View style={[styles.root, { paddingTop: hudHeight }, style]}>
       {children}
     </View>
   );

@@ -207,7 +207,7 @@ export default function CharacterScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }]}>
+    <View style={styles.container}>
       {/* Tabs */}
       <View style={styles.tabContainer}>
         <TouchableOpacity 
@@ -284,7 +284,7 @@ export default function CharacterScreen() {
         onClose={() => setShowPolicyModal(false)}
         currentGovernmentId={govDef.id}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

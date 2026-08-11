@@ -15,8 +15,6 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import MenuScreen from './MenuScreen';
 import SettingsScreen from './SettingsScreen';
 import { useUIStore } from '../store/game-store';
@@ -88,12 +86,11 @@ function CronicasTab() {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function SistemaScreen() {
-  const insets = useSafeAreaInsets();
   const [activePill, setActivePill] = useState<PillKey>('game');
   const hudHeight = useUIStore((s) => s.hudHeight);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + hudHeight }]}>
+    <View style={[styles.container, { paddingTop: hudHeight }]}>
       {/* ── Top Pills ───────────────────────────────────────────────────── */}
       <ScrollView
         horizontal
