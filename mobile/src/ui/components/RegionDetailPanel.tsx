@@ -95,7 +95,7 @@ const statBarStyles = StyleSheet.create({
 export default function RegionDetailPanel({ regionId, onClose, isMergedView = false }: RegionDetailPanelProps) {
   const { gameState, session, playerKingdomId, staticWorldData } = useGameState();
 
-  if (!gameState || !session || !staticWorldData) return null;
+  if (!gameState || !gameState.kingdoms || !session || !staticWorldData) return null;
 
   const regionIndexMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -139,7 +139,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
 
   const getRegionDefense = useCallback((rId: string) => {
     let defense = 0;
-    Object.values(gameState.kingdoms).forEach(kingdom => {
+    Object.values(gameState.kingdoms || {}).forEach(kingdom => {
       if (kingdom.military?.armies) {
         kingdom.military.armies.forEach(army => {
           if (army.stationedIndex !== -1 && staticWorldData?.orderedDefinitions[army.stationedIndex]?.id === rId) {
