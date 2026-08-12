@@ -26,6 +26,11 @@ export default function MapScreen() {
   const selectedHex   = useUiStore((s) => s.selectedHex);
   const clearSelection = useUiStore((s) => s.clearSelection);
   const playerFactionId = useUiStore((s) => s.playerFactionId);
+  
+  // Extrair a capital do jogador
+  const playerKingdom = gameState?.kingdoms ? Object.values(gameState.kingdoms).find(k => k.isPlayer) : null;
+  const playerCapitalRegionId = playerKingdom?.capitalRegionId;
+  const capitalHexId = playerCapitalRegionId ? parseInt(playerCapitalRegionId.replace('r_hex_', ''), 10) : undefined;
 
   // SharedValues that feed the canvas
   const regionOwner          = useSharedValue<Int32Array>(new Int32Array(25000));
@@ -107,6 +112,7 @@ export default function MapScreen() {
           structureUpdateTrigger={structureUpdateTrigger}
           dispatchCommand={NOOP_DISPATCH}
           playerFactionId={playerFactionId}
+          capitalHexId={capitalHexId}
         />
       </View>
 

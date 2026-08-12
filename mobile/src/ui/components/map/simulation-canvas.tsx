@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Dimensions } from 'react-native';
 import { Canvas, Group, Path, Skia, Atlas, useImage, DashPathEffect } from '@shopify/react-native-skia';
 import type { SkPath } from '@shopify/react-native-skia';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -26,6 +26,7 @@ export interface SimulationCanvasProps {
   visionUpdateTrigger?: SharedValue<number>;
   dispatchCommand: (cmd: [number, number, number, number]) => void;
   playerFactionId?: number;
+  capitalHexId?: number;
 }
 
 const MAX_FACTIONS = 32;
@@ -146,6 +147,7 @@ export function SimulationCanvas({
   combatEventTs,
   dispatchCommand,
   playerFactionId = 1,
+  capitalHexId,
 }: SimulationCanvasProps) {
 
   if (!regions || regions.length === 0) {
@@ -154,7 +156,7 @@ export function SimulationCanvas({
 
   // ── Viewport state ──────────────────────────────────────────────────────────
   // Start zoomed out so the full world is visible (canvas is 3000x2000, device ~400px wide)
-  const INITIAL_SCALE = 0.13;
+  const INITIAL_SCALE = 0.5; // Slightly closer than previous overview
   const translateX = useSharedValue(-200);
   const translateY = useSharedValue(-130);
   const scale      = useSharedValue(INITIAL_SCALE);
@@ -162,6 +164,22 @@ export function SimulationCanvas({
   const savedTranslateX = useSharedValue(-200);
   const savedTranslateY = useSharedValue(-130);
   const savedScale      = useSharedValue(INITIAL_SCALE);
+
+  // Initialize camera to player capital
+  React.useEffect(() => {
+    if (capitalHexId !== undefined && centroidMap.has(capitalHexId)) {
+      const center = centroidMap.get(capitalHexId)!;
+      const { width, height } = Dimensions.get('window');
+      
+      const newTx = (width / 2) - (center.x * INITIAL_SCALE);
+      const newTy = (height / 2) - (center.y * INITIAL_SCALE);
+      
+      translateX.value = newTx;
+      translateY.value = newTy;
+      savedTranslateX.value = newTx;
+      savedTranslateY.value = newTy;
+    }
+  }, [capitalHexId]);
 
   // ── Images ──────────────────────────────────────────────────────────────────
   const tokenImage = useImage(require('../../assets/images/token_base.png'));
