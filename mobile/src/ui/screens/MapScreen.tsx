@@ -35,14 +35,14 @@ export default function MapScreen() {
   const capitalHexId = playerCapitalRegionId ? parseInt(playerCapitalRegionId.replace('r_hex_', ''), 10) : undefined;
 
   // SharedValues that feed the canvas
-  const regionOwner          = useSharedValue<Int32Array>(new Int32Array(25000));
+  const regionOwner          = useSharedValue<Int32Array>(new Int32Array(320000));
   const mapUpdateTrigger     = useSharedValue<number>(0);
 
   // Empty placeholders — no Worker, no live army/combat data yet
   const currentArmyData      = useSharedValue<Float32Array>(new Float32Array(2048 * 4).fill(-1));
   const lastArmyData         = useSharedValue<Float32Array>(new Float32Array(2048 * 4).fill(-1));
   const tickProgress         = useSharedValue<number>(1);
-  const hexStructures        = useSharedValue<Int32Array>(new Int32Array(25000));
+  const hexStructures        = useSharedValue<Int32Array>(new Int32Array(320000));
   const structureUpdateTrigger = useSharedValue<number>(0);
 
   // Throttling state for UI updates (max 4fps)
@@ -56,7 +56,7 @@ export default function MapScreen() {
       if (!gameState?.ecs?.regionOwner) return;
 
       const src = gameState.ecs.regionOwner;
-      const dst = new Int32Array(25000);
+      const dst = new Int32Array(320000);
 
       // regionOwner in ECS is indexed by numeric region id (r_hex_101 -> 101)
       if (src instanceof Int32Array || Array.isArray(src)) {
@@ -70,7 +70,7 @@ export default function MapScreen() {
       // Also sync hexStructures if available
       if (gameState.ecs.hexStructures) {
         const srcS = gameState.ecs.hexStructures;
-        const dstS = new Int32Array(25000);
+        const dstS = new Int32Array(320000);
         const lenS = Math.min((srcS as any).length, dstS.length);
         for (let i = 0; i < lenS; i++) dstS[i] = (srcS as any)[i];
         hexStructures.value = dstS;
