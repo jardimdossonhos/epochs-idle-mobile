@@ -8,11 +8,11 @@
  *   GameProvider (ECS) → useGameState() → ecsState.regionOwner (Int32Array)
  *                     → useSharedValue  → SimulationCanvas
  */
-import React, { useEffect, useCallback } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useEffect, useCallback, useRef } from 'react';
+import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
 import { useSharedValue }   from 'react-native-reanimated';
 
-import { SimulationCanvas }  from '../components/map/simulation-canvas';
+import { SimulationCanvas, SimulationCanvasRef }  from '../components/map/simulation-canvas';
 import { ImperialOverlay }   from '../components/map/imperial-overlay';
 import { useGameState }      from '../GameProvider';
 import { useUiStore }        from '../stores/use-ui-store';
@@ -27,6 +27,8 @@ export default function MapScreen() {
   const clearSelection = useUiStore((s) => s.clearSelection);
   const playerFactionId = useUiStore((s) => s.playerFactionId);
   
+  const canvasRef = useRef<SimulationCanvasRef>(null);
+
   // Extrair a capital do jogador
   const playerKingdom = gameState?.kingdoms ? Object.values(gameState.kingdoms).find(k => k.isPlayer) : null;
   const playerCapitalRegionId = playerKingdom?.capitalRegionId;
@@ -103,6 +105,7 @@ export default function MapScreen() {
       {/* ── Map layer (full-bleed, behind TopHUD) ── */}
       <View style={styles.mapLayer}>
         <SimulationCanvas
+          ref={canvasRef}
           regionOwner={regionOwner}
           currentArmyData={currentArmyData}
           lastArmyData={lastArmyData}
@@ -129,6 +132,16 @@ export default function MapScreen() {
             />
           </View>
         )}
+
+        {/* ── Zoom Controls ── */}
+        <View style={styles.zoomControlsContainer} pointerEvents="box-none">
+          <TouchableOpacity style={styles.zoomBtn} onPress={() => canvasRef.current?.zoomIn()} activeOpacity={0.7}>
+            <Text style={styles.zoomBtnText}>+</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.zoomBtn} onPress={() => canvasRef.current?.zoomOut()} activeOpacity={0.7}>
+            <Text style={styles.zoomBtnText}>-</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
     </View>
@@ -153,4 +166,33 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 100,
   },
+  zoomControlsContainer: {
+    position: 'absolute',
+    right: 16,
+    bottom: '40%', // positioned above the region panel
+    flexDirection: 'column',
+    gap: 12,
+    zIndex: 90,
+  },
+  zoomBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(20, 25, 40, 0.85)',
+    borderWidth: 1,
+    borderColor: '#303660',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  zoomBtnText: {
+    color: '#D4AF37',
+    fontSize: 24,
+    fontWeight: '300',
+    lineHeight: 28,
+  }
 });

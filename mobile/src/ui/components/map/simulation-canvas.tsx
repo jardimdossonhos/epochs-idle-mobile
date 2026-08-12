@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, forwardRef, useImperativeHandle } from 'react';
 import { StyleSheet, View, Dimensions } from 'react-native';
 import { Canvas, Group, Path, Skia, Atlas, useImage, DashPathEffect } from '@shopify/react-native-skia';
 import type { SkPath } from '@shopify/react-native-skia';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated, { useSharedValue, useDerivedValue, runOnJS, useAnimatedReaction } from 'react-native-reanimated';
+import Animated, { useSharedValue, useDerivedValue, runOnJS, useAnimatedReaction, withSpring } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { useUiStore } from '../../stores/use-ui-store';
 import { CommandType } from '../../../core/types/commands';
@@ -133,7 +133,12 @@ const FactionPath = ({
 };
 
 // ─── SimulationCanvas ─────────────────────────────────────────────────────────
-export function SimulationCanvas({
+export interface SimulationCanvasRef {
+  zoomIn: () => void;
+  zoomOut: () => void;
+}
+
+export const SimulationCanvas = forwardRef<SimulationCanvasRef, SimulationCanvasProps>(({
   regionOwner,
   currentArmyData,
   lastArmyData,
@@ -148,7 +153,7 @@ export function SimulationCanvas({
   dispatchCommand,
   playerFactionId = 1,
   capitalHexId,
-}: SimulationCanvasProps) {
+}, ref) => {
 
   if (!regions || regions.length === 0) {
     return null;
@@ -167,7 +172,66 @@ export function SimulationCanvas({
   const savedTranslateY = useSharedValue(-130);
   const savedScale      = useSharedValue(INITIAL_SCALE);
 
+  const originFocalX = useSharedValue(0);
+  const originFocalY = useSharedValue(0);
+
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+  // Manual zoom controls exposed via ref
+  useImperativeHandle(ref, () => ({
+    zoomIn: () => {
+      const currentScale = scale.value;
+      const next = Math.max(0.08, Math.min(currentScale * 1.5, 3.0));
+      const ratio = next / currentScale;
+      
+      const cx = screenWidth / 2;
+      const cy = screenHeight / 2;
+      
+      let targetX = cx - ((cx - translateX.value) * ratio);
+      let targetY = cy - ((cy - translateY.value) * ratio);
+      
+      const minTy = Math.min(0, screenHeight - MAP_HEIGHT * next);
+      targetY = Math.max(minTy, Math.min(0, targetY));
+      
+      const limitX = MAP_WIDTH * next;
+      targetX = ((targetX % limitX) + limitX) % limitX;
+      if (targetX > 0) targetX -= limitX;
+      
+      scale.value = withSpring(next, { damping: 15, stiffness: 100 });
+      translateX.value = withSpring(targetX, { damping: 15, stiffness: 100 });
+      translateY.value = withSpring(targetY, { damping: 15, stiffness: 100 });
+      
+      savedScale.value = next;
+      savedTranslateX.value = targetX;
+      savedTranslateY.value = targetY;
+    },
+    zoomOut: () => {
+      const currentScale = scale.value;
+      const next = Math.max(0.08, Math.min(currentScale / 1.5, 3.0));
+      const ratio = next / currentScale;
+      
+      const cx = screenWidth / 2;
+      const cy = screenHeight / 2;
+      
+      let targetX = cx - ((cx - translateX.value) * ratio);
+      let targetY = cy - ((cy - translateY.value) * ratio);
+      
+      const minTy = Math.min(0, screenHeight - MAP_HEIGHT * next);
+      targetY = Math.max(minTy, Math.min(0, targetY));
+      
+      const limitX = MAP_WIDTH * next;
+      targetX = ((targetX % limitX) + limitX) % limitX;
+      if (targetX > 0) targetX -= limitX;
+      
+      scale.value = withSpring(next, { damping: 15, stiffness: 100 });
+      translateX.value = withSpring(targetX, { damping: 15, stiffness: 100 });
+      translateY.value = withSpring(targetY, { damping: 15, stiffness: 100 });
+      
+      savedScale.value = next;
+      savedTranslateX.value = targetX;
+      savedTranslateY.value = targetY;
+    }
+  }));
 
   // Initialize camera to player capital
   React.useEffect(() => {
@@ -253,17 +317,37 @@ export function SimulationCanvas({
     });
 
   const pinchGesture = Gesture.Pinch()
+    .onStart((e) => {
+      savedScale.value = scale.value;
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+      originFocalX.value = e.focalX;
+      originFocalY.value = e.focalY;
+    })
     .onUpdate((e) => {
-      const next = savedScale.value * e.scale;
-      scale.value = Math.max(0.08, Math.min(next, 3.0)); // clamp zoom
+      const newScale = Math.max(0.08, Math.min(savedScale.value * e.scale, 3.0));
+      const ratio = newScale / savedScale.value;
+      scale.value = newScale;
       
-      // Maintain Y clamp on zoom
+      let targetX = originFocalX.value - ((originFocalX.value - savedTranslateX.value) * ratio);
+      let targetY = originFocalY.value - ((originFocalY.value - savedTranslateY.value) * ratio);
+      
+      // Clamp Y
       const maxTy = 0;
-      const minTy = Math.min(0, screenHeight - MAP_HEIGHT * scale.value);
-      translateY.value = Math.max(minTy, Math.min(maxTy, translateY.value));
+      const minTy = Math.min(0, screenHeight - MAP_HEIGHT * newScale);
+      targetY = Math.max(minTy, Math.min(maxTy, targetY));
+      
+      // Wrap X
+      const limitX = MAP_WIDTH * newScale;
+      targetX = ((targetX % limitX) + limitX) % limitX;
+      if (targetX > 0) targetX -= limitX;
+      
+      translateX.value = targetX;
+      translateY.value = targetY;
     })
     .onEnd(() => { 
       savedScale.value = scale.value; 
+      savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
     });
 
@@ -558,7 +642,7 @@ export function SimulationCanvas({
       </View>
     </GestureDetector>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A1628' },
