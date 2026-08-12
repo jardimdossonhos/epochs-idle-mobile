@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Canvas, Group, Path, Skia, Atlas, useImage, DashPathEffect } from '@shopify/react-native-skia';
+import type { SkPath } from '@shopify/react-native-skia';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated, { useSharedValue, useDerivedValue, runOnJS } from 'react-native-reanimated';
+import Animated, { useSharedValue, useDerivedValue, runOnJS, useAnimatedReaction } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { useUiStore } from '../../stores/use-ui-store';
 import { CommandType } from '../../../core/types/commands';
@@ -26,6 +27,8 @@ export interface SimulationCanvasProps {
   dispatchCommand: (cmd: [number, number, number, number]) => void;
   playerFactionId?: number;
 }
+
+const MAX_FACTIONS = 32;
 
 // ─── Module-level lookup tables (built once from the JSON) ────────────────────
 const spatialMap  = new Map<string, any>();
@@ -66,7 +69,15 @@ const PLAYER_FACTION_ALPHA = 'CC';  // ~80% opacity overlay for player territory
 const AI_FACTION_ALPHA     = '88';  // ~53% opacity for AI territory
 
 // ─── Utility helpers ──────────────────────────────────────────────────────────
+function getFactionColor(index: number, isPlayer: boolean): string {
+  'worklet';
+  const base = index < FACTION_COLORS.length ? FACTION_COLORS[index] : '#888888';
+  if (index === 0) return 'transparent';
+  return base + (isPlayer ? PLAYER_FACTION_ALPHA : AI_FACTION_ALPHA);
+}
+
 function getHexPoints(cx: number, cy: number, radius: number) {
+  'worklet';
   const pts = [];
   for (let i = 0; i < 6; i++) {
     const angle_rad = (Math.PI / 180) * (60 * i - 30);
@@ -75,9 +86,50 @@ function getHexPoints(cx: number, cy: number, radius: number) {
   return pts;
 }
 
+function addHexToPath(pathOrBuilder: any, cx: number, cy: number, radius: number) {
+  'worklet';
+  for (let i = 0; i < 6; i++) {
+    const angle_rad = (Math.PI / 180) * (60 * i - 30);
+    const px = cx + radius * Math.cos(angle_rad);
+    const py = cy + radius * Math.sin(angle_rad);
+    if (i === 0) {
+      pathOrBuilder.moveTo(px, py);
+    } else {
+      pathOrBuilder.lineTo(px, py);
+    }
+  }
+  pathOrBuilder.close();
+}
+
 function lerp(start: number, end: number, t: number) {
+  'worklet';
   return start + (end - start) * t;
 }
+
+// ─── FactionPath Wrapper Component ────────────────────────────────────────────
+// Pre-allocates rendering of paths to avoid React render cycle warnings
+const FactionPath = ({
+  factionIndex,
+  paths,
+  triggerSV,
+  isPlayer
+}: {
+  factionIndex: number;
+  paths: SkPath[];
+  triggerSV: SharedValue<number>;
+  isPlayer: boolean;
+}) => {
+  const pathSV = useDerivedValue(() => {
+    const _ = triggerSV.value; // Force reactivity when triggered
+    return paths[factionIndex];
+  });
+  
+  const colorSV = useDerivedValue(() => {
+    return getFactionColor(factionIndex, isPlayer);
+  });
+
+  return <Path path={pathSV} color={colorSV} />;
+};
 
 // ─── SimulationCanvas ─────────────────────────────────────────────────────────
 export function SimulationCanvas({
@@ -218,49 +270,79 @@ export function SimulationCanvas({
 
   // ── STATIC LAYER: biome fill + stroke (computed once at mount) ──────────────
   const staticLayers = useMemo(() => {
-    const biomeMap = new Map<string, ReturnType<typeof Skia.Path.Make>>();
-    const strokeP  = Skia.Path.Make();
+    const biomeMap = new Map<string, ReturnType<typeof Skia.PathBuilder.Make>>();
+    const strokeBuilder = Skia.PathBuilder.Make();
 
     regions.forEach((r: any) => {
       const bColor = BIOME_COLORS[r.biome] ?? '#2D2D2D';
       let bp = biomeMap.get(bColor);
-      if (!bp) { bp = Skia.Path.Make(); biomeMap.set(bColor, bp); }
-      const pts = getHexPoints(r.cx, r.cy, RADIUS);
-      bp.addPoly(pts, true);
+      if (!bp) { bp = Skia.PathBuilder.Make(); biomeMap.set(bColor, bp); }
+      
+      addHexToPath(bp, r.cx, r.cy, RADIUS);
       // Only draw grid strokes on non-water hex to reduce visual noise
-      if (!r.isWater) strokeP.addPoly(pts, true);
+      if (!r.isWater) addHexToPath(strokeBuilder, r.cx, r.cy, RADIUS);
     });
 
     return {
-      biomePaths: Array.from(biomeMap.entries()).map(([color, path]) => ({ color, path })),
-      strokePath: strokeP,
+      biomePaths: Array.from(biomeMap.entries()).map(([color, builder]) => ({ color, path: builder.detach() })),
+      strokePath: strokeBuilder.detach(),
     };
   }, []);
 
-  // ── DYNAMIC LAYER: territory ownership (re-runs when mapUpdateTrigger changes) ──
-  // Each faction gets its own batched path — 1 draw call per faction present.
-  const ownerPaths = useDerivedValue(() => {
-    const _trigger = mapUpdateTrigger.value; // reactive dependency
-    const owners   = regionOwner.value;
+  // ── DYNAMIC LAYER: territory ownership ─────────────────────────────────────
+  // Pre-allocate MAX_FACTIONS Skia paths.
+  const factionPaths = useMemo(() => {
+    return Array(MAX_FACTIONS).fill(0).map(() => Skia.Path.Make());
+  }, []);
+  
+  // Shared value just to trigger re-renders in useDerivedValues inside FactionPath
+  const pathsTrigger = useSharedValue(0);
 
-    // faction id → Skia.Path
-    const factionPaths = new Map<number, ReturnType<typeof Skia.Path.Make>>();
+  useAnimatedReaction(
+    () => mapUpdateTrigger.value,
+    () => {
+      const owners = regionOwner.value;
 
-    regions.forEach((r: any) => {
-      if (r.isWater) return; // skip water tiles
-      const owner = owners[r.id] ?? 0;
-      if (owner <= 0) return; // neutral — no overlay
-      let fp = factionPaths.get(owner);
-      if (!fp) { fp = Skia.Path.Make(); factionPaths.set(owner, fp); }
-      fp.addPoly(getHexPoints(r.cx, r.cy, RADIUS - 1), true); // slightly inset
-    });
+      // 1. Create new builders for each faction
+      const builders = Array(MAX_FACTIONS).fill(0).map(() => Skia.PathBuilder.Make());
 
-    return Array.from(factionPaths.entries()).map(([faction, path]) => {
-      const base  = FACTION_COLORS[faction] ?? FACTION_COLORS[FACTION_COLORS.length - 1];
-      const alpha = faction === playerFactionId ? PLAYER_FACTION_ALPHA : AI_FACTION_ALPHA;
-      return { color: base + alpha, path };
-    });
-  });
+      // 2. Build new geometry
+      for (let i = 0; i < regions.length; i++) {
+        const r = regions[i];
+        if (r.isWater) continue; // skip water tiles
+        
+        const owner = owners[r.id] ?? 0;
+        if (owner > 0 && owner < MAX_FACTIONS) {
+          addHexToPath(builders[owner], r.cx, r.cy, RADIUS - 1); // slightly inset
+        }
+      }
+
+      // 3. Make immutable paths and update array
+      for (let i = 0; i < MAX_FACTIONS; i++) {
+        factionPaths[i] = builders[i].detach();
+      }
+
+      // 4. Trigger Skia to redraw the updated paths
+      pathsTrigger.value += 1;
+    }
+  );
+
+  // We can statically render FactionPath components (0 is neutral, skip rendering it)
+  const factionPathElements = useMemo(() => {
+    const elements = [];
+    for (let i = 1; i < MAX_FACTIONS; i++) {
+      elements.push(
+        <FactionPath
+          key={i}
+          factionIndex={i}
+          paths={factionPaths}
+          triggerSV={pathsTrigger}
+          isPlayer={i === playerFactionId}
+        />
+      );
+    }
+    return elements;
+  }, [factionPaths, pathsTrigger, playerFactionId]);
 
   // ── DYNAMIC LAYER: selected hex highlight ───────────────────────────────────
   const pendingMoves = useUiStore((state) => state.pendingMoves);
@@ -379,9 +461,7 @@ export function SimulationCanvas({
             />
 
             {/* ── Layer 3: Territory ownership overlay (dynamic, batched per faction) ── */}
-            {ownerPaths.value.map((op: { color: string; path: any }) => (
-              <Path key={op.color} path={op.path} color={op.color} />
-            ))}
+            {factionPathElements}
 
             {/* ── Layer 4: City sprites ── */}
             {cityImage && (

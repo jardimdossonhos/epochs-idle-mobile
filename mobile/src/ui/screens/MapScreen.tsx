@@ -38,31 +38,57 @@ export default function MapScreen() {
   const hexStructures        = useSharedValue<Int32Array>(new Int32Array(25000));
   const structureUpdateTrigger = useSharedValue<number>(0);
 
-  // Sync ECS state → SharedValue whenever gameState changes
+  // Throttling state for UI updates (max 4fps)
+  const lastUpdateTs = React.useRef(0);
+  const timeoutRef = React.useRef<any>(null);
+
+  // Sync ECS state -> SharedValue whenever gameState changes (Throttled)
   useEffect(() => {
-    if (!gameState?.ecs?.regionOwner) return;
+    const sync = () => {
+      lastUpdateTs.current = Date.now();
+      if (!gameState?.ecs?.regionOwner) return;
 
-    const src = gameState.ecs.regionOwner;
-    const dst = new Int32Array(25000);
+      const src = gameState.ecs.regionOwner;
+      const dst = new Int32Array(25000);
 
-    // regionOwner in ECS is indexed by numeric region id (r_hex_101 → 101)
-    // The values are kingdom integer ids (playerFactionId = 1 by convention)
-    if (src instanceof Int32Array || Array.isArray(src)) {
-      const len = Math.min(src.length, dst.length);
-      for (let i = 0; i < len; i++) dst[i] = (src as any)[i];
-    }
+      // regionOwner in ECS is indexed by numeric region id (r_hex_101 -> 101)
+      if (src instanceof Int32Array || Array.isArray(src)) {
+        const len = Math.min(src.length, dst.length);
+        for (let i = 0; i < len; i++) dst[i] = (src as any)[i];
+      }
 
-    regionOwner.value = dst;
-    mapUpdateTrigger.value += 1; // signal the canvas to re-render the ownership layer
+      regionOwner.value = dst;
+      mapUpdateTrigger.value += 1; // signal the canvas to re-render the ownership layer
 
-    // Also sync hexStructures if available
-    if (gameState.ecs.hexStructures) {
-      const srcS = gameState.ecs.hexStructures;
-      const dstS = new Int32Array(25000);
-      const lenS = Math.min((srcS as any).length, dstS.length);
-      for (let i = 0; i < lenS; i++) dstS[i] = (srcS as any)[i];
-      hexStructures.value = dstS;
-      structureUpdateTrigger.value += 1;
+      // Also sync hexStructures if available
+      if (gameState.ecs.hexStructures) {
+        const srcS = gameState.ecs.hexStructures;
+        const dstS = new Int32Array(25000);
+        const lenS = Math.min((srcS as any).length, dstS.length);
+        for (let i = 0; i < lenS; i++) dstS[i] = (srcS as any)[i];
+        hexStructures.value = dstS;
+        structureUpdateTrigger.value += 1;
+      }
+    };
+
+    const now = Date.now();
+    const timeSinceLast = now - lastUpdateTs.current;
+    
+    if (timeSinceLast >= 250) {
+      // Enough time passed, sync immediately
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      sync();
+    } else {
+      // Too fast, schedule a trailing sync if not already scheduled
+      if (!timeoutRef.current) {
+        timeoutRef.current = setTimeout(() => {
+          timeoutRef.current = null;
+          sync();
+        }, 250 - timeSinceLast);
+      }
     }
   }, [gameState]);
 
