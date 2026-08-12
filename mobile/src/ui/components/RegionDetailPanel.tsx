@@ -139,10 +139,11 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
 
   const getRegionDefense = useCallback((rId: string) => {
     let defense = 0;
+    const numericRId = parseInt(rId.replace('r_hex_', ''), 10);
     Object.values(gameState.kingdoms || {}).forEach(kingdom => {
       if (kingdom.military?.armies) {
         kingdom.military.armies.forEach(army => {
-          if (army.stationedIndex !== -1 && staticWorldData?.orderedDefinitions[army.stationedIndex]?.id === rId) {
+          if (army.stationedIndex !== -1 && army.stationedIndex === numericRId) {
             defense += army.manpower ?? 0;
           }
         });

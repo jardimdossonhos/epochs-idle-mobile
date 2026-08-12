@@ -157,6 +157,8 @@ export function SimulationCanvas({
   // ── Viewport state ──────────────────────────────────────────────────────────
   // Start zoomed out so the full world is visible (canvas is 3000x2000, device ~400px wide)
   const INITIAL_SCALE = 0.5; // Slightly closer than previous overview
+  const MAP_WIDTH = 3000;
+  const MAP_HEIGHT = 1750;
   const translateX = useSharedValue(-200);
   const translateY = useSharedValue(-130);
   const scale      = useSharedValue(INITIAL_SCALE);
@@ -171,8 +173,18 @@ export function SimulationCanvas({
       const center = centroidMap.get(capitalHexId)!;
       const { width, height } = Dimensions.get('window');
       
-      const newTx = (width / 2) - (center.x * INITIAL_SCALE);
-      const newTy = (height / 2) - (center.y * INITIAL_SCALE);
+      let newTx = (width / 2) - (center.x * INITIAL_SCALE);
+      let newTy = (height / 2) - (center.y * INITIAL_SCALE);
+      
+      // Wrap X
+      const limitX = MAP_WIDTH * INITIAL_SCALE;
+      newTx = ((newTx % limitX) + limitX) % limitX;
+      if (newTx > 0) newTx -= limitX;
+      
+      // Clamp Y
+      const maxTy = 0;
+      const minTy = Math.min(0, height - MAP_HEIGHT * INITIAL_SCALE);
+      newTy = Math.max(minTy, Math.min(maxTy, newTy));
       
       translateX.value = newTx;
       translateY.value = newTy;
@@ -220,8 +232,20 @@ export function SimulationCanvas({
   // ── Gestures ─────────────────────────────────────────────────────────────────
   const panGesture = Gesture.Pan()
     .onUpdate((e) => {
-      translateX.value = savedTranslateX.value + e.translationX;
-      translateY.value = savedTranslateY.value + e.translationY;
+      let newTx = savedTranslateX.value + e.translationX;
+      let newTy = savedTranslateY.value + e.translationY;
+      
+      // Wrap X
+      const limitX = MAP_WIDTH * scale.value;
+      newTx = ((newTx % limitX) + limitX) % limitX;
+      if (newTx > 0) newTx -= limitX;
+      translateX.value = newTx;
+      
+      // Clamp Y
+      const { height } = Dimensions.get('window');
+      const maxTy = 0;
+      const minTy = Math.min(0, height - MAP_HEIGHT * scale.value);
+      translateY.value = Math.max(minTy, Math.min(maxTy, newTy));
     })
     .onEnd(() => {
       savedTranslateX.value = translateX.value;
@@ -232,12 +256,24 @@ export function SimulationCanvas({
     .onUpdate((e) => {
       const next = savedScale.value * e.scale;
       scale.value = Math.max(0.08, Math.min(next, 3.0)); // clamp zoom
+      
+      // Maintain Y clamp on zoom
+      const { height } = Dimensions.get('window');
+      const maxTy = 0;
+      const minTy = Math.min(0, height - MAP_HEIGHT * scale.value);
+      translateY.value = Math.max(minTy, Math.min(maxTy, translateY.value));
     })
-    .onEnd(() => { savedScale.value = scale.value; });
+    .onEnd(() => { 
+      savedScale.value = scale.value; 
+      savedTranslateY.value = translateY.value;
+    });
 
   const tapGesture = Gesture.Tap().onEnd((e) => {
-    const worldX = (e.x - translateX.value) / scale.value;
+    let worldX = (e.x - translateX.value) / scale.value;
     const worldY = (e.y - translateY.value) / scale.value;
+    
+    // Wrap tapped coordinate
+    worldX = ((worldX % MAP_WIDTH) + MAP_WIDTH) % MAP_WIDTH;
 
     const qFrac = (SQRT3 / 3 * worldX - 1 / 3 * worldY) / RADIUS;
     const rFrac = (2 / 3 * worldY) / RADIUS;
@@ -459,48 +495,65 @@ export function SimulationCanvas({
   });
 
   // ── Render ──────────────────────────────────────────────────────────────────
+  const renderMapLayers = () => (
+    <>
+      {/* ── Layer 1: Biome fill (static, batched per biome) ── */}
+      {staticLayers.biomePaths.map(bp => (
+        <Path key={bp.color} path={bp.path} color={bp.color} />
+      ))}
+
+      {/* ── Layer 2: Hex grid stroke (static) ── */}
+      <Path
+        path={staticLayers.strokePath}
+        color="rgba(0,0,0,0.20)"
+        style="stroke"
+        strokeWidth={0.8}
+      />
+
+      {/* ── Layer 3: Territory ownership overlay (dynamic, batched per faction) ── */}
+      {factionPathElements}
+
+      {/* ── Layer 4: City sprites ── */}
+      {cityImage && (
+        <Atlas image={cityImage} sprites={citySprites} transforms={cityTransforms} />
+      )}
+
+      {/* ── Layer 5: Army sprites ── */}
+      {tokenImage && (
+        <Atlas image={tokenImage} sprites={atlasSprites} transforms={atlasTransforms} />
+      )}
+
+      {/* ── Layer 6: Battle flash ── */}
+      {battleImage && (
+        <Atlas image={battleImage} sprites={battleSprites} transforms={battleTransforms} />
+      )}
+
+      {/* ── Layer 7: Pending move lines ── */}
+      <Path path={pathingPath} color="#FBBF24" style="stroke" strokeWidth={3}>
+        <DashPathEffect intervals={[10, 10]} />
+      </Path>
+    </>
+  );
+
   return (
     <GestureDetector gesture={composedGestures}>
       <View style={styles.container}>
         <Canvas style={styles.canvas}>
           <Group transform={transform as any}>
-
-            {/* ── Layer 1: Biome fill (static, batched per biome) ── */}
-            {staticLayers.biomePaths.map(bp => (
-              <Path key={bp.color} path={bp.path} color={bp.color} />
-            ))}
-
-            {/* ── Layer 2: Hex grid stroke (static) ── */}
-            <Path
-              path={staticLayers.strokePath}
-              color="rgba(0,0,0,0.20)"
-              style="stroke"
-              strokeWidth={0.8}
-            />
-
-            {/* ── Layer 3: Territory ownership overlay (dynamic, batched per faction) ── */}
-            {factionPathElements}
-
-            {/* ── Layer 4: City sprites ── */}
-            {cityImage && (
-              <Atlas image={cityImage} sprites={citySprites} transforms={cityTransforms} />
-            )}
-
-            {/* ── Layer 5: Army sprites ── */}
-            {tokenImage && (
-              <Atlas image={tokenImage} sprites={atlasSprites} transforms={atlasTransforms} />
-            )}
-
-            {/* ── Layer 6: Battle flash ── */}
-            {battleImage && (
-              <Atlas image={battleImage} sprites={battleSprites} transforms={battleTransforms} />
-            )}
-
-            {/* ── Layer 7: Pending move lines ── */}
-            <Path path={pathingPath} color="#FBBF24" style="stroke" strokeWidth={3}>
-              <DashPathEffect intervals={[10, 10]} />
-            </Path>
-
+            {/* Phantom Left Clone */}
+            <Group transform={[{ translateX: -MAP_WIDTH }]}>
+              {renderMapLayers()}
+            </Group>
+            
+            {/* Center Real */}
+            <Group>
+              {renderMapLayers()}
+            </Group>
+            
+            {/* Phantom Right Clone */}
+            <Group transform={[{ translateX: MAP_WIDTH }]}>
+              {renderMapLayers()}
+            </Group>
           </Group>
         </Canvas>
       </View>
