@@ -167,14 +167,15 @@ export function SimulationCanvas({
   const savedTranslateY = useSharedValue(-130);
   const savedScale      = useSharedValue(INITIAL_SCALE);
 
+  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
   // Initialize camera to player capital
   React.useEffect(() => {
     if (capitalHexId !== undefined && centroidMap.has(capitalHexId)) {
       const center = centroidMap.get(capitalHexId)!;
-      const { width, height } = Dimensions.get('window');
       
-      let newTx = (width / 2) - (center.x * INITIAL_SCALE);
-      let newTy = (height / 2) - (center.y * INITIAL_SCALE);
+      let newTx = (screenWidth / 2) - (center.x * INITIAL_SCALE);
+      let newTy = (screenHeight / 2) - (center.y * INITIAL_SCALE);
       
       // Wrap X
       const limitX = MAP_WIDTH * INITIAL_SCALE;
@@ -183,7 +184,7 @@ export function SimulationCanvas({
       
       // Clamp Y
       const maxTy = 0;
-      const minTy = Math.min(0, height - MAP_HEIGHT * INITIAL_SCALE);
+      const minTy = Math.min(0, screenHeight - MAP_HEIGHT * INITIAL_SCALE);
       newTy = Math.max(minTy, Math.min(maxTy, newTy));
       
       translateX.value = newTx;
@@ -242,9 +243,8 @@ export function SimulationCanvas({
       translateX.value = newTx;
       
       // Clamp Y
-      const { height } = Dimensions.get('window');
       const maxTy = 0;
-      const minTy = Math.min(0, height - MAP_HEIGHT * scale.value);
+      const minTy = Math.min(0, screenHeight - MAP_HEIGHT * scale.value);
       translateY.value = Math.max(minTy, Math.min(maxTy, newTy));
     })
     .onEnd(() => {
@@ -258,9 +258,8 @@ export function SimulationCanvas({
       scale.value = Math.max(0.08, Math.min(next, 3.0)); // clamp zoom
       
       // Maintain Y clamp on zoom
-      const { height } = Dimensions.get('window');
       const maxTy = 0;
-      const minTy = Math.min(0, height - MAP_HEIGHT * scale.value);
+      const minTy = Math.min(0, screenHeight - MAP_HEIGHT * scale.value);
       translateY.value = Math.max(minTy, Math.min(maxTy, translateY.value));
     })
     .onEnd(() => { 
