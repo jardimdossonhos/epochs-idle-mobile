@@ -124,8 +124,10 @@ function getKingdomEcsResource(state: GameState, kingdomId: string, resource: Re
 }
 
 export function getKingdomCapitalIndex(kingdom: KingdomState, orderedDefinitions: RegionDefinition[]): number {
-  return orderedDefinitions.findIndex(def => def.id === kingdom.capitalRegionId);
-}
+        const idStr = kingdom.capitalRegionId.replace('r_hex_', '');
+        const id = parseInt(idStr, 10);
+        return isNaN(id) ? -1 : id;
+    }
 
 function canAfford(state: GameState, kingdomId: string, cost: Partial<Record<ResourceType, number>>, orderedDefinitions: RegionDefinition[]): boolean {
   for (const [res, amount] of Object.entries(cost)) {

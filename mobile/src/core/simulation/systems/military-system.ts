@@ -12,12 +12,7 @@ export function createMilitarySystem(orderedDefinitions: RegionDefinition[]): Si
 
       const ecsManpowerLimit: Record<string, number> = {};
       if (state.ecs && state.ecs.manpower) {
-        for (let i = 0; i < orderedDefinitions.length; i++) {
-          const ownerId = state.world.regions[orderedDefinitions[i].id]?.ownerId;
-          if (ownerId && ownerId !== "k_nature") {
-            ecsManpowerLimit[ownerId] = (ecsManpowerLimit[ownerId] || 0) + (state.ecs.manpower[i] || 0);
-          }
-        }
+        /* Disabled region iteration */
       }
 
       for (const kingdomId in state.kingdoms) {

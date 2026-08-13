@@ -1,3 +1,4 @@
+import worldMapData from "../../assets/data/world_map_data.json";
 import { createDefaultBudgetPriority, createEmptyStock, type EconomyState } from "../../core/models/economy";
 import {
   ArmyPosture,
@@ -403,171 +404,84 @@ function createKingdom(
   };
 }
 
-function toDefinitionMap(definitions: RegionDefinition[]): Record<string, RegionDefinition> {
-  return Object.fromEntries(definitions.map((definition) => [definition.id, definition]));
+
+const MAP_COLS = 800;
+const MAP_ROWS = 400;
+const TOTAL_HEXES = 320000;
+
+function getAxialDistance(idx1: number, idx2: number): number {
+    const col1 = idx1 % MAP_COLS;
+    const row1 = Math.floor(idx1 / MAP_COLS);
+    const col2 = idx2 % MAP_COLS;
+    const row2 = Math.floor(idx2 / MAP_COLS);
+    
+    // Axial conversion for staggered odd-r grid
+    const q1 = col1 - Math.floor(row1 / 2);
+    const r1 = row1;
+    const q2 = col2 - Math.floor(row2 / 2);
+    const r2 = row2;
+    
+    return (Math.abs(q1 - q2) + Math.abs(q1 + r1 - q2 - r2) + Math.abs(r1 - r2)) / 2;
 }
 
-function listDefinitionsSorted(staticData: StaticWorldData): RegionDefinition[] {
-  return Object.keys(staticData.definitions)
-    .sort()
-    .map((regionId) => staticData.definitions[regionId]);
-}
-
-function assignRegionOwners(
-  definitions: RegionDefinition[], 
-  playerStartRegionId?: string
-): { ownerByRegionId: Record<string, string>, capitalByOwner: Record<string, string> } {
-  const ownerByRegionId: Record<string, string> = {};
-  const capitalByOwner: Record<string, string> = {};
-  const defsById = toDefinitionMap(definitions);
-
-  // 1. O globo inteiro comeÃƒÆ’Ã‚Â§a pertencendo ÃƒÆ’Ã‚Â  natureza absoluta (Vazio populacional)
-  for (const definition of definitions) {
-    ownerByRegionId[definition.id] = "k_nature";
-  }
-
-  // FunÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o interna para criar "Clusters" (Tribos unidas de 2 a 3 hexÃƒÆ’Ã‚Â¡gonos)
-  function spawnCluster(kingdomId: string, centerId: string) {
-    const center = defsById[centerId];
-    if (!center || center.isWater) return;
-    
-    ownerByRegionId[centerId] = kingdomId;
-    capitalByOwner[kingdomId] = centerId;
-    
-    let clusterSize = 1;
-    const targetSize = 2 + Math.floor(Math.random() * 2); // Nasce dominando de 2 a 3 territÃƒÆ’Ã‚Â³rios vizinhos
-    
-    for (const neighborId of center.neighbors) {
-      if (clusterSize >= targetSize) break;
-      const nDef = defsById[neighborId];
-      if (nDef && !nDef.isWater && ownerByRegionId[neighborId] === "k_nature") {
-        ownerByRegionId[neighborId] = kingdomId;
-        clusterSize++;
-      }
+function findValidLandSpawn(biomes: number[], existingSpawns: number[], minDistance: number): number {
+    let bestIdx = -1;
+    let attempts = 0;
+    while (attempts < 1000) {
+        const idx = Math.floor(Math.random() * TOTAL_HEXES);
+        const biome = biomes[idx];
+        
+        // Regra 1: Bioma Habitável (apenas verde)
+        // 1 = Forest/Grassland, 0 = Water, 2 = Desert, 3 = Tundra
+        if (biome !== 1) {
+            attempts++;
+            continue;
+        }
+        
+        // Regra 2: Fairness (Distância Mínima)
+        let tooClose = false;
+        for (const spawnIdx of existingSpawns) {
+            const dist = getAxialDistance(idx, spawnIdx);
+            if (dist < minDistance) {
+                tooClose = true;
+                break;
+            }
+        }
+        
+        if (!tooClose) {
+            return idx; // Encontrou!
+        }
+        attempts++;
     }
-  }
-  
-  // 2. Alocar a Tribo do Jogador
-  let playerStart = playerStartRegionId;
-  if (!playerStart) {
-    const fallbacks = definitions.filter(d => !d.isWater && d.biome === "temperate");
-    playerStart = fallbacks[0]?.id;
-  }
-  if (playerStart) {
-    spawnCluster("k_player", playerStart);
-  }
-
-  // 3. Alocar as Antigas Tribos HistÃƒÆ’Ã‚Â³ricas da IA
-  const npcZones = ["near_east", "north_africa", "south_asia", "east_asia"];
-  for (let i = 1; i <= 4; i++) {
-    const npcId = `k_npc_${i}`;
-    const targetZone = npcZones[i - 1];
-    const validSpawns = definitions.filter(d => !d.isWater && d.zone === targetZone && ownerByRegionId[d.id] === "k_nature");
-    if (validSpawns.length > 0) {
-      // Tenta cair pelo centro da regiÃƒÆ’Ã‚Â£o em vez de nas pontas extremas
-      const start = validSpawns[Math.floor(validSpawns.length / 2)].id;
-      spawnCluster(npcId, start);
+    // Fallback: ignora distância se não achou após 1000 tentativas
+    for (let i = 0; i < TOTAL_HEXES; i++) {
+        if (biomes[i] === 1) return i;
     }
-  }
-
-  return { ownerByRegionId, capitalByOwner };
+    return 0;
 }
 
-function buildOwnerIndex(ownerByRegionId: Record<string, string>): Map<string, string[]> {
-  const byOwner = new Map<string, string[]>();
-
-  for (const regionId of Object.keys(ownerByRegionId).sort()) {
-    const ownerId = ownerByRegionId[regionId];
-    const list = byOwner.get(ownerId) ?? [];
-    list.push(regionId);
-    byOwner.set(ownerId, list);
-  }
-
-  return byOwner;
-}
-
-function createRegionState(
-  definition: RegionDefinition,
-  ownerId: string,
-  ownerFaith: ReligionId,
-  staticData: StaticWorldData
-): RegionState {
-  const isNature = ownerId === "k_nature";
-  const seed = hashString(definition.id);
-  const unrest = isNature ? 0 : 0.08 + ((seed % 23) / 100); // A natureza nÃƒÆ’Ã‚Â£o se revolta
-  const autonomy = 0.2 + ((Math.floor(seed / 13) % 22) / 100);
-  const devastation = isNature ? 0 : ((Math.floor(seed / 31) % 7) / 100);
-  const assimilation = 0.74 + ((Math.floor(seed / 47) % 23) / 100);
-  const zoneFaith = religionByZone(definition.zone, staticData);
-  const dominantFaith = ownerFaith;
-  const dominantShare = clamp(0.57 + ((Math.floor(seed / 71) % 25) / 100), 0.52, 0.86);
-  const minorityFaith = zoneFaith === dominantFaith
-    ? pickDeterministicReligion(staticData, `${definition.id}:minority`, dominantFaith)
-    : zoneFaith;
-  const rawMinorityShare = 0.12 + ((Math.floor(seed / 97) % 18) / 100);
-  const minorityShare = clamp(Math.min(rawMinorityShare, 0.95 - dominantShare), 0.08, 0.38);
-  const faithUnrest = isNature ? 0 : clamp(
-    0.05 + minorityShare * 0.42 + (dominantFaith === zoneFaith ? 0 : 0.08) + ((Math.floor(seed / 131) % 6) / 100),
-    0,
-    1
-  );
-
-  return {
-    regionId: definition.id,
-    ownerId,
-    controllerId: ownerId,
-    autonomy: round(clamp(autonomy, 0, 1)),
-    assimilation: round(clamp(assimilation, 0, 1)),
-    unrest: round(clamp(unrest, 0, 1)),
-    devastation: round(clamp(devastation, 0, 1)),
-    dominantFaith,
-    dominantShare: round(clamp(dominantShare, 0, 1)),
-    minorityFaith,
-    minorityShare: round(clamp(minorityShare, 0, 1)),
-    faithUnrest: round(faithUnrest),
-    actionCooldowns: {}
-  };
-}
-
-function createWorldState(
-  ownerByRegionId: Record<string, string>,
-  staticData: StaticWorldData,
-  faithByKingdomId: Record<string, ReligionId>,
-  now: number
-): WorldState {
-  const definitions = toDefinitionMap(listDefinitionsSorted(staticData));
-  const regions: Record<string, RegionState> = {};
-
-  for (const regionId of Object.keys(definitions).sort()) {
-    const definition = definitions[regionId];
-    const ownerId = ownerByRegionId[regionId] ?? "k_nature";
-    const ownerFaith = faithByKingdomId[ownerId] ?? religionByZone(definition.zone, staticData);
-    regions[regionId] = createRegionState(definition, ownerId, ownerFaith, staticData);
-  }
-
-  const dynamicReligions: Record<ReligionId, WorldReligion> = {};
-  for (const [id, def] of Object.entries(staticData.religions)) {
-    dynamicReligions[id as ReligionId] = {
-      id: id as ReligionId,
-      name: def.name,
-      deityName: def.deityName,
-      deityDescription: def.deityDescription,
-      color: def.color,
-      tenets: [...def.tenets],
-      holyCityRegionId: null,
-      headOfFaithKingdomId: null,
-      founderId: null,
-      foundedAt: now,
-      parentReligionId: null
-    };
-  }
-
-  return {
-    mapId: staticData.mapId,
-    regions,
-    religions: dynamicReligions,
-    eventChains: {}
-  };
+function getNeighbors(idx: number): number[] {
+    const col = idx % MAP_COLS;
+    const row = Math.floor(idx / MAP_COLS);
+    const isOdd = row % 2 !== 0;
+    
+    const offsets = isOdd ? [
+        [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 0]
+    ] : [
+        [-1, -1], [0, -1], [1, 0], [0, 1], [-1, 1], [-1, 0]
+    ];
+    
+    const neighbors: number[] = [];
+    for (const [dc, dr] of offsets) {
+        let nc = col + dc;
+        const nr = row + dr;
+        
+        if (nr < 0 || nr >= MAP_ROWS) continue;
+        
+        nc = ((nc % MAP_COLS) + MAP_COLS) % MAP_COLS;
+        neighbors.push(nr * MAP_COLS + nc);
+    }
+    return neighbors;
 }
 
 function createSeedRelations(state: GameState): void {
@@ -686,20 +600,19 @@ function createSeedRulers(state: GameState): void {
   }
 }
 
-function createKingdoms(ownerByRegionId: Record<string, string>, capitalByOwner: Record<string, string>, staticData: StaticWorldData): Record<string, KingdomState> {
-  const definitionsById = toDefinitionMap(listDefinitionsSorted(staticData));
-  const byOwner = buildOwnerIndex(ownerByRegionId);
+function createKingdoms(spawnIndices: Record<string, number>, staticData: StaticWorldData): Record<string, KingdomState> {
   const kingdoms: Record<string, KingdomState> = {};
-
   for (const blueprint of KINGDOM_BLUEPRINTS) {
-    const ownedRegions = byOwner.get(blueprint.id) ?? [];
-    const capitalRegionId = capitalByOwner[blueprint.id] ?? blueprint.preferredCapitalRegionId;
-    const capitalZone = definitionsById[capitalRegionId]?.zone ?? "europe";
-    const chosenFaith = religionByZone(capitalZone, staticData);
+    const capitalIdx = spawnIndices[blueprint.id];
+    // Define capital genérica na falta de JSON gigante
+    const capitalRegionId = `r_hex_${capitalIdx}`; 
+    // Em vez de varrer arrays, o reino recém nascido tem 1 território só, ele expandirá depois.
+    const ownedRegions = [capitalRegionId]; 
+    const chosenFaith = pickDeterministicReligion(staticData, blueprint.id);
     kingdoms[blueprint.id] = createKingdom(blueprint, capitalRegionId, ownedRegions, chosenFaith);
   }
 
-  // Entidade de contenÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o global (Terra Selvagem)
+  // Natureza
   kingdoms["k_nature"] = createKingdom({
     id: "k_nature",
     name: "Terra Selvagem",
@@ -711,31 +624,55 @@ function createKingdoms(ownerByRegionId: Record<string, string>, capitalByOwner:
   return kingdoms;
 }
 
-export function createInitialState(staticData: StaticWorldData, playerStartRegionId?: string, orderedDefinitions: RegionDefinition[] = []): GameState {
+function createWorldState(staticData: StaticWorldData, now: number): WorldState {
+  const dynamicReligions: Record<ReligionId, WorldReligion> = {};
+  for (const [id, def] of Object.entries(staticData.religions)) {
+    dynamicReligions[id as ReligionId] = {
+      id: id as ReligionId,
+      name: def.name,
+      deityName: def.deityName,
+      deityDescription: def.deityDescription,
+      color: def.color,
+      tenets: [...def.tenets],
+      holyCityRegionId: null,
+      headOfFaithKingdomId: null,
+      founderId: null,
+      foundedAt: now,
+      parentReligionId: null
+    };
+  }
+
+  return {
+    mapId: staticData.mapId,
+    regions: {}, // Removido! Objetos de hexágono substituídos por TypedArrays nativos na ECS
+    religions: dynamicReligions,
+    eventChains: {}
+  };
+}
+
+export function createInitialState(staticData: StaticWorldData, playerStartRegionId?: string, _ignoredDefs: RegionDefinition[] = []): GameState {
   const now = Date.now();
-  const definitions = listDefinitionsSorted(staticData);
-  const { ownerByRegionId, capitalByOwner } = assignRegionOwners(definitions, playerStartRegionId);
-  const kingdoms = createKingdoms(ownerByRegionId, capitalByOwner, staticData);
   
-  const faithByKingdomId = Object.fromEntries(
-    Object.keys(kingdoms)
-      .sort()
-      .map((kingdomId) => [kingdomId, kingdoms[kingdomId].religion.stateFaith] as const)
-  );
+  // 1. Algoritmo Sandbox Spawner (Fairness)
+  const biomes = worldMapData.biomes;
+  const existingSpawns: number[] = [];
+  const spawnIndices: Record<string, number> = {};
+  
+  for (const blueprint of KINGDOM_BLUEPRINTS) {
+      const idx = findValidLandSpawn(biomes, existingSpawns, 30);
+      existingSpawns.push(idx);
+      spawnIndices[blueprint.id] = idx;
+  }
 
-  const totalEntities = orderedDefinitions.length;
+  const kingdoms = createKingdoms(spawnIndices, staticData);
+  
+  const totalEntities = TOTAL_HEXES;
 
-  // Mapeamento estável KingdomId → FactionId numérico para o ECS.
-  // Derivado da posição em KINGDOM_BLUEPRINTS para ser determinístico e livre de colisões.
-  // k_nature mantém -1 (sem facção) para a condição do MacroeconomySystem (owner !== -1).
-  // k_player=1, k_npc_1=2, k_npc_2=3, k_npc_3=4, k_npc_4=5 ...
   const kingdomToFactionId: Record<string, number> = { "k_nature": -1 };
   KINGDOM_BLUEPRINTS.forEach((bp, idx) => {
     kingdomToFactionId[bp.id] = idx + 1;
   });
 
-
-  // FAGULHA VITAL (AURORA DA HUMANIDADE): Preenche 99% das matrizes ECS com ZERO para o terreno vazio
   const ecsState: EcsState = {
     gold: new Array(totalEntities).fill(0),
     food: new Array(totalEntities).fill(0),
@@ -775,23 +712,25 @@ export function createInitialState(staticData: StaticWorldData, playerStartRegio
     visibilityMask: new Uint8Array(totalEntities).fill(0)
   };
 
-  for (let i = 0; i < totalEntities; i++) {
-    const def = orderedDefinitions[i];
-    const ownerId = ownerByRegionId[def.id] ?? "k_nature";
-
-    // PONTE ECS←OO: Injeta a posse geográfica no ECS para ativar o MacroeconomySystem.
-    // Sem isto, regionOwner permanece -1 e o motor nunca gera renda.
-    const factionId = kingdomToFactionId[ownerId] ?? -1;
-    ecsState.regionOwner[i] = factionId;
-
-    if (ownerId !== "k_nature" && !def.isWater) {
-      ecsState.populationTotal[i] = 20; // 20 nômades exatos por hexágono capital
-      ecsState.populationGrowthRate[i] = 0.003; // Crescimento biológico (rápido no começo para impulsionar a tribo)
-      ecsState.food[i] = 250;
-      ecsState.wood[i] = 100;
-      ecsState.faith[i] = 10;
-      ecsState.legitimacy[i] = 10;
-    }
+  // 2. Aplicar Spawns na Matriz
+  for (const blueprint of KINGDOM_BLUEPRINTS) {
+      const factionId = kingdomToFactionId[blueprint.id];
+      const capitalIdx = spawnIndices[blueprint.id];
+      
+      // Conquista a capital e alguns vizinhos
+      const cluster = [capitalIdx, ...getNeighbors(capitalIdx)];
+      
+      for (const idx of cluster) {
+          if (biomes[idx] > 0 && ecsState.regionOwner[idx] === -1) {
+              ecsState.regionOwner[idx] = factionId;
+              ecsState.populationTotal[idx] = 20;
+              ecsState.populationGrowthRate[idx] = 0.003;
+              ecsState.food[idx] = 250;
+              ecsState.wood[idx] = 100;
+              ecsState.faith[idx] = 10;
+              ecsState.legitimacy[idx] = 10;
+          }
+      }
   }
 
   const state: GameState = {
@@ -813,14 +752,10 @@ export function createInitialState(staticData: StaticWorldData, playerStartRegio
       mapId: staticData.mapId,
       startDateIso: "0001-01-01",
       victoryTargets: [
-        { path: VictoryPath.TerritorialDomination, threshold: 0.55 },
-        { path: VictoryPath.DiplomaticHegemony, threshold: 0.65 },
-        { path: VictoryPath.EconomicSupremacy, threshold: 0.7 },
-        { path: VictoryPath.ReligiousSupremacy, threshold: 0.68 },
-        { path: VictoryPath.DynasticLegacy, threshold: 0.72 }
+        { path: VictoryPath.TerritorialDomination, threshold: 0.55 }
       ]
     },
-    world: createWorldState(ownerByRegionId, staticData, faithByKingdomId, now),
+    world: createWorldState(staticData, now),
     kingdoms,
     wars: {},
     events: [
@@ -832,23 +767,13 @@ export function createInitialState(staticData: StaticWorldData, playerStartRegio
         occurredAt: now
       }
     ],
-    victory: {
-      achievedPath: null,
-      achievedAt: null,
-      postVictoryMode: false,
-      crisisPressure: 0
-    },
+    victory: { achievedPath: null, achievedAt: null, postVictoryMode: false, crisisPressure: 0 },
     randomSeed: now,
     ecs: ecsState
   };
 
   createSeedRelations(state);
   createSeedRulers(state);
-
-  for (const regionId of Object.keys(state.world.regions).sort()) {
-    const region = state.world.regions[regionId];
-    region.actionCooldowns = region.actionCooldowns ?? {};
-  }
 
   return state;
 }

@@ -4,135 +4,104 @@ import type { StaticWorldData } from "../../models/static-world-data";
 import type { SimulationSystem, TickContext } from "../tick-pipeline";
 import type { RegionDefinition } from "../../models/world";
 import { createEventId } from "./utils";
+import worldMapData from "../../../assets/data/world_map_data.json";
 
-const MIGRATION_THRESHOLD = 150; // População necessária para engatilhar o transbordo
-const MIGRATION_AMOUNT = 50;     // Quantidade demográfica que forma a nova colônia
+const MIGRATION_THRESHOLD = 150; 
+const MIGRATION_AMOUNT = 50;     
+const MAP_COLS = 800;
+const MAP_ROWS = 400;
+const TOTAL_HEXES = 320000;
 
-export function createMigrationSystem(staticData: StaticWorldData, orderedDefinitions: RegionDefinition[]): SimulationSystem {
-  const indexMap = new Map<string, number>();
-  for (let i = 0; i < orderedDefinitions.length; i++) {
-    indexMap.set(orderedDefinitions[i].id, i);
-  }
+function getNeighbors(idx: number): number[] {
+    const col = idx % MAP_COLS;
+    const row = Math.floor(idx / MAP_COLS);
+    const isOdd = row % 2 !== 0;
+    
+    const offsets = isOdd ? [
+        [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 0]
+    ] : [
+        [-1, -1], [0, -1], [1, 0], [0, 1], [-1, 1], [-1, 0]
+    ];
+    
+    const neighbors: number[] = [];
+    for (const [dc, dr] of offsets) {
+        let nc = col + dc;
+        const nr = row + dr;
+        
+        if (nr < 0 || nr >= MAP_ROWS) continue;
+        
+        nc = ((nc % MAP_COLS) + MAP_COLS) % MAP_COLS;
+        neighbors.push(nr * MAP_COLS + nc);
+    }
+    return neighbors;
+}
 
+export function createMigrationSystem(staticData: StaticWorldData, _ignoredDefs: RegionDefinition[]): SimulationSystem {
   return {
     id: "migration_system",
     run: (context: TickContext) => {
       const state = context.nextState;
-      // Roda apenas 1 vez por "Ano" (12 ciclos) para evitar afogar o Event Loop da UI
-      // e dar tempo para o IPC do Worker consolidar e retornar a matemática do ano anterior.
       if (state.meta.tick === 0 || state.meta.tick % 12 !== 0) return;
+      if (!state.ecs || !state.ecs.regionOwner || !state.ecs.populationTotal) return;
 
       const migrations: Array<{ sourceId: string; targetId: string; amount: number; kingdomId: string }> = [];
-      let eventSeq = 0;
-
-      // Rastreia quem já migrou neste ano para impedir o efeito "Starburst" (saltos simultâneos de anexação)
       const migratedKingdomsThisCycle = new Set<string>();
+      
+      const startIndex = Math.floor(Math.random() * TOTAL_HEXES);
+      const biomes = worldMapData.biomes;
 
-      // Sorteamos um ponto inicial na malha xeque para evitar bias direcional (ex: expandir sempre para o norte)
-      const startIndex = Math.floor(Math.random() * orderedDefinitions.length);
+      for (let offset = 0; offset < TOTAL_HEXES; offset++) {
+        const i = (startIndex + offset) % TOTAL_HEXES;
+        const ownerFactionId = state.ecs.regionOwner[i];
+        
+        if (ownerFactionId <= 0) continue; 
 
-      // Avaliação linear de alta performance (Data-Oriented Scan)
-      for (let offset = 0; offset < orderedDefinitions.length; offset++) {
-        const i = (startIndex + offset) % orderedDefinitions.length;
-        const def = orderedDefinitions[i];
-        if (def.isWater) continue;
-
-        const regionId = def.id;
-        const region = state.world.regions[regionId];
-
-        // Apenas tribos assentadas (Não-Selvagens) expandem
-        if (!region || region.ownerId === "k_nature") continue;
-
-        const kingdom = state.kingdoms[region.ownerId];
+        const kingdomId = ownerFactionId === 1 ? "k_player" : `k_npc_${ownerFactionId - 1}`;
+        const kingdom = state.kingdoms[kingdomId];
         if (!kingdom) continue;
 
-        const currentPop = state.ecs?.populationTotal?.[i] || 0;
+        const currentPop = state.ecs.populationTotal[i];
 
-        // EXTINÇÃO: Se a população física morreu (ex: fome extrema), a terra volta à natureza
-        if (currentPop < 15 && kingdom.capitalRegionId !== regionId) {
-            region.ownerId = "k_nature";
-            region.controllerId = "k_nature";
-            region.unrest = 0;
-            region.devastation = 0;
-            region.assimilation = 0;
-            region.autonomy = 0;
+        if (currentPop < 15 && kingdom.capitalRegionId !== `r_hex_${i}`) {
+            state.ecs.regionOwner[i] = -1; 
+            state.ecs.populationTotal[i] = 0;
+            if (state.ecs.gold) state.ecs.gold[i] = 0;
+            if (state.ecs.food) state.ecs.food[i] = 0;
+            if (state.ecs.manpower) state.ecs.manpower[i] = 0;
             
-            // Zera os recursos restantes para não deixar rastros fantasmas
-            if (state.ecs) {
-                if (state.ecs.gold) (state.ecs.gold as any)[i] = 0;
-                if (state.ecs.food) (state.ecs.food as any)[i] = 0;
-                if (state.ecs.populationTotal) (state.ecs.populationTotal as any)[i] = 0;
-                if (state.ecs.manpower) (state.ecs.manpower as any)[i] = 0;
+            const evt = buildEvent("population.extinction", context.now, { regionId: `r_hex_${i}`, regionName: `Região ${i}` }, kingdom.id, undefined);
+            if (evt) {
+              evt.id = createEventId({ prefix: "evt_ext", tick: context.nextState.meta.tick, systemId: "migration", actorId: kingdom.id, sequence: context.events.length });
+              context.events.push(evt);
             }
-
-            const evt = buildEvent("population.extinction", context.now, { regionId, regionName: def.name }, kingdom.id, undefined);
-          if (evt) {
-            evt.id = createEventId({ prefix: "evt_ext", tick: context.nextState.meta.tick, systemId: "migration", actorId: kingdom.id, sequence: context.events.length });
-            context.events.push(evt);
-          }
             continue;
         }
 
-        // Trava de Progressão Cadenciada: Um império só pode colonizar 1 hexágono por ano.
-        if (migratedKingdomsThisCycle.has(kingdom.id)) {
-          continue; 
-        }
-        if (kingdom.administration.automation.expansion === AutomationLevel.Manual) {
-          continue; // Expansão orgânica retida por política governamental
-        }
+        if (migratedKingdomsThisCycle.has(kingdom.id)) continue;
+        if (kingdom.administration.automation.expansion === AutomationLevel.Manual) continue;
+        if (currentPop < MIGRATION_THRESHOLD) continue;
 
-        // Atingiu o Teto de Suporte (Carrying Capacity) local
-        if (currentPop < MIGRATION_THRESHOLD) {
-          continue;
-        }
+        const neighbors = getNeighbors(i);
+        const validNeighbors = neighbors.filter(n => state.ecs!.regionOwner[n] === -1 && biomes[n] > 0); 
 
-          const validNeighbors = def.neighbors.filter((nid) => {
-            const nRegion = state.world.regions[nid];
-            const nDef = staticData.definitions[nid];
-            return nRegion && nRegion.ownerId === "k_nature" && nDef && !nDef.isWater;
-          });
+        if (validNeighbors.length === 0) continue;
 
-          if (validNeighbors.length === 0) {
-            continue;
-          }
-
-            // Escolhe aleatoriamente uma direção desabitada
-            const targetId = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
-            
-            // 1. Mutação Geopolítica (POO)
-            const targetRegion = state.world.regions[targetId];
-            targetRegion.ownerId = region.ownerId;
-            targetRegion.controllerId = region.ownerId;
-            targetRegion.dominantFaith = region.dominantFaith;
-            targetRegion.dominantShare = region.dominantShare;
-            targetRegion.minorityFaith = region.minorityFaith;
-            targetRegion.minorityShare = region.minorityShare;
-            targetRegion.unrest = 0;
-            targetRegion.devastation = 0;
-
-            // Mutação local do ECS para suportar progressão offline sem Worker ativo
-            if (state.ecs && state.ecs.populationTotal) {
-              const targetIdx = indexMap.get(targetId);
-              if (targetIdx !== undefined) {
-                (state.ecs.populationTotal as any)[i] -= MIGRATION_AMOUNT;
-                (state.ecs.populationTotal as any)[targetIdx] += MIGRATION_AMOUNT;
-              }
-            }
-
-            // 2. Empacota a Intenção Física para a fila
-            migrations.push({ sourceId: regionId, targetId, amount: MIGRATION_AMOUNT, kingdomId: region.ownerId });
-            
-            // Bloqueia o império de fazer múltiplas migrações simultâneas neste mesmo ciclo
-            migratedKingdomsThisCycle.add(kingdom.id);
+        const targetIdx = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+        
+        state.ecs.regionOwner[targetIdx] = ownerFactionId;
+        state.ecs.populationTotal[i] -= MIGRATION_AMOUNT;
+        state.ecs.populationTotal[targetIdx] += MIGRATION_AMOUNT;
+        
+        migrations.push({ sourceId: `r_hex_${i}`, targetId: `r_hex_${targetIdx}`, amount: MIGRATION_AMOUNT, kingdomId: kingdom.id });
+        migratedKingdomsThisCycle.add(kingdom.id);
       }
 
-      // Dispara as emissões para a pipeline (Ignoradas no offline, consumidas em tempo real)
       for (const mig of migrations) {
         const evt = buildEvent("population.migration", context.now, mig, mig.kingdomId, undefined);
-          if (evt) {
-            evt.id = createEventId({ prefix: "evt_mig", tick: context.nextState.meta.tick, systemId: "migration", actorId: mig.kingdomId, sequence: context.events.length });
-            context.events.push(evt);
-          }
+        if (evt) {
+          evt.id = createEventId({ prefix: "evt_mig", tick: context.nextState.meta.tick, systemId: "migration", actorId: mig.kingdomId, sequence: context.events.length });
+          context.events.push(evt);
+        }
       }
 
       for (const kid of Object.keys(state.kingdoms)) {

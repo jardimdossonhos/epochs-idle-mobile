@@ -261,7 +261,7 @@ export const SimulationCanvas = forwardRef<SimulationCanvasRef, SimulationCanvas
 
     if (row >= 0 && row < MAP_ROWS && col >= 0 && col < MAP_COLS) {
       const id = row * MAP_COLS + col;
-      if (BIOMES[id] === 1) { // Só permite clicar em terra
+      if (BIOMES[id] > 0) { // Terra firme (Verde=1, Deserto=2, Tundra=3)
         const owner = regionOwner.value[id] ?? 0;
         runOnJS(handleMapTapJS)(id, owner);
       }

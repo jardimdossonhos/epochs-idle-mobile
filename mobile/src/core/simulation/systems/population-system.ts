@@ -50,12 +50,14 @@ export function createPopulationSystem(orderedDefinitions: RegionDefinition[]): 
       // Grow region populations
       if (context.nextState.ecs && context.nextState.ecs.populationTotal && context.nextState.ecs.populationGrowthRate) {
         const tickScale = context.tickScale ?? 1;
-        for (let i = 0; i < orderedDefinitions.length; i++) {
-          const def = orderedDefinitions[i];
-          const regionState = context.nextState.world.regions[def.id];
-          if (!regionState || regionState.ownerId === "k_nature") continue;
+        const totalEntities = context.nextState.ecs.regionOwner.length;
+        for (let i = 0; i < totalEntities; i++) {
+          const ownerFactionId = context.nextState.ecs.regionOwner[i];
+          if (ownerFactionId <= 0) continue; // k_nature or water
 
-          const kingdom = context.nextState.kingdoms[regionState.ownerId];
+          // Map faction ID back to kingdom ID
+          const kingdomId = ownerFactionId === 1 ? "k_player" : `k_npc_${ownerFactionId - 1}`;
+          const kingdom = context.nextState.kingdoms[kingdomId];
           if (!kingdom) continue;
 
           const foodStock = kingdom.economy.stock[ResourceType.Food];

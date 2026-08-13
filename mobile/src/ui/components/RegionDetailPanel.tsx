@@ -10,6 +10,7 @@ import {
 import { useGameState } from '../GameProvider';
 import { BuildingType } from '../../core/models/enums';
 import type { RegionActionType } from '../../application/game-session';
+import worldMapData from '../../assets/data/world_map_data.json';
 
 interface RegionDetailPanelProps {
   regionId: string;
@@ -179,6 +180,8 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
   const regionDef = staticWorldData.definitions[regionId];
   const owner = regionState?.ownerId ? gameState.kingdoms[regionState.ownerId] : null;
   const isPlayerRegion = regionState?.ownerId === playerKingdomId;
+  const numericRId = parseInt(regionId.replace('r_hex_', ''), 10);
+  const biomeId = worldMapData.biomes[numericRId];
 
   const handleBuild = useCallback(
     (buildingType: BuildingType) => {
@@ -272,6 +275,19 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
       </View>
 
       <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+        {biomeId === 2 && (
+          <View style={[styles.extremeWarningBox, { borderLeftColor: '#FF6B35', backgroundColor: 'rgba(255, 107, 53, 0.12)' }]}>
+            <Text style={[styles.extremeWarningTitle, { color: '#FF6B35' }]}>⚠️ Condições Extremas: Clima Árido (-80% Comida)</Text>
+            <Text style={styles.extremeWarningDesc}>(Pode ser mitigado com tecnologias de eras futuras)</Text>
+          </View>
+        )}
+        {biomeId === 3 && (
+          <View style={[styles.extremeWarningBox, { borderLeftColor: '#50E3C2', backgroundColor: 'rgba(80, 227, 194, 0.12)' }]}>
+            <Text style={[styles.extremeWarningTitle, { color: '#50E3C2' }]}>⚠️ Condições Extremas: Frio Severo (-80% Comida)</Text>
+            <Text style={styles.extremeWarningDesc}>(Pode ser mitigado com tecnologias de eras futuras)</Text>
+          </View>
+        )}
+
         {/* ── Stats ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📊 Estatísticas</Text>
@@ -621,4 +637,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     flex: 1,
   },
+  extremeWarningBox: {
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    marginBottom: 16,
+  },
+  extremeWarningTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  extremeWarningDesc: {
+    color: '#888',
+    fontSize: 11,
+    fontStyle: 'italic',
+  }
 });
+

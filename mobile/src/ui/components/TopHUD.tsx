@@ -101,6 +101,7 @@ function StabilityTooltip({ visible, onClose }: { visible: boolean; onClose: () 
   const playerInflation  = useUIStore((s) => s.playerInflation);
   const playerEfficiency = useUIStore((s) => s.playerEfficiency);
   const playerLegitimacy = useUIStore((s) => s.playerLegitimacy);
+  const safeStability = playerStability ?? 100;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -115,28 +116,28 @@ function StabilityTooltip({ visible, onClose }: { visible: boolean; onClose: () 
           <View style={{ padding: 16 }}>
             <BreakdownRow
               label="Estabilidade"
-              value={`${(playerStability || 100).toFixed(1)}%`}
-              color={playerStability >= 70 ? '#50E3C2' : playerStability >= 40 ? '#F8E71C' : '#E24A4A'}
+              value={`${safeStability.toFixed(1)}%`}
+              color={safeStability >= 70 ? '#50E3C2' : safeStability >= 40 ? '#F8E71C' : '#E24A4A'}
             />
             <BreakdownRow
               label="Legitimidade"
               value={Math.floor(playerLegitimacy).toLocaleString()}
-              color="#D4AF37"
+              color={playerLegitimacy >= 70 ? '#50E3C2' : playerLegitimacy >= 40 ? '#F8E71C' : '#E24A4A'}
             />
             <BreakdownRow
               label="Eficiência Estatal"
               value={`${(playerEfficiency * 100).toFixed(1)}%`}
-              color={playerEfficiency >= 0.8 ? '#50E3C2' : '#F8E71C'}
+              color={playerEfficiency >= 0.8 ? '#50E3C2' : playerEfficiency >= 0.5 ? '#F8E71C' : '#E24A4A'}
             />
             <BreakdownRow
               label="Corrupção"
-              value={`-${(playerCorruption * 100).toFixed(1)}%`}
-              color={playerCorruption > 0.2 ? '#E24A4A' : '#666'}
+              value={`${Math.max(0, playerCorruption * 100).toFixed(1)}%`}
+              color={playerCorruption > 0.2 ? '#E24A4A' : playerCorruption > 0.05 ? '#F8E71C' : '#50E3C2'}
             />
             <BreakdownRow
               label="Inflação"
-              value={`-${(playerInflation * 100).toFixed(1)}%`}
-              color={playerInflation > 0.15 ? '#E24A4A' : '#666'}
+              value={`${Math.max(0, playerInflation * 100).toFixed(1)}%`}
+              color={playerInflation > 0.15 ? '#E24A4A' : playerInflation > 0.05 ? '#F8E71C' : '#50E3C2'}
             />
             <Text style={styles.tooltipHint}>
               Toque em "Estado → Economia" para ajustar impostos e orçamento.
@@ -234,9 +235,10 @@ export default function TopHUD() {
   ).length;
 
   const year  = Math.floor(tick / 12) + 1;
+  const safeStability = stability ?? 100;
   const goldColor = goldIncome >= 0 ? '#50E3C2' : '#E24A4A';
   const stabilityColor =
-    stability >= 70 ? '#50E3C2' : stability >= 40 ? '#F8E71C' : '#E24A4A';
+    safeStability >= 70 ? '#50E3C2' : safeStability >= 40 ? '#F8E71C' : '#E24A4A';
 
   // ── Publish measured height to store so screens can apply correct paddingTop
   const handleLayout = useCallback((e: LayoutChangeEvent) => {
@@ -302,7 +304,7 @@ export default function TopHUD() {
             <Text style={styles.chipIcon}>⚖️</Text>
             <View style={styles.chipTextBlock}>
               <Text style={[styles.chipValue, { color: stabilityColor }]}>
-                {(stability || 100).toFixed(0)}%
+                {safeStability.toFixed(0)}%
               </Text>
               <Text style={styles.chipLabel}>Estab.</Text>
             </View>
