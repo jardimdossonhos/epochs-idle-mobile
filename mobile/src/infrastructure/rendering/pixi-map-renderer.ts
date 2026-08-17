@@ -93,7 +93,8 @@ export class PixiMapRenderer implements GameMapRenderer {
       }
 
       if (this.mapLayer === "religion") {
-        fillColor = colorForFaith(regionState.dominantFaith, this.staticData);
+        const faithId = owner?.religion?.stateFaith || "imperial_church";
+        fillColor = colorForFaith(faithId, this.staticData);
       }
 
       if (this.mapLayer === "diplomacy") {

@@ -101,6 +101,7 @@ export function createEconomySystem(): SimulationSystem {
 
         kingdom.economy.incomePerTick = createEmptyStock();
         kingdom.economy.upkeepPerTick = createEmptyStock();
+        kingdom.economy.netIncomePerTick = createEmptyStock();
 
         kingdom.economy.incomePerTick[ResourceType.Gold] = roundTo(goldIncome * govMods.incomeMultiplier);
         kingdom.economy.incomePerTick[ResourceType.Food] = foodIncome;
@@ -176,12 +177,14 @@ export function createEconomySystem(): SimulationSystem {
                       context.nextState.ecs.factionGoldBalance[factionId] += (kingdom.economy.incomePerTick[resource] - kingdom.economy.upkeepPerTick[resource]);
                       context.nextState.ecs.factionGoldBalance[factionId] = Math.max(0, context.nextState.ecs.factionGoldBalance[factionId]);
                   }
+                  kingdom.economy.netIncomePerTick[resource] = roundTo(kingdom.economy.incomePerTick[resource] - kingdom.economy.upkeepPerTick[resource]);
                   continue;
               }
               
               kingdom.economy.stock[resource] = roundTo(
                   kingdom.economy.stock[resource] + kingdom.economy.incomePerTick[resource] - kingdom.economy.upkeepPerTick[resource]
               );
+              kingdom.economy.netIncomePerTick[resource] = roundTo(kingdom.economy.incomePerTick[resource] - kingdom.economy.upkeepPerTick[resource]);
           }
           ensureResourceNonNegative(kingdom);
       }

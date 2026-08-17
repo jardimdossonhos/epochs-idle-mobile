@@ -84,7 +84,7 @@ export function createAdministrationSystem(): SimulationSystem {
           control.revoltRisk = roundTo(
             clamp(
               region.unrest * 0.38 + 
-              region.faithUnrest * 0.18 + // O choque cultural e religioso inflama revoltas separatistas
+              (state.ecs?.regionFaithUnrest[parseInt(regionId.replace("r_hex_", ""), 10)] ?? 0) * 0.18 + // O choque cultural e religioso inflama revoltas separatistas
               control.localAutonomy * 0.22 + 
               (1 - control.integration) * 0.3 + 
               state.victory.crisisPressure * 0.25, 

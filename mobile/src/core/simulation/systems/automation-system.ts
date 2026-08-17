@@ -139,8 +139,10 @@ function canAfford(state: GameState, kingdomId: string, cost: Partial<Record<Res
 
 function handleConstructionAutomation(state: GameState, kingdom: KingdomState, context: Parameters<SimulationSystem["run"]>[0], orderedDefinitions: RegionDefinition[]) {
   const ownedRegions = getOwnedRegionIds(state, kingdom.id);
+  
   const availableRegions = ownedRegions.filter(rId => {
-    const b = state.world.regions[rId].buildings || [];
+    const region = state.world.regions[rId];
+    const b = region?.buildings ?? [];
     return b.length < 2;
   });
 
@@ -155,9 +157,10 @@ function handleConstructionAutomation(state: GameState, kingdom: KingdomState, c
   if (level === AutomationLevel.NearlyAutomatic) {
     for (const rId of availableRegions) {
       const region = state.world.regions[rId];
-      const buildings = region.buildings || [];
+      const unrest = region?.unrest ?? 0;
+      const buildings = region?.buildings ?? [];
 
-      if (region.unrest > 0.4 && !buildings.includes(BuildingType.Fortress)) {
+      if (unrest > 0.4 && !buildings.includes(BuildingType.Fortress)) {
         if (canAfford(state, kingdom.id, BUILDING_COSTS[BuildingType.Fortress], orderedDefinitions)) {
           chosenBuilding = BuildingType.Fortress;
           chosenRegionId = rId;
@@ -165,7 +168,8 @@ function handleConstructionAutomation(state: GameState, kingdom: KingdomState, c
         }
       }
 
-      if (region.faithUnrest > 0.3 && !buildings.includes(BuildingType.Monastery)) {
+      const regionIdx = parseInt(rId.replace("r_hex_", ""), 10);
+      if ((state.ecs?.regionFaithUnrest[regionIdx] ?? 0) > 0.3 && !buildings.includes(BuildingType.Monastery)) {
         if (canAfford(state, kingdom.id, BUILDING_COSTS[BuildingType.Monastery], orderedDefinitions)) {
           chosenBuilding = BuildingType.Monastery;
           chosenRegionId = rId;
@@ -177,7 +181,8 @@ function handleConstructionAutomation(state: GameState, kingdom: KingdomState, c
     if (!chosenBuilding) {
       const gold = getKingdomEcsResource(state, kingdom.id, ResourceType.Gold, orderedDefinitions);
       const randomRegion = availableRegions[Math.floor(Math.random() * availableRegions.length)];
-      const b = state.world.regions[randomRegion].buildings || [];
+      const region = state.world.regions[randomRegion];
+      const b = region?.buildings ?? [];
 
       if (gold > 1000 && !b.includes(BuildingType.University) && canAfford(state, kingdom.id, BUILDING_COSTS[BuildingType.University], orderedDefinitions)) {
         chosenBuilding = BuildingType.University;
@@ -203,7 +208,8 @@ function handleConstructionAutomation(state: GameState, kingdom: KingdomState, c
     let totalBuildings = 0;
 
     for (const rId of ownedRegions) {
-      const b = state.world.regions[rId].buildings || [];
+      const region = state.world.regions[rId];
+      const b = region?.buildings ?? [];
       for (const type of b) { counts[type] = (counts[type] || 0) + 1; totalBuildings++; }
     }
 
@@ -217,22 +223,40 @@ function handleConstructionAutomation(state: GameState, kingdom: KingdomState, c
 
     if (chosenBuilding) {
       for (const rId of availableRegions) {
-        const b = state.world.regions[rId].buildings || [];
+        const region = state.world.regions[rId];
+        const b = region?.buildings ?? [];
         if (!b.includes(chosenBuilding)) { chosenRegionId = rId; break; }
       }
     }
   }
 
   if (chosenBuilding && chosenRegionId) {
-    const region = state.world.regions[chosenRegionId];
-    region.buildings = region.buildings || [];
+    let region = state.world.regions[chosenRegionId];
+    
+    // Lazy Hydration: Instancia a região no mundo se ela não existir,
+    // garantindo que ela tenha os campos obrigatórios antes de receber o edifício.
+    if (!region) {
+      region = {
+        regionId: chosenRegionId,
+        ownerId: kingdom.id,
+        controllerId: kingdom.id,
+        autonomy: 0,
+        assimilation: 100,
+        unrest: 0,
+        devastation: 0,
+        buildings: []
+      };
+      state.world.regions[chosenRegionId] = region;
+    }
+    
+    region.buildings = region.buildings ?? [];
     region.buildings.push(chosenBuilding);
 
     const evt = buildEvent("automation.build_structure", context.now, { regionId: chosenRegionId, buildingType: chosenBuilding, cost: BUILDING_COSTS[chosenBuilding] }, kingdom.id, undefined);
-          if (evt) {
-            evt.id = createEventId({ prefix: "evt_build", tick: context.nextState.meta.tick, systemId: "automation", actorId: kingdom.id, sequence: context.events.length });
-            context.events.push(evt);
-          }
+    if (evt) {
+      evt.id = createEventId({ prefix: "evt_build", tick: context.nextState.meta.tick, systemId: "automation", actorId: kingdom.id, sequence: context.events.length });
+      context.events.push(evt);
+    }
   }
 }
 

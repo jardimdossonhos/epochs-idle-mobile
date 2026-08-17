@@ -37,11 +37,10 @@ export interface RegionState {
   assimilation: number;
   unrest: number;
   devastation: number;
-  dominantFaith: ReligionId;
-  dominantShare: number;
-  minorityFaith?: ReligionId;
+  dominantFaith?: string;
+  dominantShare?: number;
+  minorityFaith?: string;
   minorityShare?: number;
-  faithUnrest: number;
   actionCooldowns?: Record<string, number>;
   buildings?: BuildingType[]; // Matriz de edificios construidos nos Slots locais
   construction?: { buildingType: BuildingType; progress: number; targetTicks: number };
@@ -74,6 +73,7 @@ export interface WorldState {
   mapId: string;
   regions: Record<RegionId, RegionState>;
   religions: Record<ReligionId, WorldReligion>; // Dicionario vivo de fes ativas no mundo
+  faithRegistry: Record<string, number>; // Mapeia UUID da Fé para o índice na TypedArray
   characters?: Record<string, Character>; // Populacao universal (Lendarios, NPCs)
   eventChains?: Record<string, EventChainState>;
 }

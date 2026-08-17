@@ -22,6 +22,7 @@ export interface EconomyState {
   stock: ResourceStock;
   incomePerTick: ResourceStock;
   upkeepPerTick: ResourceStock;
+  netIncomePerTick: ResourceStock;
   productionByRegion: Record<RegionId, Partial<ResourceStock>>;
   taxPolicy: TaxPolicy;
   budgetPriority: BudgetPriority;

@@ -76,3 +76,9 @@ export function createEventId(input: EventIdInput): string {
   const sequence = Math.max(0, Math.trunc(input.sequence));
   return `${input.prefix}_${Math.trunc(input.tick)}_${systemId}_${actorId}_${sequence}`;
 }
+
+export function getFactionStringId(factionId: number): string | undefined {
+  if (factionId === 1) return "k_player";
+  if (factionId > 1) return `k_npc_${factionId - 1}`;
+  return undefined;
+}

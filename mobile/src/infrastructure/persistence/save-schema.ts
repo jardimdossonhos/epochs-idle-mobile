@@ -332,48 +332,13 @@ export function migrateStateToCurrent(state: GameState): GameState {
   }
 
   for (const regionId of Object.keys(migrated.world.regions).sort()) {
-    const region = migrated.world.regions[regionId] as GameState["world"]["regions"][string] & {
-      localFaithStrength?: unknown;
-      dominantFaith?: unknown;
-      dominantShare?: unknown;
-      minorityFaith?: unknown;
-      minorityShare?: unknown;
-      faithUnrest?: unknown;
-    };
-    const ownerFaith = migrated.kingdoms[region.ownerId]?.religion.stateFaith ?? "imperial_church";
-    const legacyFaithStrength = typeof region.localFaithStrength === "number"
-      ? Math.max(0, Math.min(1, region.localFaithStrength))
-      : null;
-
-    if (typeof region.dominantFaith !== "string" || region.dominantFaith.length === 0) {
-      region.dominantFaith = ownerFaith;
-    }
-    if (typeof region.dominantShare !== "number") {
-      region.dominantShare = legacyFaithStrength ?? 0.7;
-    }
-    region.dominantShare = Math.max(0.05, Math.min(0.95, region.dominantShare));
-
-    if (typeof region.minorityFaith !== "string" || region.minorityFaith.length === 0) {
-      region.minorityFaith = undefined;
-      region.minorityShare = undefined;
-    } else if (typeof region.minorityShare !== "number" || region.minorityShare <= 0) {
-      region.minorityShare = 0.12;
-    }
-
-    if (typeof region.minorityShare === "number") {
-      region.minorityShare = Math.max(0.02, Math.min(0.45, region.minorityShare));
-      if (region.dominantShare + region.minorityShare > 0.98) {
-        region.minorityShare = Math.max(0.02, 0.98 - region.dominantShare);
-      }
-    }
-
-    if (typeof region.faithUnrest !== "number") {
-      const minority = typeof region.minorityShare === "number" ? region.minorityShare : 0;
-      region.faithUnrest = Math.max(0, Math.min(1, region.unrest * 0.45 + minority * 0.35));
-    }
-    region.faithUnrest = Math.max(0, Math.min(1, region.faithUnrest));
-
-    delete region.localFaithStrength;
+    const region = migrated.world.regions[regionId];
+    delete (region as any).localFaithStrength;
+    delete (region as any).dominantFaith;
+    delete (region as any).dominantShare;
+    delete (region as any).minorityFaith;
+    delete (region as any).minorityShare;
+    delete (region as any).faithUnrest;
 
     if (!region.actionCooldowns) {
       region.actionCooldowns = {};

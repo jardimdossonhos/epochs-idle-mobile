@@ -1,2 +1,0 @@
-# Auditor Sprint State
-Initialized

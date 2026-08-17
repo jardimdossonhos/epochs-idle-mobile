@@ -23,6 +23,9 @@ export interface UiState {
   // Epic 9: Navegação
   scene: 'MAIN_MENU' | 'SIMULATION';
   setScene: (scene: 'MAIN_MENU' | 'SIMULATION') => void;
+
+  mapLens: 'PHYSICAL' | 'POLITICAL';
+  setMapLens: (lens: 'PHYSICAL' | 'POLITICAL') => void;
   
   macroHistory: string;
   imperialDispatches: ImperialDispatch[];
@@ -58,7 +61,10 @@ export const useUiStore = create<UiState>((set, get) => ({
   pendingMoves: {},
 
   scene: 'MAIN_MENU',
-  setScene: (scene) => set({ scene }),
+  setScene: (s) => set({ scene: s }),
+
+  mapLens: 'PHYSICAL',
+  setMapLens: (lens) => set({ mapLens: lens }),
 
   macroHistory: "",
   imperialDispatches: [],

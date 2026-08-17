@@ -1,0 +1,2 @@
+ninja: Entering directory `C:\Users\joti.SIMPLO\Documents\Epochs_Idle\mobile\modules\react-native-map-buffer\android\.cxx\Debug\2d3p426v\x86'
+ninja: no work to do.

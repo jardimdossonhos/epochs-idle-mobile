@@ -52,7 +52,7 @@ export interface SimulationCanvasProps {
 export interface SimulationCanvasRef {
   zoomIn: () => void;
   zoomOut: () => void;
-  focusOnCapital: (col: number, row: number) => void;
+  focusOnCapital: (col: number, row: number, targetScale?: number) => void;
 }
 
 // ─── Paleta Visual ────────────────────────────────────────────────────────────
@@ -156,22 +156,24 @@ export const SimulationCanvas = forwardRef<SimulationCanvasRef, SimulationCanvas
       savedTranslateX.value = targetX;
       savedTranslateY.value = targetY;
     },
-    focusOnCapital: (col: number, row: number) => {
+    focusOnCapital: (col: number, row: number, targetScale?: number) => {
       // Calcula o cx/cy da capital
       const capX = col * hexWidth + (row % 2 === 1 ? hexWidth / 2 : 0);
       const capY = row * yOffset;
-      const currentScale = scale.value;
+      const zoom = targetScale !== undefined ? targetScale : scale.value;
       
-      let targetX = (screenWidth / 2) - (capX * currentScale);
-      let targetY = (screenHeight / 2) - (capY * currentScale);
+      let targetX = (screenWidth / 2) - (capX * zoom);
+      let targetY = (screenHeight / 2) - (capY * zoom);
       
       // Clamp e Wrap
-      const limitX = MAP_WIDTH * currentScale;
+      const limitX = MAP_WIDTH * zoom;
       targetX = ((targetX % limitX) + limitX) % limitX;
       if (targetX > 0) targetX -= limitX;
-      const minTy = Math.min(0, screenHeight - MAP_HEIGHT * currentScale);
+      const minTy = Math.min(0, screenHeight - MAP_HEIGHT * zoom);
       targetY = Math.max(minTy, Math.min(0, targetY));
       
+      scale.value = zoom;
+      savedScale.value = zoom;
       translateX.value = targetX;
       translateY.value = targetY;
       savedTranslateX.value = targetX;
@@ -238,7 +240,7 @@ export const SimulationCanvas = forwardRef<SimulationCanvasRef, SimulationCanvas
     store.setSelection({ id, name: `Região ${id}`, biome: 'LAND', ownerFaction: owner }, null);
   };
 
-  const tapGesture = Gesture.Tap().onEnd((e) => {
+  const tapGesture = Gesture.Tap().maxDistance(10).onEnd((e) => {
     let worldX = (e.x - translateX.value) / scale.value;
     const worldY = (e.y - translateY.value) / scale.value;
     worldX = ((worldX % MAP_WIDTH) + MAP_WIDTH) % MAP_WIDTH;
@@ -442,6 +444,8 @@ export const SimulationCanvas = forwardRef<SimulationCanvasRef, SimulationCanvas
 
   const citySprites = useMemo(() => new Array(1024).fill(Skia.XYWHRect(0, 0, 32, 32)), []);
 
+  const mapLens = useUiStore(s => s.mapLens);
+
   return (
     <GestureDetector gesture={composedGestures}>
       <View style={styles.container}>
@@ -450,43 +454,42 @@ export const SimulationCanvas = forwardRef<SimulationCanvasRef, SimulationCanvas
             
             {/* ============================================================== */}
             {/* MICRO VIEWPORT (LOD Alto)                                      */}
-            {/* Não usa Phantom Grid porque o próprio Culling cuida do offset  */}
             {/* ============================================================== */}
             <Group opacity={useDerivedValue(() => scale.value >= MACRO_ZOOM_THRESHOLD ? 1 : 0)}>
-              <Path path={microLandPath} color="#14532D" />
-              <Path path={microDesertPath} color="#92400E" />
-              <Path path={microTundraPath} color="#E2E8F0" />
-              <Path path={microStrokePath} color="rgba(0,0,0,0.15)" style="stroke" strokeWidth={0.5} />
+              <Path path={microLandPath} color={mapLens === 'PHYSICAL' ? "#14532D" : "#F0E6D2"} />
+              <Path path={microDesertPath} color={mapLens === 'PHYSICAL' ? "#92400E" : "#F0E6D2"} />
+              <Path path={microTundraPath} color={mapLens === 'PHYSICAL' ? "#E2E8F0" : "#F0E6D2"} />
+              
+              <Path path={microStrokePath} color={mapLens === 'PHYSICAL' ? "rgba(0,0,0,0.15)" : "rgba(139,69,19,0.15)"} style="stroke" strokeWidth={0.5} />
               {factionIndices.map(i => <MicroFactionOverlay key={i} index={i} />)}
               {cityImage && <Atlas image={cityImage} sprites={citySprites} transforms={spritesTransforms} />}
             </Group>
 
             {/* ============================================================== */}
             {/* MACRO VIEWPORT (LOD Baixo)                                     */}
-            {/* Usa Phantom Grid (1x3) porque o Path pré-compilado é estático  */}
             {/* ============================================================== */}
             <Group opacity={useDerivedValue(() => scale.value < MACRO_ZOOM_THRESHOLD ? 1 : 0)}>
               {/* Esquerda */}
               <Group transform={[{ translateX: -MAP_WIDTH }]}>
-                <Path path={macroLandSkPath} color="#14532D" />
-                <Path path={macroDesertSkPath} color="#92400E" />
-                <Path path={macroTundraSkPath} color="#E2E8F0" />
+                <Path path={macroLandSkPath} color={mapLens === 'PHYSICAL' ? "#14532D" : "#F0E6D2"} />
+                <Path path={macroDesertSkPath} color={mapLens === 'PHYSICAL' ? "#92400E" : "#F0E6D2"} />
+                <Path path={macroTundraSkPath} color={mapLens === 'PHYSICAL' ? "#E2E8F0" : "#F0E6D2"} />
                 {factionIndices.map(i => <MacroFactionOverlay key={i} index={i} />)}
               </Group>
               
               {/* Centro */}
               <Group>
-                <Path path={macroLandSkPath} color="#14532D" />
-                <Path path={macroDesertSkPath} color="#92400E" />
-                <Path path={macroTundraSkPath} color="#E2E8F0" />
+                <Path path={macroLandSkPath} color={mapLens === 'PHYSICAL' ? "#14532D" : "#F0E6D2"} />
+                <Path path={macroDesertSkPath} color={mapLens === 'PHYSICAL' ? "#92400E" : "#F0E6D2"} />
+                <Path path={macroTundraSkPath} color={mapLens === 'PHYSICAL' ? "#E2E8F0" : "#F0E6D2"} />
                 {factionIndices.map(i => <MacroFactionOverlay key={i} index={i} />)}
               </Group>
               
               {/* Direita */}
               <Group transform={[{ translateX: MAP_WIDTH }]}>
-                <Path path={macroLandSkPath} color="#14532D" />
-                <Path path={macroDesertSkPath} color="#92400E" />
-                <Path path={macroTundraSkPath} color="#E2E8F0" />
+                <Path path={macroLandSkPath} color={mapLens === 'PHYSICAL' ? "#14532D" : "#F0E6D2"} />
+                <Path path={macroDesertSkPath} color={mapLens === 'PHYSICAL' ? "#92400E" : "#F0E6D2"} />
+                <Path path={macroTundraSkPath} color={mapLens === 'PHYSICAL' ? "#E2E8F0" : "#F0E6D2"} />
                 {factionIndices.map(i => <MacroFactionOverlay key={i} index={i} />)}
               </Group>
             </Group>

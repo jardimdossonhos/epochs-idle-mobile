@@ -1,2 +1,0 @@
-# Worker Sprint State
-Initialized

@@ -37,7 +37,7 @@ const KINGDOM_BLUEPRINTS: KingdomBlueprint[] = [
     name: "Primeira Tribo",
     adjective: "Primordial",
     isPlayer: true,
-    preferredCapitalRegionId: "" // SerÃƒÆ’Ã‚Â¡ injetado dinamicamente via UI no main.ts
+    preferredCapitalRegionId: ""
   },
   {
     id: "k_npc_1",
@@ -175,6 +175,7 @@ function createBaseEconomy(): EconomyState {
   return {
     stock,
     incomePerTick: createEmptyStock(),
+    netIncomePerTick: createEmptyStock(),
     upkeepPerTick: createEmptyStock(),
     productionByRegion: {},
     taxPolicy: {
@@ -425,39 +426,49 @@ function getAxialDistance(idx1: number, idx2: number): number {
 }
 
 function findValidLandSpawn(biomes: number[], existingSpawns: number[], minDistance: number): number {
-    let bestIdx = -1;
-    let attempts = 0;
-    while (attempts < 1000) {
-        const idx = Math.floor(Math.random() * TOTAL_HEXES);
-        const biome = biomes[idx];
-        
-        // Regra 1: Bioma Habitável (apenas verde)
-        // 1 = Forest/Grassland, 0 = Water, 2 = Desert, 3 = Tundra
-        if (biome !== 1) {
-            attempts++;
-            continue;
-        }
-        
-        // Regra 2: Fairness (Distância Mínima)
-        let tooClose = false;
-        for (const spawnIdx of existingSpawns) {
-            const dist = getAxialDistance(idx, spawnIdx);
-            if (dist < minDistance) {
-                tooClose = true;
-                break;
+    const habitableIndices: number[] = [];
+    for (let i = 0; i < TOTAL_HEXES; i++) {
+        if (biomes[i] === 1) habitableIndices.push(i);
+    }
+    
+    if (habitableIndices.length === 0) {
+        throw new Error("Geração de mundo falhou: Não há nenhuma região habitável (biome === 1) no mapa.");
+    }
+
+    // Fisher-Yates shuffle
+    for (let i = habitableIndices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [habitableIndices[i], habitableIndices[j]] = [habitableIndices[j], habitableIndices[i]];
+    }
+
+    let currentMinDistance = minDistance;
+    while (currentMinDistance > 0) {
+        for (const idx of habitableIndices) {
+            let tooClose = false;
+            for (const spawnIdx of existingSpawns) {
+                const dist = getAxialDistance(idx, spawnIdx);
+                if (dist < currentMinDistance) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            if (!tooClose) {
+                return idx;
             }
         }
-        
-        if (!tooClose) {
-            return idx; // Encontrou!
+        // Fallback progressivo
+        currentMinDistance -= 5;
+    }
+
+    // Se nem com minDistance 0 (qualquer lugar) achou, é porque o mapa é minúsculo (menor que a qtde de reinos)
+    if (habitableIndices.length > existingSpawns.length) {
+        // Pega o primeiro que ainda não foi usado
+        for (const idx of habitableIndices) {
+            if (!existingSpawns.includes(idx)) return idx;
         }
-        attempts++;
     }
-    // Fallback: ignora distância se não achou após 1000 tentativas
-    for (let i = 0; i < TOTAL_HEXES; i++) {
-        if (biomes[i] === 1) return i;
-    }
-    return 0;
+
+    throw new Error("Geração de mundo falhou: Espaço habitável insuficiente para spawn de todos os reinos.");
 }
 
 function getNeighbors(idx: number): number[] {
@@ -646,6 +657,7 @@ function createWorldState(staticData: StaticWorldData, now: number): WorldState 
     mapId: staticData.mapId,
     regions: {}, // Removido! Objetos de hexágono substituídos por TypedArrays nativos na ECS
     religions: dynamicReligions,
+    faithRegistry: {},
     eventChains: {}
   };
 }
@@ -709,7 +721,21 @@ export function createInitialState(staticData: StaticWorldData, playerStartRegio
     combatEventX: new Float32Array(1024),
     combatEventY: new Float32Array(1024),
     combatEventTs: new Float32Array(1024),
-    visibilityMask: new Uint8Array(totalEntities).fill(0)
+    visibilityMask: new Uint8Array(totalEntities).fill(0),
+    regionDominantFaith: new Int32Array(totalEntities).fill(0),
+    regionDominantShare: new Float32Array(totalEntities).fill(1),
+    regionMinorityFaith: new Int32Array(totalEntities).fill(-1),
+    regionMinorityShare: new Float32Array(totalEntities).fill(0),
+    regionFaithUnrest: new Float32Array(totalEntities).fill(0),
+    factionPopulation: new Float32Array(256).fill(0),
+    factionRegions: new Int32Array(256).fill(0),
+    factionPopulationGrowth: new Float32Array(256).fill(0),
+    factionPeasants: new Float32Array(256).fill(0.8),
+    factionNobles: new Float32Array(256).fill(0.05),
+    factionClergy: new Float32Array(256).fill(0.05),
+    factionSoldiers: new Float32Array(256).fill(0.05),
+    factionMerchants: new Float32Array(256).fill(0.05),
+    factionPopUnrest: new Float32Array(256).fill(0)
   };
 
   // 2. Aplicar Spawns na Matriz

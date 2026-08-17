@@ -38,6 +38,15 @@ export interface UIDeltas {
   playerHasAscended: boolean;
   playerAscensionEligible: boolean;
   playerAscensionPostponed: boolean;
+  playerPopulationGrowth: number;      // net pop delta in last tick
+  playerPopPeasants: number;           // 0–1 share
+  playerPopNobles: number;
+  playerPopClergy: number;
+  playerPopSoldiers: number;
+  playerPopMerchants: number;
+  playerPopUnrest: number;             // 0–1 aggregate population unrest
+  playerAdminCapacity: number;         // max admin capacity of the kingdom
+  playerUsedAdminCapacity: number;     // currently consumed admin capacity
   /** Measured height of the floating TopHUD (updated via onLayout). Screens use this for paddingTop. */
   hudHeight: number;
 }
@@ -80,6 +89,15 @@ export const useUIStore = create<UIDeltas>(() => ({
   playerHasAscended: false,
   playerAscensionEligible: false,
   playerAscensionPostponed: false,
+  playerPopulationGrowth: 0,
+  playerPopPeasants: 0.72,
+  playerPopNobles: 0.04,
+  playerPopClergy: 0.07,
+  playerPopSoldiers: 0.09,
+  playerPopMerchants: 0.08,
+  playerPopUnrest: 0,
+  playerAdminCapacity: 0,
+  playerUsedAdminCapacity: 0,
   hudHeight: 80,
 }));
 

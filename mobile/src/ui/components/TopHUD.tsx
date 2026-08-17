@@ -23,6 +23,7 @@ import {
   Pressable,
   LayoutChangeEvent,
 } from 'react-native';
+import Svg, { Polygon } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGameState } from '../GameProvider';
 import { useLanguage } from '../context/LanguageContext';
@@ -212,6 +213,130 @@ function BreakdownRow({ label, value, color }: { label: string; value: string; c
   );
 }
 
+// ─── Population Tooltip ──────────────────────────────────────────────────────
+function PopulationTooltip({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const population = useUIStore((s) => s.playerPopulation);
+  const growth     = useUIStore((s) => s.playerPopulationGrowth);
+  const peasants   = useUIStore((s) => s.playerPopPeasants);
+  const nobles     = useUIStore((s) => s.playerPopNobles);
+  const clergy     = useUIStore((s) => s.playerPopClergy);
+  const soldiers   = useUIStore((s) => s.playerPopSoldiers);
+  const merchants  = useUIStore((s) => s.playerPopMerchants);
+  const unrest     = useUIStore((s) => s.playerPopUnrest);
+
+  const growthColor = growth >= 0 ? '#50E3C2' : '#E24A4A';
+  const unrestColor = unrest > 0.6 ? '#E24A4A' : unrest > 0.3 ? '#F8E71C' : '#50E3C2';
+
+  const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.drawerOverlay} onPress={onClose}>
+        <Pressable style={[styles.drawerContainer, { maxHeight: 420 }]}>
+          <View style={styles.drawerHeader}>
+            <Text style={styles.drawerTitle}>👥 Dados Demográficos</Text>
+            <TouchableOpacity onPress={onClose} style={styles.drawerClose} hitSlop={8}>
+              <Text style={styles.drawerCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ padding: 16 }}>
+            <BreakdownRow
+              label="População Total"
+              value={population.toLocaleString()}
+              color="#E0E0E0"
+            />
+            <BreakdownRow
+              label="Crescimento (último turno)"
+              value={`${growth >= 0 ? '+' : ''}${Math.round(growth).toLocaleString()}`}
+              color={growthColor}
+            />
+            <BreakdownRow
+              label="Descontentamento"
+              value={pct(unrest)}
+              color={unrestColor}
+            />
+            <View style={styles.sectionDivider}>
+              <Text style={styles.sectionLabel}>Estratificação Social</Text>
+            </View>
+            <BreakdownRow label="🌾 Camponeses" value={pct(peasants)}  color="#A0A0B0" />
+            <BreakdownRow label="⚔️ Soldados"   value={pct(soldiers)} color="#C0A060" />
+            <BreakdownRow label="🏪 Mercadores" value={pct(merchants)} color="#50E3C2" />
+            <BreakdownRow label="✝️ Clero"       value={pct(clergy)}   color="#9B7FDB" />
+            <BreakdownRow label="👑 Nobres"      value={pct(nobles)}   color="#D4AF37" />
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ─── Territory Tooltip ───────────────────────────────────────────────────────
+function TerritoryTooltip({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const regions       = useUIStore((s) => s.playerRegions);
+  const adminCap      = useUIStore((s) => s.playerAdminCapacity);
+  const usedCap       = useUIStore((s) => s.playerUsedAdminCapacity);
+  const corruption    = useUIStore((s) => s.playerCorruption);
+
+  const capUsageRatio  = adminCap > 0 ? usedCap / adminCap : 0;
+  const capColor       = capUsageRatio > 0.9 ? '#E24A4A' : capUsageRatio > 0.7 ? '#F8E71C' : '#50E3C2';
+  const corruptColor   = corruption > 0.2 ? '#E24A4A' : corruption > 0.05 ? '#F8E71C' : '#50E3C2';
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.drawerOverlay} onPress={onClose}>
+        <Pressable style={[styles.drawerContainer, { maxHeight: 320 }]}>
+          <View style={styles.drawerHeader}>
+            <Text style={styles.drawerTitle}>⬡ Extensão Territorial</Text>
+            <TouchableOpacity onPress={onClose} style={styles.drawerClose} hitSlop={8}>
+              <Text style={styles.drawerCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ padding: 16 }}>
+            <BreakdownRow
+              label="Territórios Controlados"
+              value={regions.toString()}
+              color="#E0E0E0"
+            />
+            <BreakdownRow
+              label="Capacidade Adm. (Uso / Limite)"
+              value={adminCap > 0 ? `${usedCap} / ${adminCap}` : 'N/D'}
+              color={capColor}
+            />
+            <BreakdownRow
+              label="Corrupção por Extensão"
+              value={`${(corruption * 100).toFixed(1)}%`}
+              color={corruptColor}
+            />
+            <Text style={styles.tooltipHint}>
+              Exceder a Capacidade Administrativa aumenta a Corrupção e reduz a eficiência do governo.
+            </Text>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ─── HexIcon nativo (sem dependências externas pesadas) ─────────────────────
+function HexIcon({ size = 20, color = "#A0A0B0" }: { size?: number, color?: string }) {
+  // SVG points for a pointy-topped hexagon
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2;
+  const points = Array.from({ length: 6 }).map((_, i) => {
+    const angle_rad = (Math.PI / 180) * (60 * i - 30);
+    return `${cx + r * Math.cos(angle_rad)},${cy + r * Math.sin(angle_rad)}`;
+  }).join(' ');
+
+  return (
+    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+      <Svg width={size} height={size}>
+        <Polygon points={points} fill="none" stroke={color} strokeWidth={2} />
+      </Svg>
+    </View>
+  );
+}
+
 // ─── Main TopHUD ──────────────────────────────────────────────────────────────
 export default function TopHUD() {
   const insets = useSafeAreaInsets();
@@ -222,12 +347,16 @@ export default function TopHUD() {
   const [alertsVisible,      setAlertsVisible]      = useState(false);
   const [stabilityVisible,   setStabilityVisible]   = useState(false);
   const [treasuryVisible,    setTreasuryVisible]    = useState(false);
+  const [populationVisible,  setPopulationVisible]  = useState(false);
+  const [territoryVisible,   setTerritoryVisible]   = useState(false);
 
   const tick           = useUIStore((s) => s.tick);
   const isPaused       = useUIStore((s) => s.isPaused);
   const gold           = useUIStore((s) => s.playerGold);
   const goldIncome     = useUIStore((s) => s.playerGoldIncome);
   const stability      = useUIStore((s) => s.playerStability);
+  const population     = useUIStore((s) => s.playerPopulation);
+  const regions        = useUIStore((s) => s.playerRegions);
   const worldFeed      = useUIStore((s) => s.worldFeed);
 
   const alertCount = worldFeed.filter(
@@ -239,6 +368,12 @@ export default function TopHUD() {
   const goldColor = goldIncome >= 0 ? '#50E3C2' : '#E24A4A';
   const stabilityColor =
     safeStability >= 70 ? '#50E3C2' : safeStability >= 40 ? '#F8E71C' : '#E24A4A';
+
+  const formatNumber = (num: number) => {
+    if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M';
+    if (num >= 1_000) return (num / 1_000).toFixed(1) + 'k';
+    return num.toString();
+  };
 
   // ── Publish measured height to store so screens can apply correct paddingTop
   const handleLayout = useCallback((e: LayoutChangeEvent) => {
@@ -288,13 +423,22 @@ export default function TopHUD() {
             <Text style={styles.chipIcon}>🪙</Text>
             <View style={styles.chipTextBlock}>
               <Text style={styles.chipValue}>{Math.floor(gold).toLocaleString()}</Text>
-              <Text style={[styles.chipIncome, { color: goldColor }]}>
-                {goldIncome >= 0 ? '+' : ''}{goldIncome.toFixed(1)}/t
-              </Text>
             </View>
           </TouchableOpacity>
 
-          {/* Play/Pause — center icon only */}
+          {/* Population chip — TAPPABLE */}
+          <TouchableOpacity style={styles.statChip} onPress={() => setPopulationVisible(true)}>
+            <Text style={styles.chipIcon}>👥</Text>
+            <Text style={styles.chipValue}>{formatNumber(population)}</Text>
+          </TouchableOpacity>
+
+          {/* Regions chip — TAPPABLE */}
+          <TouchableOpacity style={styles.statChip} onPress={() => setTerritoryVisible(true)}>
+            <View style={{ marginRight: 4 }}><HexIcon size={16} color="#C0C0D0" /></View>
+            <Text style={styles.chipValue}>{regions}</Text>
+          </TouchableOpacity>
+
+          {/* Play/Pause */}
           <TouchableOpacity style={styles.playBtn} onPress={handleTogglePause} hitSlop={10}>
             <Text style={styles.playIcon}>{isPaused ? '▶' : '⏸'}</Text>
           </TouchableOpacity>
@@ -324,10 +468,12 @@ export default function TopHUD() {
         {renderContent()}
       </View>
 
-      <AlertsDrawer    visible={alertsVisible}    onClose={() => setAlertsVisible(false)} />
-      <StabilityTooltip visible={stabilityVisible} onClose={() => setStabilityVisible(false)} />
-      <TreasuryTooltip  visible={treasuryVisible}  onClose={() => setTreasuryVisible(false)} />
-      <DevModeModal    visible={isDevPanelVisible} onClose={() => setIsDevPanelVisible(false)} />
+      <AlertsDrawer       visible={alertsVisible}      onClose={() => setAlertsVisible(false)} />
+      <StabilityTooltip   visible={stabilityVisible}   onClose={() => setStabilityVisible(false)} />
+      <TreasuryTooltip    visible={treasuryVisible}     onClose={() => setTreasuryVisible(false)} />
+      <PopulationTooltip  visible={populationVisible}   onClose={() => setPopulationVisible(false)} />
+      <TerritoryTooltip   visible={territoryVisible}    onClose={() => setTerritoryVisible(false)} />
+      <DevModeModal       visible={isDevPanelVisible}   onClose={() => setIsDevPanelVisible(false)} />
     </>
   );
 }
@@ -502,7 +648,7 @@ const styles = StyleSheet.create({
   alertTitle:   { color: '#E0E0E0', fontSize: 13, fontWeight: 'bold', marginBottom: 3 },
   alertDetails: { color: '#888', fontSize: 12, lineHeight: 16 },
 
-  // Stability tooltip
+  // Breakdown rows & section headers
   breakdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -518,5 +664,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     fontStyle: 'italic',
+  },
+  sectionDivider: {
+    marginTop: 12,
+    marginBottom: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#1E1E2A',
+    paddingTop: 8,
+  },
+  sectionLabel: {
+    color: '#555',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
 });

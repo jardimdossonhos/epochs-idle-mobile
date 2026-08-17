@@ -3,6 +3,7 @@ import { ResourceType } from "../../models/enums";
 import type { SimulationSystem } from "../tick-pipeline";
 import { clamp, createEventId, roundTo } from "./utils";
 import type { RegionDefinition } from "../../models/world";
+import { calculateRegionGrowthDelta } from "../helpers/demographics-helper";
 
 export function createPopulationSystem(orderedDefinitions: RegionDefinition[]): SimulationSystem {
   return {
@@ -47,29 +48,59 @@ export function createPopulationSystem(orderedDefinitions: RegionDefinition[]): 
         }
       }
 
-      // Grow region populations
+      // Grow region populations and aggregate (Piggybacking)
       if (context.nextState.ecs && context.nextState.ecs.populationTotal && context.nextState.ecs.populationGrowthRate) {
+        const ecs = context.nextState.ecs;
+        ecs.factionPopulation.fill(0);
+        ecs.factionRegions.fill(0);
+        ecs.factionPopulationGrowth.fill(0);
+        ecs.factionPeasants.fill(0);
+        ecs.factionNobles.fill(0);
+        ecs.factionClergy.fill(0);
+        ecs.factionSoldiers.fill(0);
+        ecs.factionMerchants.fill(0);
+        ecs.factionPopUnrest.fill(0);
+
         const tickScale = context.tickScale ?? 1;
-        const totalEntities = context.nextState.ecs.regionOwner.length;
+        const totalEntities = ecs.regionOwner.length;
+        
         for (let i = 0; i < totalEntities; i++) {
-          const ownerFactionId = context.nextState.ecs.regionOwner[i];
-          if (ownerFactionId <= 0) continue; // k_nature or water
+          const ownerFactionId = ecs.regionOwner[i];
+          
+          if (ownerFactionId <= 0 || ownerFactionId >= 256) continue; // k_nature, water or invalid
 
           // Map faction ID back to kingdom ID
           const kingdomId = ownerFactionId === 1 ? "k_player" : `k_npc_${ownerFactionId - 1}`;
           const kingdom = context.nextState.kingdoms[kingdomId];
+          
           if (!kingdom) continue;
 
-          const foodStock = kingdom.economy.stock[ResourceType.Food];
-          const requiredFood = kingdom.population.total / 7_000;
-          const foodPressure = requiredFood <= 0 ? 0 : clamp((requiredFood - foodStock) / requiredFood, 0, 1);
-          const growthPenalty = 1 - foodPressure * 1.6 - kingdom.population.pressure.warWeariness * 0.2;
+          const currentPop = ecs.populationTotal[i];
+          const growthRate = ecs.populationGrowthRate[i];
+          
+          const delta = calculateRegionGrowthDelta(currentPop, growthRate, kingdom, tickScale);
+          const newPop = Math.max(0, currentPop + delta);
 
-          const currentPop = context.nextState.ecs.populationTotal[i];
-          const growthRate = context.nextState.ecs.populationGrowthRate[i];
-          const delta = currentPop * growthRate * growthPenalty * tickScale;
+          ecs.populationTotal[i] = newPop;
+          
+          // ── Piggybacking: aggregate faction-level O(1) stats for UI ──
+          ecs.factionPopulation[ownerFactionId] += newPop;
+          ecs.factionRegions[ownerFactionId] += 1;
+          ecs.factionPopulationGrowth[ownerFactionId] += delta;
 
-          context.nextState.ecs.populationTotal[i] = Math.max(0, currentPop + delta);
+          // Class groups: kingdom.population.groups stores faction-wide ratios (not per-region),
+          // so we write once per kingdom; repeated writes of the same value are idempotent.
+          const groups = kingdom.population.groups;
+          if (groups) {
+            ecs.factionPeasants[ownerFactionId]  = groups["peasants"]  ?? 0;
+            ecs.factionNobles[ownerFactionId]    = groups["nobles"]    ?? 0;
+            ecs.factionClergy[ownerFactionId]    = groups["clergy"]    ?? 0;
+            ecs.factionSoldiers[ownerFactionId]  = groups["soldiers"]  ?? 0;
+            ecs.factionMerchants[ownerFactionId] = groups["merchants"] ?? 0;
+          }
+
+          // Population unrest: also kingdom-wide; write once per kingdom.
+          ecs.factionPopUnrest[ownerFactionId] = kingdom.population.unrest ?? 0;
         }
       }
     }

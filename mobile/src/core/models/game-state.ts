@@ -23,6 +23,11 @@ export interface EcsState {
   manpower: number[] | Float64Array;
   factionCasualties: Int32Array | number[];
   regionOwner: Int32Array | number[];
+  regionDominantFaith: Int32Array | number[];
+  regionDominantShare: Float32Array | number[];
+  regionMinorityFaith: Int32Array | number[];
+  regionMinorityShare: Float32Array | number[];
+  regionFaithUnrest: Float32Array | number[];
   regionCaptureProgress: Float32Array | number[];
   regionSupplyCapacity: Float32Array | number[];
   regionCurrentSupply: Float32Array | number[];
@@ -41,7 +46,18 @@ export interface EcsState {
   cmdArg0: Int32Array | number[];
   cmdArg1: Int32Array | number[];
   factionResources: Float32Array | number[];
+  factionPopulation: Float32Array | number[];
+  factionRegions: Int32Array | number[];
   hexStructures: Int32Array | number[];
+
+  // Faction-level demographic aggregation (written by population-system Piggybacking)
+  factionPopulationGrowth: Float32Array | number[];   // net pop delta last tick per faction
+  factionPeasants: Float32Array | number[];           // 0–1 share of peasants in faction
+  factionNobles: Float32Array | number[];             // 0–1 share of nobles
+  factionClergy: Float32Array | number[];             // 0–1 share of clergy
+  factionSoldiers: Float32Array | number[];           // 0–1 share of soldiers
+  factionMerchants: Float32Array | number[];          // 0–1 share of merchants
+  factionPopUnrest: Float32Array | number[];          // 0–1 aggregate population unrest
 
   combatEventHead: number;
   combatEventTail: number;

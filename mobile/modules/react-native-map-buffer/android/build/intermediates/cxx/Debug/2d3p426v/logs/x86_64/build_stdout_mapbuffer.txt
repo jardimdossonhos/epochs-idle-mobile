@@ -1,3 +1,2 @@
 ninja: Entering directory `C:\Users\joti.SIMPLO\Documents\Epochs_Idle\mobile\modules\react-native-map-buffer\android\.cxx\Debug\2d3p426v\x86_64'
-[1/2] Building CXX object CMakeFiles/mapbuffer.dir/HybridMapBuffer.cpp.o
-[2/2] Linking CXX shared library C:\Users\joti.SIMPLO\Documents\Epochs_Idle\mobile\modules\react-native-map-buffer\android\build\intermediates\cxx\Debug\2d3p426v\obj\x86_64\libmapbuffer.so
+ninja: no work to do.

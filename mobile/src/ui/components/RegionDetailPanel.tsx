@@ -11,12 +11,15 @@ import { useGameState } from '../GameProvider';
 import { BuildingType } from '../../core/models/enums';
 import type { RegionActionType } from '../../application/game-session';
 import worldMapData from '../../assets/data/world_map_data.json';
+import { getFactionStringId } from '../../core/simulation/systems/utils';
 
 interface RegionDetailPanelProps {
   regionId: string;
   onClose: () => void;
   isMergedView?: boolean;
 }
+
+import { calculateRegionGrowthDelta } from '../../core/simulation/helpers/demographics-helper';
 
 // ─── Mapeamento de Edificios ──────────────────────────────────────────────
 const BUILDING_META: Record<BuildingType, { icon: string; label: string; desc: string }> = {
@@ -98,14 +101,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
 
   if (!gameState || !gameState.kingdoms || !session || !staticWorldData) return null;
 
-  const regionIndexMap = useMemo(() => {
-    const map = new Map<string, number>();
-    const sortedIds = Object.keys(staticWorldData.definitions).sort();
-    sortedIds.forEach((id, idx) => {
-      map.set(id, idx);
-    });
-    return map;
-  }, [staticWorldData]);
+  // regionIndexMap removido pois o ECS usa indexação direta pelo número do hexágono
 
   const getContiguousRegions = useCallback((startRegionId: string): string[] => {
     const startRegionState = gameState.world.regions[startRegionId];
@@ -153,18 +149,29 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
     return defense;
   }, [gameState]);
 
-  const { totalGold, totalPopulation, totalDefense } = useMemo(() => {
+  const { totalGold, totalPopulation, totalDefense, totalDelta } = useMemo(() => {
     const targets = isMergedView ? getContiguousRegions(regionId) : [regionId];
     
     let goldSum = 0;
     let popSum = 0;
     let defenseSum = 0;
+    let deltaSum = 0;
     
     targets.forEach(rId => {
-      const idx = regionIndexMap.get(rId);
-      if (idx !== undefined && gameState.ecs) {
+      const idx = parseInt(rId.replace('r_hex_', ''), 10);
+      if (!isNaN(idx) && gameState.ecs) {
         goldSum += gameState.ecs.gold[idx] || 0;
-        popSum += gameState.ecs.populationTotal[idx] || 0;
+        const currentPop = gameState.ecs.populationTotal[idx] || 0;
+        popSum += currentPop;
+        
+        const ownerFactionId = gameState.ecs.regionOwner[idx];
+        const kingdomId = getFactionStringId(ownerFactionId);
+        const kingdom = kingdomId ? gameState.kingdoms[kingdomId] : undefined;
+        const growthRate = gameState.ecs.populationGrowthRate[idx] || 0;
+        
+        if (kingdom) {
+          deltaSum += calculateRegionGrowthDelta(currentPop, growthRate, kingdom, 1);
+        }
       }
       defenseSum += getRegionDefense(rId);
     });
@@ -172,16 +179,29 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
     return {
       totalGold: goldSum,
       totalPopulation: Math.floor(popSum),
-      totalDefense: defenseSum
+      totalDefense: defenseSum,
+      totalDelta: deltaSum
     };
-  }, [regionId, isMergedView, getContiguousRegions, regionIndexMap, gameState, getRegionDefense]);
+  }, [regionId, isMergedView, getContiguousRegions, gameState, getRegionDefense]);
 
+  const numericRId = parseInt(regionId.replace('r_hex_', ''), 10);
+  
+  // Read owner directly from ECS (source of truth)
+  let ecsOwnerId: string | undefined;
+  if (gameState.ecs?.regionOwner) {
+    const factionId = gameState.ecs.regionOwner[numericRId];
+    ecsOwnerId = getFactionStringId(factionId);
+  }
+
+  // Read local infrastructure directly from legacy Object (Lazy Hydrated)
   const regionState = gameState.world.regions[regionId];
   const regionDef = staticWorldData.definitions[regionId];
-  const owner = regionState?.ownerId ? gameState.kingdoms[regionState.ownerId] : null;
-  const isPlayerRegion = regionState?.ownerId === playerKingdomId;
-  const numericRId = parseInt(regionId.replace('r_hex_', ''), 10);
+  
+  const owner = ecsOwnerId ? gameState.kingdoms[ecsOwnerId] : null;
+  const isPlayerRegion = ecsOwnerId === playerKingdomId;
   const biomeId = worldMapData.biomes[numericRId];
+  
+  const ownerColor = isPlayerRegion ? '#D4AF37' : (owner?.color || '#808090');
 
   const handleBuild = useCallback(
     (buildingType: BuildingType) => {
@@ -260,7 +280,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
             <Text style={styles.regionName} numberOfLines={1}>
               {regionDef?.name ?? regionId}
             </Text>
-            <Text style={styles.ownerLabel}>
+            <Text style={[styles.ownerLabel, { color: ownerColor }]}>
               {isPlayerRegion
                 ? '👑 Seu domínio'
                 : owner
@@ -334,7 +354,12 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoKey}>População:</Text>
-            <Text style={styles.infoVal}>{Math.floor(totalPopulation).toLocaleString()}</Text>
+            <Text style={styles.infoVal}>
+              {Math.floor(totalPopulation).toLocaleString()} 
+              <Text style={{ color: totalDelta >= 0 ? '#50E3C2' : '#FF6B35' }}>
+                {totalDelta >= 0 ? ' (+' : ' ('}{totalDelta.toFixed(1)}/t)
+              </Text>
+            </Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoKey}>Defesa:</Text>
@@ -479,9 +504,10 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#0F1420',
-    borderTopWidth: 1.5,
-    borderTopColor: '#D4AF37',
-    maxHeight: '55%',
+    borderWidth: 1.5,
+    borderColor: '#D4AF37',
+    borderRadius: 12,
+    flexShrink: 1, // Restaura o limite vertical do ScrollView para não cortar
   },
   header: {
     flexDirection: 'row',
@@ -529,6 +555,7 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: 16,
     paddingTop: 12,
+    flexShrink: 1, // Garante que a ScrollView funcione e não vaze a maxHeight do pai
   },
   section: {
     marginBottom: 16,

@@ -1147,6 +1147,11 @@ export class GameSession {
       return { ok: false, message: "Alvo diplomático inválido." };
     }
 
+    const capitalIndex = this.getKingdomCapitalIndex(state, player.id);
+    if (capitalIndex === -1) {
+      return { ok: false, message: "CAPITAL_REQUIRED: Você precisa estabelecer uma capital válida antes de negociar." };
+    }
+
     const relation = player.diplomacy.relations[target.id];
     if (!relation) {
       return { ok: false, message: "Relação diplomática inexistente para o alvo." };
@@ -2544,8 +2549,7 @@ export class GameSession {
     const factionId = getFactionId(player.id);
 
     if (capitalIndex === -1) {
-      console.error(`[applyCost] Não foi possível encontrar o índice da capital para o jogador ${player.id}`);
-      return;
+      throw new Error(`[DomainError] applyCost invocado para jogador ${player.id} sem capital válida. O chamador deve validar a capital antes de aplicar custos.`);
     }
 
     for (const [resource, value] of Object.entries(cost)) {
