@@ -13,6 +13,7 @@ import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
 import { useSharedValue, runOnUI }   from 'react-native-reanimated';
 
 import { SimulationCanvas, SimulationCanvasRef }  from '../components/map/simulation-canvas';
+import { getRegionIndex } from '../../core/simulation/systems/utils';
 import { ImperialOverlay }   from '../components/map/imperial-overlay';
 import { useGameState }      from '../GameProvider';
 import { useUiStore }        from '../stores/use-ui-store';
@@ -36,7 +37,7 @@ export default function MapScreen() {
   // Extrair a capital do jogador
   const playerKingdom = gameState?.kingdoms ? Object.values(gameState.kingdoms).find(k => k.isPlayer) : null;
   const playerCapitalRegionId = playerKingdom?.capitalRegionId;
-  const capitalHexId = playerCapitalRegionId ? parseInt(playerCapitalRegionId.replace('r_hex_', ''), 10) : undefined;
+  const capitalHexId = playerCapitalRegionId ? getRegionIndex(playerCapitalRegionId) : undefined;
 
   // SharedValues that feed the canvas
   const regionOwner          = useSharedValue<Int32Array>(new Int32Array(320000));

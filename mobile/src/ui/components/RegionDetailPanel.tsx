@@ -11,7 +11,7 @@ import { useGameState } from '../GameProvider';
 import { BuildingType } from '../../core/models/enums';
 import type { RegionActionType } from '../../application/game-session';
 import worldMapData from '../../assets/data/world_map_data.json';
-import { getFactionStringId } from '../../core/simulation/systems/utils';
+import { getFactionStringId, getRegionIndex } from '../../core/simulation/systems/utils';
 
 interface RegionDetailPanelProps {
   regionId: string;
@@ -136,7 +136,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
 
   const getRegionDefense = useCallback((rId: string) => {
     let defense = 0;
-    const numericRId = parseInt(rId.replace('r_hex_', ''), 10);
+    const numericRId = getRegionIndex(rId);
     Object.values(gameState.kingdoms || {}).forEach(kingdom => {
       if (kingdom.military?.armies) {
         kingdom.military.armies.forEach(army => {
@@ -158,7 +158,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
     let deltaSum = 0;
     
     targets.forEach(rId => {
-      const idx = parseInt(rId.replace('r_hex_', ''), 10);
+      const idx = getRegionIndex(rId);
       if (!isNaN(idx) && gameState.ecs) {
         goldSum += gameState.ecs.gold[idx] || 0;
         const currentPop = gameState.ecs.populationTotal[idx] || 0;
@@ -184,7 +184,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
     };
   }, [regionId, isMergedView, getContiguousRegions, gameState, getRegionDefense]);
 
-  const numericRId = parseInt(regionId.replace('r_hex_', ''), 10);
+  const numericRId = getRegionIndex(regionId);
   
   // Read owner directly from ECS (source of truth)
   let ecsOwnerId: string | undefined;

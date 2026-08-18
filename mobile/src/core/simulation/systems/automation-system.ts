@@ -5,7 +5,7 @@ import type { BudgetPriority } from "../../models/economy";
 import type { EcsState, GameState, KingdomState } from "../../models/game-state";
 import type { RegionDefinition } from "../../models/world";
 import type { SimulationSystem } from "../tick-pipeline";
-import { clamp, createEventId, getOwnedRegionIds, roundTo } from "./utils";
+import { clamp, createEventId, getOwnedRegionIds, getRegionIndex, roundTo } from "./utils";
 
 function isEnabled(level: AutomationLevel): boolean {
   return level !== AutomationLevel.Manual;
@@ -124,9 +124,7 @@ function getKingdomEcsResource(state: GameState, kingdomId: string, resource: Re
 }
 
 export function getKingdomCapitalIndex(kingdom: KingdomState, orderedDefinitions: RegionDefinition[]): number {
-        const idStr = kingdom.capitalRegionId.replace('r_hex_', '');
-        const id = parseInt(idStr, 10);
-        return isNaN(id) ? -1 : id;
+        return getRegionIndex(kingdom.capitalRegionId);
     }
 
 function canAfford(state: GameState, kingdomId: string, cost: Partial<Record<ResourceType, number>>, orderedDefinitions: RegionDefinition[]): boolean {
@@ -168,7 +166,7 @@ function handleConstructionAutomation(state: GameState, kingdom: KingdomState, c
         }
       }
 
-      const regionIdx = parseInt(rId.replace("r_hex_", ""), 10);
+      const regionIdx = getRegionIndex(rId);
       if ((state.ecs?.regionFaithUnrest[regionIdx] ?? 0) > 0.3 && !buildings.includes(BuildingType.Monastery)) {
         if (canAfford(state, kingdom.id, BUILDING_COSTS[BuildingType.Monastery], orderedDefinitions)) {
           chosenBuilding = BuildingType.Monastery;

@@ -23,6 +23,7 @@ import type { StaticWorldData } from "../core/models/static-world-data";
 import { buildStateHash } from "../core/utils/state-fingerprint";
 import { hashDeterministic } from "../core/utils/stable-hash";
 import { cloneGameStateForSimulation } from "../core/utils/clone-game-state";
+import { getRegionIndex } from "../core/simulation/systems/utils";
 import { resolveProposal } from "../infrastructure/diplomacy/local-diplomacy-resolver";
 import { TickPipeline, type SimulationSystem } from "../core/simulation/tick-pipeline";
 import { parseDomainEventToLogEntry } from "../core/simulation/systems/event-log-system";
@@ -79,8 +80,7 @@ export interface RuntimeMetrics {
   offlineTicks: number;
 }
 
-// Cache de Indexação Global: Transforma buscas O(N) em O(1)
-const REGION_INDEX_MAP = new Map<string, number>();
+// Removemos o REGION_INDEX_MAP em favor do conversor global
 
 function serializeEcsState(ecs?: EcsState): any {
   if (!ecs) return undefined;
@@ -123,12 +123,6 @@ export class GameSession {
   public fogOfWarDisabled = false;
 
   constructor(private readonly deps: GameSessionDeps) {
-    if (REGION_INDEX_MAP.size === 0) {
-      const regionIds = Object.keys(this.deps.staticWorldData.definitions).sort();
-      for (let i = 0; i < regionIds.length; i++) {
-        REGION_INDEX_MAP.set(regionIds[i], i);
-      }
-    }
     this.pipeline = new TickPipeline(deps.systems, deps.staticWorldData);
   }
 
@@ -1723,9 +1717,9 @@ export class GameSession {
     if (!player) return;
 
     const capitalRegionId = player.capitalRegionId;
-    const regionIndex = REGION_INDEX_MAP.get(capitalRegionId);
+    const regionIndex = getRegionIndex(capitalRegionId);
 
-    if (regionIndex !== undefined && state.ecs) {
+    if (regionIndex !== -1 && state.ecs) {
       if (resource === "gold") {
         state.ecs.gold[regionIndex] = (state.ecs.gold[regionIndex] || 0) + 1000;
         player.economy.stock.gold = (player.economy.stock.gold || 0) + 1000;
@@ -2410,8 +2404,8 @@ export class GameSession {
     
     const kingdomRegionIndices = Object.values(state.world.regions)
       .filter((r) => r.ownerId === kingdomId)
-      .map((r) => REGION_INDEX_MAP.get(r.regionId))
-      .filter((index): index is number => index !== undefined);
+      .map((r) => getRegionIndex(r.regionId))
+      .filter((index) => index !== -1);
 
     // Usa o ECS se o ECS worker estiver atualizando o estado ativamente (manpower cresce, population cresce)
     // Como no Mobile estamos em V1 (Sem worker nativo de ECS ainda), usamos a lógica principal:
@@ -2468,7 +2462,7 @@ export class GameSession {
     if (!kingdom) {
       return -1;
     }
-    return REGION_INDEX_MAP.get(kingdom.capitalRegionId) ?? -1;
+    return getRegionIndex(kingdom.capitalRegionId);
   }
 
   private getKingdomTotalEcsStock(state: GameState, kingdomId: string): Record<ResourceType, number> {

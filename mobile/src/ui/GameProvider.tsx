@@ -11,6 +11,7 @@ import { LocalWarResolver } from '../infrastructure/war/local-war-resolver';
 import { createDefaultSimulationSystems } from '../core/simulation/create-default-systems';
 import { GameState } from '../core/models/game-state';
 import { ClockService } from '../core/contracts/services';
+import { getRegionIndex } from '../core/simulation/systems/utils';
 import { AILogger } from '../infrastructure/telemetry/AILogger';
 
 
@@ -137,6 +138,28 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         const startingState = newSession.getState();
         setGameState({ ...startingState });
         setSession(newSession);
+
+        // --- TEMPORARY AUDIT INSTRUMENTATION ---
+        let ticksLogged = 0;
+        const auditTimer = setInterval(() => {
+          const s = newSession.getState();
+          const activeKingdomId = Object.keys(s.kingdoms).find(id => s.kingdoms[id].isPlayer) || "k_player";
+          const pk = s.kingdoms[activeKingdomId];
+          const capId = pk?.capitalRegionId;
+          const ecsStock = newSession.getPlayerEcsStock();
+          
+          let ownerId = null;
+          if (capId) {
+            const index = getRegionIndex(capId);
+            ownerId = (index !== -1 && s.ecs) ? s.ecs.regionOwner[index] : null;
+          }
+
+          console.log(`[AUDIT] ${ticksLogged}s | PlayerId: ${activeKingdomId} | Capital: ${capId} | OwnerOfCapital: ${ownerId} | Gold: ${ecsStock.gold.toFixed(2)} | Income: ${pk?.economy?.netIncomePerTick?.gold?.toFixed(2)} | Tick: ${s.meta.tick}`);
+          
+          ticksLogged++;
+          if (ticksLogged >= 5) clearInterval(auditTimer);
+        }, 1000);
+        // ----------------------------------------
 
         // ── SYNC SÍNCRONO DO HUD (Corrige "Piscar para zero") ──
         const pId = Object.keys(startingState.kingdoms).find(id => startingState.kingdoms[id].isPlayer) || "k_player";

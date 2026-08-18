@@ -82,3 +82,22 @@ export function getFactionStringId(factionId: number): string | undefined {
   if (factionId > 1) return `k_npc_${factionId - 1}`;
   return undefined;
 }
+
+export const TOTAL_HEXES = 320000;
+
+/**
+ * Converte um ID de região (r_hex_X) para seu índice canônico no array do ECS.
+ * Retorna -1 se for inválido, malformado ou estiver fora do limite espacial do ECS.
+ */
+export function getRegionIndex(regionId: string | undefined | null): number {
+  if (!regionId || typeof regionId !== "string") return -1;
+  if (!regionId.startsWith("r_hex_")) return -1;
+  
+  const numStr = regionId.substring(6);
+  if (!/^\d+$/.test(numStr)) return -1;
+  
+  const num = parseInt(numStr, 10);
+  if (isNaN(num) || num < 0 || num >= TOTAL_HEXES) return -1;
+  
+  return num;
+}

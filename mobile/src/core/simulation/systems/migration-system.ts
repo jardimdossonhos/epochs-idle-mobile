@@ -3,14 +3,13 @@ import { AutomationLevel } from "../../models/enums";
 import type { StaticWorldData } from "../../models/static-world-data";
 import type { SimulationSystem, TickContext } from "../tick-pipeline";
 import type { RegionDefinition } from "../../models/world";
-import { createEventId } from "./utils";
+import { createEventId, getRegionIndex, TOTAL_HEXES } from "./utils";
 import worldMapData from "../../../assets/data/world_map_data.json";
 
 const MIGRATION_THRESHOLD = 150; 
 const MIGRATION_AMOUNT = 50;     
 const MAP_COLS = 800;
 const MAP_ROWS = 400;
-const TOTAL_HEXES = 320000;
 
 function getNeighbors(idx: number): number[] {
     const col = idx % MAP_COLS;
@@ -62,7 +61,7 @@ export function createMigrationSystem(staticData: StaticWorldData, _ignoredDefs:
 
         const currentPop = state.ecs.populationTotal[i];
 
-        if (currentPop < 15 && kingdom.capitalRegionId !== `r_hex_${i}`) {
+        if (currentPop < 15 && getRegionIndex(kingdom.capitalRegionId) !== i) {
             state.ecs.regionOwner[i] = -1; 
             state.ecs.populationTotal[i] = 0;
             if (state.ecs.gold) state.ecs.gold[i] = 0;

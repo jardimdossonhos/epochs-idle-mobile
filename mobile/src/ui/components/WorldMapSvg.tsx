@@ -6,6 +6,8 @@ import {
   Text,
   TouchableOpacity,
 } from 'react-native';
+import { PanGestureHandler, State as GestureState } from 'react-native-gesture-handler';
+import { getRegionIndex } from '../../core/simulation/systems/utils';
 import Svg, { G, Polygon, Circle, Path } from 'react-native-svg';
 import { useGameState } from '../GameProvider';
 import { DiplomaticRelation } from '../../core/models/enums';
@@ -56,14 +58,13 @@ function getHexPoints(cx: number, cy: number, size: number): string {
 }
 
 function parseRegionIndex(regionId: string): { col: number; row: number } {
-  const numStr = regionId.replace('r_hex_', '').replace('r_', '');
-  const idx = parseInt(numStr, 10);
-  if (isNaN(idx)) {
+  const idx = getRegionIndex(regionId);
+  if (idx === -1) {
     const hash = regionId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    return { col: hash % 80, row: Math.floor(hash / 80) % 60 };
+    return { col: hash % 800, row: Math.floor(hash / 800) % 400 };
   }
-  const col = idx % 100;
-  const row = Math.floor(idx / 100);
+  const col = idx % 800;
+  const row = Math.floor(idx / 800);
   return { col, row };
 }
 

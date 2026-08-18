@@ -14,6 +14,7 @@ import {
 import type { EcsState, GameState, KingdomState } from "../../core/models/game-state";
 import type { NpcBehaviorState } from "../../core/models/npc";
 import type { PopulationState } from "../../core/models/population";
+import { getRegionIndex, TOTAL_HEXES } from "../../core/simulation/systems/utils";
 import type { StaticWorldData } from "../../core/models/static-world-data";
 import type { ReligionId } from "../../core/models/types";
 import type { RegionDefinition, RegionState, RegionZone, WorldState } from "../../core/models/world";
@@ -337,7 +338,7 @@ function createKingdom(
           isActive: true,
           factionIndex: blueprint.isPlayer ? 1 : 2,
           id: `${blueprint.id}_army_1`,
-          stationedIndex: parseInt(capitalRegionId.replace("r_hex_", ""), 10),
+          stationedIndex: getRegionIndex(capitalRegionId),
           targetIndex: -1,
           pathLength: 0,
           currentPath: new Int32Array(50),
@@ -408,7 +409,6 @@ function createKingdom(
 
 const MAP_COLS = 800;
 const MAP_ROWS = 400;
-const TOTAL_HEXES = 320000;
 
 function getAxialDistance(idx1: number, idx2: number): number {
     const col1 = idx1 % MAP_COLS;
