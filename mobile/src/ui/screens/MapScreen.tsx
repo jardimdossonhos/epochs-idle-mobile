@@ -1,12 +1,12 @@
-/**
+﻿/**
  * MapScreen.tsx
  *
  * Conecta o SimulationCanvas (Skia) ao GameSession (ECS) sem usar o Web Worker,
  * que não é suportado em React Native bare workflow.
  *
  * Fluxo de dados:
- *   GameProvider (ECS) → useGameState() → ecsState.regionOwner (Int32Array)
- *                     → useSharedValue  → SimulationCanvas
+ *   GameProvider (ECS) â†’ useGameState() â†’ ecsState.regionOwner (Int32Array)
+ *                     â†’ useSharedValue  â†’ SimulationCanvas
  */
 import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
@@ -19,9 +19,10 @@ import { useGameState }      from '../GameProvider';
 import { useUiStore }        from '../stores/use-ui-store';
 import RegionDetailPanel     from '../components/RegionDetailPanel';
 
-// ─── noop dispatch (combat commands disabled without the Worker engine) ────────
+// â”€â”€â”€ noop dispatch (combat commands disabled without the Worker engine) â”€â”€â”€â”€â”€â”€â”€â”€
 const NOOP_DISPATCH = (_cmd: [number, number, number, number]) => {};
 
+import { logAuditBoot } from "../../application/audit-logger";
 export default function MapScreen() {
   const { gameState } = useGameState();
   const selectedHex   = useUiStore((s) => s.selectedHex);
@@ -32,6 +33,8 @@ export default function MapScreen() {
   
   const canvasRef = useRef<SimulationCanvasRef>(null);
   const hasFocusedOnBoot = useRef(false);
+    const auditRenderLogged = useRef(false);
+    if (!auditRenderLogged.current && gameState) { auditRenderLogged.current = true; logAuditBoot("4. Primeira renderizacao MapScreen", gameState); }
   const [isCanvasReady, setIsCanvasReady] = useState(false);
 
   // Extrair a capital do jogador
@@ -43,7 +46,7 @@ export default function MapScreen() {
   const regionOwner          = useSharedValue<Int32Array>(new Int32Array(320000));
   const mapUpdateTrigger     = useSharedValue<number>(0);
 
-  // Empty placeholders — no Worker, no live army/combat data yet
+  // Empty placeholders â€” no Worker, no live army/combat data yet
   const currentArmyData      = useSharedValue<Float32Array>(new Float32Array(2048 * 4).fill(-1));
   const lastArmyData         = useSharedValue<Float32Array>(new Float32Array(2048 * 4).fill(-1));
   const tickProgress         = useSharedValue<number>(1);
@@ -159,7 +162,7 @@ export default function MapScreen() {
     if (isCanvasReady && !hasFocusedOnBoot.current && capitalHexId !== undefined && canvasRef.current) {
       const col = capitalHexId % 800;
       const row = Math.floor(capitalHexId / 800);
-      canvasRef.current.focusOnCapital(col, row, 2.0);
+      console.log("[AUDIT-BOOT] 8. Câmera recebeu novo target: ", col, row); canvasRef.current.focusOnCapital(col, row, 2.0);
       hasFocusedOnBoot.current = true;
     }
   }, [isCanvasReady, capitalHexId]);
@@ -171,7 +174,7 @@ export default function MapScreen() {
   return (
     <View style={styles.container}>
 
-      {/* ── Map layer (full-bleed, behind TopHUD) ── */}
+      {/* â”€â”€ Map layer (full-bleed, behind TopHUD) â”€â”€ */}
       <View style={styles.mapLayer} onLayout={onMapLayout}>
         <SimulationCanvas
           ref={canvasRef}
@@ -188,11 +191,11 @@ export default function MapScreen() {
         />
       </View>
 
-      {/* ── UI overlays (pointerEvents pass-through) ── */}
+      {/* â”€â”€ UI overlays (pointerEvents pass-through) â”€â”€ */}
       <View style={styles.uiLayer} pointerEvents="box-none">
         <ImperialOverlay />
 
-        {/* ── Painel Modal Focado (Scrim + Centralização) ── */}
+        {/* â”€â”€ Painel Modal Focado (Scrim + Centralização) â”€â”€ */}
         {selectedHex && (
           <View style={styles.modalOverlay} pointerEvents="auto">
             <TouchableOpacity 
@@ -210,25 +213,25 @@ export default function MapScreen() {
           </View>
         )}
 
-        {/* ── Lens Controls (Top Right) ── */}
+        {/* â”€â”€ Lens Controls (Top Right) â”€â”€ */}
         <View style={styles.lensControlsContainer} pointerEvents="box-none">
           <TouchableOpacity 
             style={[styles.lensBtn, mapLens === 'PHYSICAL' && styles.lensBtnActive]} 
             onPress={() => setMapLens('PHYSICAL')}
             activeOpacity={0.7}
           >
-            <Text style={styles.lensBtnText}>🌍</Text>
+            <Text style={styles.lensBtnText}>ðŸŒ</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.lensBtn, mapLens === 'POLITICAL' && styles.lensBtnActive]} 
             onPress={() => setMapLens('POLITICAL')}
             activeOpacity={0.7}
           >
-            <Text style={styles.lensBtnText}>👑</Text>
+            <Text style={styles.lensBtnText}>ðŸ‘‘</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── Zoom Controls & Home ── */}
+        {/* â”€â”€ Zoom Controls & Home â”€â”€ */}
         <View style={styles.zoomControlsContainer} pointerEvents="box-none">
           <TouchableOpacity style={styles.zoomBtn} onPress={() => canvasRef.current?.zoomIn()} activeOpacity={0.7}>
             <Text style={styles.zoomBtnText}>+</Text>
@@ -243,7 +246,7 @@ export default function MapScreen() {
               canvasRef.current?.focusOnCapital(col, row);
             }
           }} activeOpacity={0.7}>
-            <Text style={styles.zoomBtnText}>🎯</Text>
+            <Text style={styles.zoomBtnText}>ðŸŽ¯</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -255,7 +258,7 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A1628', // ocean background — visible before tiles load
+    backgroundColor: '#0A1628', // ocean background â€” visible before tiles load
   },
   mapLayer: {
     ...StyleSheet.absoluteFill,

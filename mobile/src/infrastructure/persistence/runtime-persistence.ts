@@ -1,20 +1,17 @@
 import type {
   CommandLogRepository,
   GameStateRepository,
-  SaveRepository,
-  SnapshotRepository
+  SaveRepository
 } from "../../core/contracts/game-ports";
 import {
   DesktopFileCommandLogRepository,
   DesktopFileGameStateRepository,
-  DesktopFileSaveRepository,
-  DesktopFileSnapshotRepository
+  DesktopFileSaveRepository
 } from "./desktop-file-repositories";
 import {
   IndexedDbCommandLogRepository,
   IndexedDbGameStateRepository,
-  IndexedDbSaveRepository,
-  IndexedDbSnapshotRepository
+  IndexedDbSaveRepository
 } from "./indexeddb-repositories";
 import { getDesktopBridge } from "../runtime/desktop-bridge";
 import { WebFsGameStateRepository, WebFsSaveRepository } from "./web-fs-repositories";
@@ -28,8 +25,7 @@ export interface RuntimePersistenceBundle {
   gameStateRepository: GameStateRepository;
   saveRepository: SaveRepository;
   commandLogRepository: CommandLogRepository;
-  snapshotRepository: SnapshotRepository;
-}
+  }
 
 export function createRuntimePersistenceBundle(campaignId: string, fsDirHandle?: any): RuntimePersistenceBundle {
   const bridge = getDesktopBridge();
@@ -40,8 +36,7 @@ export function createRuntimePersistenceBundle(campaignId: string, fsDirHandle?:
       gameStateRepository: new DesktopFileGameStateRepository(bridge),
       saveRepository: new DesktopFileSaveRepository(bridge),
       commandLogRepository: new DesktopFileCommandLogRepository(bridge),
-      snapshotRepository: new DesktopFileSnapshotRepository(bridge)
-    };
+          };
   }
 
   // Capacitor (Native Android/iOS)
@@ -51,8 +46,7 @@ export function createRuntimePersistenceBundle(campaignId: string, fsDirHandle?:
       mode: "browser",
       gameStateRepository: new CapacitorPreferencesGameStateRepository(campaignId),
       saveRepository: new CapacitorPreferencesSaveRepository(campaignId),
-      commandLogRepository: new IndexedDbCommandLogRepository(campaignId), // Logs em idb para não estourar o Preferences
-      snapshotRepository: new IndexedDbSnapshotRepository(campaignId) // Snapshots em idb 
+      commandLogRepository: new IndexedDbCommandLogRepository(campaignId), // Logs em idb para não estourar o Preferences // Snapshots em idb 
     };
   }
 
@@ -63,8 +57,7 @@ export function createRuntimePersistenceBundle(campaignId: string, fsDirHandle?:
       gameStateRepository: new WebFsGameStateRepository(fsDirHandle),
       saveRepository: new WebFsSaveRepository(fsDirHandle),
       commandLogRepository: new IndexedDbCommandLogRepository(campaignId), // Logs pesados continuam temporários no navegador
-      snapshotRepository: new IndexedDbSnapshotRepository(campaignId)
-    };
+          };
   }
 
   // Fallback seguro: IndexedDB puro (Navegador)
@@ -73,6 +66,5 @@ export function createRuntimePersistenceBundle(campaignId: string, fsDirHandle?:
     gameStateRepository: new IndexedDbGameStateRepository(campaignId),
     saveRepository: new IndexedDbSaveRepository(campaignId),
     commandLogRepository: new IndexedDbCommandLogRepository(campaignId),
-    snapshotRepository: new IndexedDbSnapshotRepository(campaignId)
-  };
+      };
 }

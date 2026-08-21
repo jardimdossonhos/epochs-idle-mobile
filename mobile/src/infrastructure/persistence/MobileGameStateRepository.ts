@@ -1,6 +1,7 @@
-import { GameState } from '../../core/models/game-state';
+﻿import { GameState } from '../../core/models/game-state';
 import { GameStateRepository, SaveRepository, SaveSlotId, SaveSnapshot, SaveSummary } from '../../core/contracts/game-ports';
 import { migrateStateToCurrent } from './save-schema';
+import { buildEcsSnapshot } from './ecs-snapshot';
 
 export interface StorageProvider {
   getString(key: string): string | undefined;
@@ -18,16 +19,21 @@ export class MobileGameStateRepository implements GameStateRepository {
   async loadCurrent(): Promise<GameState | null> {
     const data = this.storage.getString(this.KEY);
     if (!data) return null;
-    try {
+        try {
       const state = JSON.parse(data) as GameState;
       return migrateStateToCurrent(state);
     } catch(e) {
+      console.error(e);
       return null;
     }
   }
 
   async saveCurrent(state: GameState): Promise<void> {
-    this.storage.set(this.KEY, JSON.stringify(state));
+    const safeState = { ...state, meta: { ...state.meta }, ecs: undefined as any };
+    if (state.ecs) {
+      (safeState as any).ecsSnapshot = buildEcsSnapshot(state.ecs);
+    }
+    this.storage.set(this.KEY, JSON.stringify(safeState));
   }
 
   async clearCurrent(): Promise<void> {
@@ -35,36 +41,40 @@ export class MobileGameStateRepository implements GameStateRepository {
   }
 
   saveCurrentSync(state: GameState): void {
-    this.storage.set(this.KEY, JSON.stringify(state));
+    const safeState = { ...state, meta: { ...state.meta }, ecs: undefined as any };
+    if (state.ecs) {
+      (safeState as any).ecsSnapshot = buildEcsSnapshot(state.ecs);
+    }
+    this.storage.set(this.KEY, JSON.stringify(safeState));
+  }
+
+    clearCurrentSync(): void {
+    this.storage.delete(this.KEY);
   }
 
   loadCurrentSync(): GameState | null {
     const data = this.storage.getString(this.KEY);
     if (!data) return null;
-    try {
+        try {
       const state = JSON.parse(data) as GameState;
       return migrateStateToCurrent(state);
     } catch(e) {
+      console.error(e);
       return null;
     }
   }
-
-  clearCurrentSync(): void {
-    this.storage.delete(this.KEY);
-  }
 }
-
 
 export class MobileSaveRepository implements SaveRepository {
   constructor(private storage: StorageProvider) {}
 
   async saveToSlot(snapshot: SaveSnapshot): Promise<void> {
     const slotId = snapshot.summary.slotId;
-    this.storage.set(`save_${slotId}`, JSON.stringify(snapshot));
+    this.storage.set('save_' + slotId, JSON.stringify(snapshot));
   }
 
   async loadFromSlot(slotId: SaveSlotId): Promise<SaveSnapshot | null> {
-    const data = this.storage.getString(`save_${slotId}`);
+    const data = this.storage.getString('save_' + slotId);
     if (!data) return null;
     try {
       return JSON.parse(data) as SaveSnapshot;
@@ -91,8 +101,6 @@ export class MobileSaveRepository implements SaveRepository {
   }
 
   async deleteSlot(slotId: SaveSlotId): Promise<void> {
-    this.storage.delete(`save_${slotId}`);
+    this.storage.delete('save_' + slotId);
   }
 }
-
-

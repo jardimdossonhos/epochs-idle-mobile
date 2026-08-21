@@ -1,3 +1,4 @@
+﻿import { getFactionGold, tryDebitGold } from "../../ecs/economy-api";
 import { buildEvent } from "../../ecs/event-pool";
 import { ArmyPosture, AutomationLevel, BuildingType, ResourceType, TechnologyDomain } from "../../models/enums";
 import { selectDefaultResearchNode, selectResearchNodeTowardsTarget } from "../../data/technology-tree";
@@ -5,7 +6,7 @@ import type { BudgetPriority } from "../../models/economy";
 import type { EcsState, GameState, KingdomState } from "../../models/game-state";
 import type { RegionDefinition } from "../../models/world";
 import type { SimulationSystem } from "../tick-pipeline";
-import { clamp, createEventId, getOwnedRegionIds, getRegionIndex, roundTo } from "./utils";
+import { clamp, createEventId, getOwnedRegionIds, getRegionIndex, getCanonicalRegionOwner, roundTo } from "./utils";
 
 function isEnabled(level: AutomationLevel): boolean {
   return level !== AutomationLevel.Manual;
@@ -90,7 +91,7 @@ function selectExpansionTargets(
     for (const neighborId of definition.neighbors) {
       const neighborState = state.world.regions[neighborId];
 
-      if (!neighborState || neighborState.ownerId === kingdomId || candidates.includes(neighborId)) {
+      if (!neighborState || getCanonicalRegionOwner(state, neighborId) === kingdomId || candidates.includes(neighborId)) {
         continue;
       }
 
@@ -101,13 +102,7 @@ function selectExpansionTargets(
   return candidates.sort().slice(0, 2);
 }
 
-const BUILDING_COSTS: Record<BuildingType, Partial<Record<ResourceType, number>>> = {
-  [BuildingType.Market]: { [ResourceType.Gold]: 300, [ResourceType.Wood]: 150 },
-  [BuildingType.Barracks]: { [ResourceType.Gold]: 200, [ResourceType.Iron]: 100, [ResourceType.Wood]: 100 },
-  [BuildingType.Monastery]: { [ResourceType.Gold]: 250, [ResourceType.Wood]: 200, [ResourceType.Faith]: 50 },
-  [BuildingType.University]: { [ResourceType.Gold]: 400, [ResourceType.Wood]: 200 },
-  [BuildingType.Fortress]: { [ResourceType.Gold]: 500, [ResourceType.Wood]: 300, [ResourceType.Iron]: 200 }
-};
+import { BUILDING_CONFIGS } from "../../models/buildings";
 
 function getKingdomEcsResource(state: GameState, kingdomId: string, resource: ResourceType, orderedDefinitions: RegionDefinition[]): number {
   if (!state.ecs) return 0;
@@ -116,7 +111,7 @@ function getKingdomEcsResource(state: GameState, kingdomId: string, resource: Re
   let total = 0;
   for (let i = 0; i < orderedDefinitions.length; i++) {
     const def = orderedDefinitions[i];
-    if (!def.isWater && state.world.regions[def.id]?.ownerId === kingdomId) {
+    if (!def.isWater && getCanonicalRegionOwner(state, def.id) === kingdomId) {
       total += arr[i];
     }
   }
@@ -159,7 +154,7 @@ function handleConstructionAutomation(state: GameState, kingdom: KingdomState, c
       const buildings = region?.buildings ?? [];
 
       if (unrest > 0.4 && !buildings.includes(BuildingType.Fortress)) {
-        if (canAfford(state, kingdom.id, BUILDING_COSTS[BuildingType.Fortress], orderedDefinitions)) {
+        if (canAfford(state, kingdom.id, BUILDING_CONFIGS[BuildingType.Fortress].cost, orderedDefinitions)) {
           chosenBuilding = BuildingType.Fortress;
           chosenRegionId = rId;
           break;
@@ -168,7 +163,7 @@ function handleConstructionAutomation(state: GameState, kingdom: KingdomState, c
 
       const regionIdx = getRegionIndex(rId);
       if ((state.ecs?.regionFaithUnrest[regionIdx] ?? 0) > 0.3 && !buildings.includes(BuildingType.Monastery)) {
-        if (canAfford(state, kingdom.id, BUILDING_COSTS[BuildingType.Monastery], orderedDefinitions)) {
+        if (canAfford(state, kingdom.id, BUILDING_CONFIGS[BuildingType.Monastery].cost, orderedDefinitions)) {
           chosenBuilding = BuildingType.Monastery;
           chosenRegionId = rId;
           break;
@@ -182,13 +177,13 @@ function handleConstructionAutomation(state: GameState, kingdom: KingdomState, c
       const region = state.world.regions[randomRegion];
       const b = region?.buildings ?? [];
 
-      if (gold > 1000 && !b.includes(BuildingType.University) && canAfford(state, kingdom.id, BUILDING_COSTS[BuildingType.University], orderedDefinitions)) {
+      if (gold > 1000 && !b.includes(BuildingType.University) && canAfford(state, kingdom.id, BUILDING_CONFIGS[BuildingType.University].cost, orderedDefinitions)) {
         chosenBuilding = BuildingType.University;
         chosenRegionId = randomRegion;
-      } else if (!b.includes(BuildingType.Market) && canAfford(state, kingdom.id, BUILDING_COSTS[BuildingType.Market], orderedDefinitions)) {
+      } else if (!b.includes(BuildingType.Market) && kingdom.hasAscended && canAfford(state, kingdom.id, BUILDING_CONFIGS[BuildingType.Market].cost, orderedDefinitions)) {
         chosenBuilding = BuildingType.Market;
         chosenRegionId = randomRegion;
-      } else if (!b.includes(BuildingType.Barracks) && canAfford(state, kingdom.id, BUILDING_COSTS[BuildingType.Barracks], orderedDefinitions)) {
+      } else if (!b.includes(BuildingType.Barracks) && canAfford(state, kingdom.id, BUILDING_CONFIGS[BuildingType.Barracks].cost, orderedDefinitions)) {
         chosenBuilding = BuildingType.Barracks;
         chosenRegionId = randomRegion;
       }
@@ -216,7 +211,16 @@ function handleConstructionAutomation(state: GameState, kingdom: KingdomState, c
       const targetPct = ((props as Record<string, number>)[type] || 0) / 100;
       const currentPct = totalBuildings === 0 ? 0 : counts[type] / totalBuildings;
       const deficit = targetPct - currentPct;
-      if (deficit > maxDeficit && canAfford(state, kingdom.id, BUILDING_COSTS[type], orderedDefinitions)) { maxDeficit = deficit; chosenBuilding = type; }
+      
+      const config = BUILDING_CONFIGS[type as BuildingType];
+      if (!config) continue;
+      
+      if (config.requiresAscension && !kingdom.hasAscended) continue;
+      
+      if (deficit > maxDeficit && canAfford(state, kingdom.id, config.cost, orderedDefinitions)) { 
+        maxDeficit = deficit; 
+        chosenBuilding = type as BuildingType; 
+      }
     }
 
     if (chosenBuilding) {
@@ -250,7 +254,7 @@ function handleConstructionAutomation(state: GameState, kingdom: KingdomState, c
     region.buildings = region.buildings ?? [];
     region.buildings.push(chosenBuilding);
 
-    const evt = buildEvent("automation.build_structure", context.now, { regionId: chosenRegionId, buildingType: chosenBuilding, cost: BUILDING_COSTS[chosenBuilding] }, kingdom.id, undefined);
+    const evt = buildEvent("automation.build_structure", context.now, { regionId: chosenRegionId, buildingType: chosenBuilding, cost: BUILDING_CONFIGS[chosenBuilding].cost }, kingdom.id, undefined);
     if (evt) {
       evt.id = createEventId({ prefix: "evt_build", tick: context.nextState.meta.tick, systemId: "automation", actorId: kingdom.id, sequence: context.events.length });
       context.events.push(evt);
@@ -282,7 +286,7 @@ export function createAutomationSystem(orderedDefinitions: RegionDefinition[]): 
 
           const foodReserveTarget = kingdom.population.total / 6_500;
           const lowFood = kingdom.economy.stock.food < foodReserveTarget;
-          const lowGold = kingdom.economy.stock.gold < 85;
+          const lowGold = getFactionGold(context.nextState, kingdom.id) < 85;
 
           if (lowFood || lowGold) {
             targetBudget = {
@@ -300,7 +304,7 @@ export function createAutomationSystem(orderedDefinitions: RegionDefinition[]): 
               administration: 18,
               technology: 14
             };
-          } else if (kingdom.economy.stock.gold > 220) {
+          } else if (getFactionGold(context.nextState, kingdom.id) > 220) {
             targetBudget = {
               economy: 22,
               military: 18,
@@ -333,7 +337,7 @@ export function createAutomationSystem(orderedDefinitions: RegionDefinition[]): 
         }
 
         if (isEnabled(kingdom.administration.automation.expansion)) {
-          if (warCount === 0 && threat < 0.52 && kingdom.stability > 52 && kingdom.economy.stock.gold > 120) {
+          if (warCount === 0 && threat < 0.52 && kingdom.stability > 52 && getFactionGold(context.nextState, kingdom.id) > 120) {
             kingdom.military.posture = ArmyPosture.Aggressive;
             kingdom.military.offensiveFocus = roundTo(clamp(kingdom.military.offensiveFocus + 0.02, 0.3, 0.95));
             kingdom.military.targetRegionIds = selectExpansionTargets(state, kingdom.id, definitions)
@@ -380,8 +384,11 @@ export function createAutomationSystem(orderedDefinitions: RegionDefinition[]): 
             if (!definition) continue;
             for (const neighborId of definition.neighbors) {
               const neighborRegion = state.world.regions[neighborId];
-              if (neighborRegion && neighborRegion.ownerId && neighborRegion.ownerId !== kingdom.id && neighborRegion.ownerId !== "k_nature") {
-                borderKingdomIds.add(neighborRegion.ownerId);
+              if (neighborRegion) {
+                const nOwner = getCanonicalRegionOwner(context.nextState, neighborId);
+                if (nOwner && nOwner !== kingdom.id && nOwner !== "k_nature") {
+                  borderKingdomIds.add(nOwner);
+                }
               }
             }
           }
@@ -416,7 +423,7 @@ export function createAutomationSystem(orderedDefinitions: RegionDefinition[]): 
             }
 
             if (
-              (kingdom.economy.stock[ResourceType.Gold] ?? 0) < goldCost ||
+              (getFactionGold(context.nextState, kingdom.id) ?? 0) < goldCost ||
               (kingdom.economy.stock[ResourceType.Faith] ?? 0) < faithCost ||
               (kingdom.economy.stock[ResourceType.Legitimacy] ?? 0) < legitimacyCost
             ) {
@@ -436,7 +443,7 @@ export function createAutomationSystem(orderedDefinitions: RegionDefinition[]): 
               }
             }
 
-            kingdom.economy.stock[ResourceType.Gold] = roundTo(Math.max(0, (kingdom.economy.stock[ResourceType.Gold] ?? 0) - goldCost));
+            tryDebitGold(context.nextState, kingdom.id, goldCost, "automation_build");
             kingdom.economy.stock[ResourceType.Faith] = roundTo(Math.max(0, (kingdom.economy.stock[ResourceType.Faith] ?? 0) - faithCost));
             kingdom.economy.stock[ResourceType.Legitimacy] = roundTo(Math.max(0, (kingdom.economy.stock[ResourceType.Legitimacy] ?? 0) - legitimacyCost));
 
@@ -481,3 +488,4 @@ export function createAutomationSystem(orderedDefinitions: RegionDefinition[]): 
     }
   };
 }
+

@@ -1,4 +1,4 @@
-import type { DiplomacyResolver, INpcDecisionService, WarResolver } from "../contracts/services";
+﻿import type { DiplomacyResolver, INpcDecisionService, WarResolver } from "../contracts/services";
 import type { StaticWorldData } from "../models/static-world-data";
 import type { RegionDefinition } from "../models/world";
 import type { SimulationSystem } from "./tick-pipeline";
@@ -26,7 +26,6 @@ import { LogisticsSystem } from "./systems/logistics-system";
 import { CombatSystem } from "./systems/combat-system";
 import { ConquestSystem } from "./systems/conquest-system";
 import { ReinforcementSystem } from "./systems/reinforcement-system";
-import { MacroEconomySystem } from "./systems/macroeconomy-system";
 import { ActionExecutionSystem } from "./systems/action-execution-system";
 import { RenderSyncSystem } from "./render/render-sync-system";
 
@@ -44,7 +43,6 @@ export function createDefaultSimulationSystems(services: SimulationServices): Si
   const navigationSystem = createNavigationSystem(spatialGridSystem);
   return [
     new ActionExecutionSystem(spatialGridSystem),
-    new MacroEconomySystem(spatialGridSystem),
     new ReinforcementSystem(spatialGridSystem),
     createMigrationSystem(services.staticData, services.orderedDefinitions),
     createDisasterSystem(),

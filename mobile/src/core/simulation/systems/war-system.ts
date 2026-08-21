@@ -1,6 +1,6 @@
 import type { WarResolver } from "../../contracts/services";
 import type { SimulationSystem } from "../tick-pipeline";
-import { createEventId, roundTo } from "./utils";
+import { createEventId, roundTo, getCanonicalRegionOwner } from "./utils";
 import { buildEvent } from "../../ecs/event-pool";
 
 export function createWarSystem(warResolver: WarResolver): SimulationSystem {
@@ -13,7 +13,7 @@ export function createWarSystem(warResolver: WarResolver): SimulationSystem {
       const ownersBefore = new Map(
         Object.keys(stateBefore.world.regions)
           .sort()
-          .map((regionId) => [regionId, stateBefore.world.regions[regionId].ownerId] as const)
+          .map((regionId) => [regionId, getCanonicalRegionOwner(stateBefore, regionId)] as const)
       );
       const warScoresBefore = new Map(
         Object.keys(stateBefore.wars)
@@ -44,7 +44,7 @@ export function createWarSystem(warResolver: WarResolver): SimulationSystem {
           }
         }
 
-        // Processamento de Baixas FÃ­sicas (Dreno Populacional)
+        // Processamento de Baixas Físicas (Dreno Populacional)
         if (war.casualties) {
           for (const kingdomId of Object.keys(war.casualties)) {
             const dead = war.casualties[kingdomId];
@@ -54,7 +54,7 @@ export function createWarSystem(warResolver: WarResolver): SimulationSystem {
             evt.id = createEventId({ prefix: "evt_war_casualties", tick: context.nextState.meta.tick, systemId: "war", actorId: kingdomId, sequence: eventSeq++ });
             context.events.push(evt);
           }
-              // Limpa o buffer apÃ³s o evento ser despachado para a Thread Principal
+              // Limpa o buffer após o evento ser despachado para a Thread Principal
               war.casualties[kingdomId] = 0;
             }
           }
@@ -63,17 +63,18 @@ export function createWarSystem(warResolver: WarResolver): SimulationSystem {
 
       for (const [regionId, previousOwnerId] of ownersBefore.entries()) {
         const regionAfter = context.nextState.world.regions[regionId];
-        if (!regionAfter || regionAfter.ownerId === previousOwnerId) {
+        const regionOwnerAfter = getCanonicalRegionOwner(context.nextState, regionId);
+        if (!regionAfter || regionOwnerAfter === previousOwnerId) {
           continue;
         }
 
         const evt = buildEvent("war.region_captured", context.now, {
             regionId,
             previousOwnerId,
-            newOwnerId: regionAfter.ownerId
-          }, regionAfter.ownerId, previousOwnerId);
+            newOwnerId: regionOwnerAfter
+          }, regionOwnerAfter, previousOwnerId);
           if (evt) {
-            evt.id = createEventId({ prefix: "evt_war_capture", tick: context.nextState.meta.tick, systemId: "war", actorId: regionAfter.ownerId, sequence: eventSeq++ });
+            evt.id = createEventId({ prefix: "evt_war_capture", tick: context.nextState.meta.tick, systemId: "war", actorId: regionOwnerAfter, sequence: eventSeq++ });
             context.events.push(evt);
           }
       }

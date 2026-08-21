@@ -1,3 +1,5 @@
+import { SAVE_SCHEMA_VERSION } from "../../infrastructure/persistence/save-schema";
+import { createVirginEcs } from "../../infrastructure/persistence/ecs-factory";
 import worldMapData from "../../assets/data/world_map_data.json";
 import { createDefaultBudgetPriority, createEmptyStock, type EconomyState } from "../../core/models/economy";
 import {
@@ -425,12 +427,39 @@ function getAxialDistance(idx1: number, idx2: number): number {
     return (Math.abs(q1 - q2) + Math.abs(q1 + r1 - q2 - r2) + Math.abs(r1 - r2)) / 2;
 }
 
-function findValidLandSpawn(biomes: number[], existingSpawns: number[], minDistance: number): number {
+function resolveInitialSpawn(biomes: number[], existingSpawns: number[], minDistance: number, preference?: string): number {
+    let minRow = 40;
+    let maxRow = 330;
+    let minCol = 0;
+    let maxCol = 799;
+
+    if (preference === 'america' || preference === 'r_hex_10286') {
+        minRow = 40; maxRow = 330; minCol = 20; maxCol = 340;
+    } else if (preference === 'europe' || preference === 'r_hex_38160') {
+        minRow = 40; maxRow = 130; minCol = 370; maxCol = 490;
+    } else if (preference === 'africa' || preference === 'r_hex_30423') {
+        minRow = 122; maxRow = 280; minCol = 350; maxCol = 520;
+    } else if (preference === 'asia' || preference === 'r_hex_32989') {
+        minRow = 40; maxRow = 230; minCol = 488; maxCol = 799;
+    }
+
     const habitableIndices: number[] = [];
     for (let i = 0; i < TOTAL_HEXES; i++) {
-        if (biomes[i] === 1) habitableIndices.push(i);
+        if (biomes[i] === 1) {
+            const row = Math.floor(i / 800);
+            const col = i % 800;
+            if (row >= minRow && row <= maxRow && col >= minCol && col <= maxCol) {
+                habitableIndices.push(i);
+            }
+        }
     }
     
+    if (habitableIndices.length === 0) {
+        for (let i = 0; i < TOTAL_HEXES; i++) {
+            if (biomes[i] === 1) habitableIndices.push(i);
+        }
+    }
+
     if (habitableIndices.length === 0) {
         throw new Error("Geração de mundo falhou: Não há nenhuma região habitável (biome === 1) no mapa.");
     }
@@ -456,12 +485,6 @@ function findValidLandSpawn(biomes: number[], existingSpawns: number[], minDista
                 return idx;
             }
         }
-        // Fallback progressivo
-        currentMinDistance -= 5;
-    }
-
-    // Se nem com minDistance 0 (qualquer lugar) achou, é porque o mapa é minúsculo (menor que a qtde de reinos)
-    if (habitableIndices.length > existingSpawns.length) {
         // Pega o primeiro que ainda não foi usado
         for (const idx of habitableIndices) {
             if (!existingSpawns.includes(idx)) return idx;
@@ -669,12 +692,12 @@ export function createInitialState(staticData: StaticWorldData, playerStartRegio
   const biomes = worldMapData.biomes;
   const existingSpawns: number[] = [];
   const spawnIndices: Record<string, number> = {};
-  
-  for (const blueprint of KINGDOM_BLUEPRINTS) {
-      const idx = findValidLandSpawn(biomes, existingSpawns, 30);
-      existingSpawns.push(idx);
-      spawnIndices[blueprint.id] = idx;
-  }
+    for (const blueprint of KINGDOM_BLUEPRINTS) {
+        const preference = blueprint.isPlayer ? playerStartRegionId : undefined;
+        const idx = resolveInitialSpawn(biomes, existingSpawns, 30, preference);
+        existingSpawns.push(idx);
+        spawnIndices[blueprint.id] = idx;
+    }
 
   const kingdoms = createKingdoms(spawnIndices, staticData);
   
@@ -685,59 +708,7 @@ export function createInitialState(staticData: StaticWorldData, playerStartRegio
     kingdomToFactionId[bp.id] = idx + 1;
   });
 
-  const ecsState: EcsState = {
-    gold: new Array(totalEntities).fill(0),
-    food: new Array(totalEntities).fill(0),
-    wood: new Array(totalEntities).fill(0),
-    iron: new Array(totalEntities).fill(0),
-    faith: new Array(totalEntities).fill(0),
-    legitimacy: new Array(totalEntities).fill(0),
-    populationTotal: new Array(totalEntities).fill(0),
-    populationGrowthRate: new Array(totalEntities).fill(0),
-    manpower: new Array(totalEntities).fill(0),
-    factionCasualties: new Int32Array(256),
-    factionManpowerReserve: new Float32Array(256).fill(100),
-    accumulatedSimulatedTime: 0,
-    conquestEpoch: 0,
-    regionManpowerYield: new Float32Array(totalEntities).fill(0.1),
-    regionManpowerCap: new Float32Array(totalEntities).fill(50),
-    factionManpowerCap: new Float32Array(256).fill(0),
-    regionGoldYield: new Float32Array(totalEntities).fill(0.5),
-    factionGoldBalance: new Float32Array(256).fill(100),
-    cmdHead: 0,
-    cmdTail: 0,
-    cmdType: new Int32Array(2048),
-    cmdFaction: new Int32Array(2048),
-    cmdArg0: new Int32Array(2048),
-    cmdArg1: new Int32Array(2048),
-    regionOwner: new Int32Array(totalEntities).fill(-1),
-    regionCaptureProgress: new Float32Array(totalEntities).fill(0),
-    regionSupplyCapacity: new Float32Array(totalEntities).fill(1000),
-    regionCurrentSupply: new Float32Array(totalEntities).fill(1000),
-    factionResources: new Float32Array(256 * 3).fill(100),
-    hexStructures: new Int32Array(totalEntities).fill(0),
-    combatEventHead: 0,
-    combatEventTail: 0,
-    combatEventX: new Float32Array(1024),
-    combatEventY: new Float32Array(1024),
-    combatEventTs: new Float32Array(1024),
-    visibilityMask: new Uint8Array(totalEntities).fill(0),
-    regionDominantFaith: new Int32Array(totalEntities).fill(0),
-    regionDominantShare: new Float32Array(totalEntities).fill(1),
-    regionMinorityFaith: new Int32Array(totalEntities).fill(-1),
-    regionMinorityShare: new Float32Array(totalEntities).fill(0),
-    regionFaithUnrest: new Float32Array(totalEntities).fill(0),
-    factionPopulation: new Float32Array(256).fill(0),
-    factionRegions: new Int32Array(256).fill(0),
-    factionPopulationGrowth: new Float32Array(256).fill(0),
-    factionPeasants: new Float32Array(256).fill(0.8),
-    factionNobles: new Float32Array(256).fill(0.05),
-    factionClergy: new Float32Array(256).fill(0.05),
-    factionSoldiers: new Float32Array(256).fill(0.05),
-    factionMerchants: new Float32Array(256).fill(0.05),
-    factionPopUnrest: new Float32Array(256).fill(0)
-  };
-
+  const ecsState = createVirginEcs(totalEntities);
   // 2. Aplicar Spawns na Matriz
   for (const blueprint of KINGDOM_BLUEPRINTS) {
       const factionId = kingdomToFactionId[blueprint.id];
@@ -761,7 +732,7 @@ export function createInitialState(staticData: StaticWorldData, playerStartRegio
 
   const state: GameState = {
     meta: {
-      schemaVersion: 4,
+      schemaVersion: SAVE_SCHEMA_VERSION,
       sessionId: `session_${now}`,
       tick: 0,
       tickDurationMs: 10_000,

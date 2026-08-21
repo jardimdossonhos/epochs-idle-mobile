@@ -15,7 +15,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Text, View } from 'react-native';
+import { Text, View, DeviceEventEmitter } from 'react-native';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -189,6 +189,13 @@ function AppContent() {
   const { authStatus, isLoading: isAuthLoading } = useAuth();
   const { gameState } = useGameState();
   const [appState, setAppState] = useState<RootAppState>('splash');
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('navigateTo', (screen: RootAppState) => {
+      setAppState(screen);
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     if (isAuthLoading) {

@@ -82,20 +82,7 @@ export interface RuntimeMetrics {
 
 // Removemos o REGION_INDEX_MAP em favor do conversor global
 
-function serializeEcsState(ecs?: EcsState): any {
-  if (!ecs) return undefined;
-  const serialized: any = {};
-  for (const key of Object.keys(ecs) as Array<keyof EcsState>) {
-    const val = (ecs as any)[key];
-    if (val === undefined || val === null) continue;
-    if (val instanceof Float64Array || val instanceof Float32Array || val instanceof Int32Array || Array.isArray(val)) {
-      serialized[key] = Array.from(val);
-    } else {
-      serialized[key] = val;
-    }
-  }
-  return serialized;
-}
+
 
 export class GameSession {
   private readonly pipeline: TickPipeline;
@@ -112,6 +99,9 @@ export class GameSession {
   private isWorkerReady = false; // Bloqueio de segurança (Handshake)
   private pendingManualSaveResolver: (() => void) | null = null;
   private pendingAutosave = false;
+  private isSaving = false;
+  private saveQueued = false;
+  private lastAutosaveAt = 0;
   private runtimeMetrics: RuntimeMetrics = {
     tickMsLast: 0,
     tickMsAverage: 0,
@@ -340,19 +330,11 @@ export class GameSession {
     this.currentState.meta.lastClosedAt = now;
     this.recordSystemCommand("session.stop", { reason: "manual_stop" }, now);
 
-    // Converte os Float64Arrays para Arrays normais antes de serializar
-    // Isso previne o bug onde o F5 corrompe os recursos gerando um objeto vazio {}
-    const safeState = structuredClone(this.currentState);
-    if (safeState.ecs) {
-      // Bypass no structuredClone: extraímos os arrays nativos da fonte viva imune à corrupção de Proxy
-      safeState.ecs = serializeEcsState(this.currentState.ecs);
-    }
-
     if (sync) {
-      this.deps.gameStateRepository.saveCurrentSync(safeState);
+      this.deps.gameStateRepository.saveCurrentSync(this.currentState);
     } else {
       this.enqueueIo(async () => {
-        await this.deps.gameStateRepository.saveCurrent(safeState);
+        await this.deps.gameStateRepository.saveCurrent(this.currentState!);
       });
     }
   }
@@ -1623,7 +1605,7 @@ export class GameSession {
       throw new Error(`Save slot ${slotId} não encontrado ou corrompido.`);
     }
 
-    this.currentState = structuredClone(snapshot.state);
+    this.currentState = snapshot.state;
     this.migrateLegacyState(this.currentState);
     this.currentState.meta.lastUpdatedAt = this.deps.clock.now();
     // Inicia pausado ao carregar um save manual
@@ -1657,7 +1639,7 @@ export class GameSession {
     await this.clearCurrentState();
     
     // Sobrescreve completamente o estado atual na memória
-    this.currentState = structuredClone(initialState);
+    this.currentState = initialState;
     this.currentState.meta.lastUpdatedAt = this.deps.clock.now();
     this.currentState.meta.paused = true;
     
@@ -1696,12 +1678,8 @@ export class GameSession {
   public async triggerAutosave(): Promise<void> {
     if (!this.currentState) return;
     this.doCommitAutosave();
-    const safeState = structuredClone(this.currentState);
-    if (safeState.ecs) {
-      safeState.ecs = serializeEcsState(this.currentState.ecs);
-    }
     this.enqueueIo(async () => {
-      await this.deps.gameStateRepository.saveCurrent(safeState);
+      await this.deps.gameStateRepository.saveCurrent(this.currentState!);
     });
     await this.ioQueue;
   }
@@ -2902,9 +2880,13 @@ export class GameSession {
         this.recordTickCommands(previousTick, result.state.meta.tick, result.events, simNow);
         this.checkCivicUnlocks(result.state);
 
-        if (this.ticksSinceAutosave >= (this.deps.autosaveEveryTicks ?? 300)) {
-          this.ticksSinceAutosave = 0;
+        const AUTOSAVE_INTERVAL_MS = 60000;
+        const realtimeNow = this.monotonicNow();
+        if (this.lastAutosaveAt === 0) this.lastAutosaveAt = realtimeNow;
+        
+        if (realtimeNow - this.lastAutosaveAt >= AUTOSAVE_INTERVAL_MS) {
           this.runAutosave();
+          this.lastAutosaveAt = realtimeNow;
         }
 
         const snapshotEveryTicks = Math.max(1, this.deps.snapshotEveryTicks ?? 25);
@@ -2943,10 +2925,24 @@ export class GameSession {
   }
 
   private runAutosave(): void {
-    if (!this.currentState) {
+    if (!this.currentState) return;
+    if (this.isSaving) {
+      this.saveQueued = true;
       return;
     }
+    this.isSaving = true;
     this.doCommitAutosave();
+    this.enqueueIo(async () => {
+      try {
+        await this.deps.gameStateRepository.saveCurrent(this.currentState!);
+      } finally {
+        this.isSaving = false;
+        if (this.saveQueued) {
+          this.saveQueued = false;
+          this.runAutosave();
+        }
+      }
+    });
   }
 
   private buildSaveSlotSnapshot(slotId: SaveSlotId): SaveSnapshot {
@@ -2959,10 +2955,7 @@ export class GameSession {
       meta: { ...state.meta }
     };
 
-    // Converte os TypedArrays do ECS para Arrays normais sem truncar nenhuma propriedade do ECS
-    if (state.ecs) {
-      stateCopy.ecs = serializeEcsState(state.ecs);
-    }
+
 
     return {
       summary: buildSaveSummary(slotId, stateCopy, now),
@@ -2981,7 +2974,7 @@ export class GameSession {
       commandSequence: this.commandSequence,
       commandHash: this.commandHeadHash,
       stateHash: buildStateHash(state),
-      state: structuredClone(state)
+      state: state
     };
   }
 
@@ -3087,7 +3080,7 @@ export class GameSession {
     if (this.deps.snapshotRepository) {
       const latestSnapshot = await this.deps.snapshotRepository.latest();
       if (latestSnapshot) {
-        return structuredClone(latestSnapshot.state);
+        return latestSnapshot.state;
       }
     }
 
@@ -3100,7 +3093,7 @@ export class GameSession {
     for (const slot of slots) {
       const snapshot = await this.deps.saveRepository.loadFromSlot(slot.slotId);
       if (snapshot) {
-        return structuredClone(snapshot.state);
+        return snapshot.state;
       }
     }
 
@@ -3393,3 +3386,4 @@ export class GameSession {
     this.enqueueCommandEntries(entries);
   }
 }
+

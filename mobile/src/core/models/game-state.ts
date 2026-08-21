@@ -83,8 +83,8 @@ export interface KingdomState {
   adjective: string;
   isPlayer: boolean;
   capitalRegionId: string;
-  rulerId?: string; // NOVO: O ID do Personagem que governa o impÃ©rio
-  heirs: string[]; // IDs dos herdeiros em ordem de sucessÃ£o
+  rulerId?: string; // NOVO: O ID do Personagem que governa o império
+  heirs: string[]; // IDs dos herdeiros em ordem de sucessão
   ownedRegionIds?: string[]; // Cached list of owned region IDs
   capabilities: KingdomCapabilities;
   economy: EconomyState;

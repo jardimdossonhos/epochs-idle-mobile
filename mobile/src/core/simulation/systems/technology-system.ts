@@ -1,3 +1,4 @@
+﻿import { creditGold } from "../../ecs/economy-api";
 import { buildEvent } from "../../ecs/event-pool";
 import { TechnologyDomain } from "../../models/enums";
 import type { KingdomState } from "../../models/game-state";
@@ -7,7 +8,7 @@ import { getGovernmentModifiers } from "../../data/government-types";
 import type { SimulationSystem } from "../tick-pipeline";
 import { clamp, createEventId, roundTo } from "./utils";
 
-function applyResearchEffects(kingdom: KingdomState, node: TechnologyNode): void {
+function applyResearchEffects(state: any, kingdom: KingdomState, node: TechnologyNode): void {
   for (const effectObj of node.effects) {
     const effect = effectObj.target;
     const value = effectObj.value;
@@ -37,7 +38,7 @@ function applyResearchEffects(kingdom: KingdomState, node: TechnologyNode): void
         kingdom.population.growthRatePerTick = roundTo(clamp(kingdom.population.growthRatePerTick + value, 0.00005, 0.0005), 6);
         break;
       case "economy.goldStock":
-        kingdom.economy.stock.gold = roundTo(Math.max(0, kingdom.economy.stock.gold + value));
+        creditGold(state, kingdom.id, value, "technology_event");
         break;
       case "economy.foodStock":
         kingdom.economy.stock.food = roundTo(Math.max(0, kingdom.economy.stock.food + value));
@@ -163,7 +164,7 @@ export function createTechnologySystem(): SimulationSystem {
           }
         }
 
-        applyResearchEffects(kingdom, activeNode);
+        applyResearchEffects(context.nextState, kingdom, activeNode);
         const next = selectNextResearchNode(kingdom);
         kingdom.technology.activeResearchId = next?.id ?? null;
 

@@ -84,7 +84,7 @@ function startClock(): void {
   }
 
   if (!world || !economy || !population || !military || activeEntities.length === 0) {
-    // Ainda nÃ£o inicializado via INIT; nÃ£o inicia o relÃ³gio.
+    // Ainda não inicializado via INIT; não inicia o relógio.
     return;
   }
 
@@ -126,7 +126,7 @@ function startClock(): void {
 
       debugTickCount++;
       if (debugTickCount % 40 === 0) { // Log aprox a cada 10s reais
-        DiagnosticWorker.trace("WRK-ADT", `Tick FÃ­sico ${debugTickCount} processado.`, { speed: `${speedMultiplier}x`, deltaMs: deltaTimeSeconds });
+        DiagnosticWorker.trace("WRK-ADT", `Tick Físico ${debugTickCount} processado.`, { speed: `${speedMultiplier}x`, deltaMs: deltaTimeSeconds });
       }
 
       const message: TickMessage = {
@@ -207,12 +207,12 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
         biome: command.payload.biomeData
       };
       activeEntities.length = 0;
-      // Apenas aloca as entidades. O preenchimento virÃ¡ do RESTORE_ECS_STATE ou de uma lÃ³gica de "novo jogo".
+      // Apenas aloca as entidades. O preenchimento virá do RESTORE_ECS_STATE ou de uma lógica de "novo jogo".
       for (let i = 0; i < count; i += 1) {
         const entityId = world.createEntity();
         activeEntities.push(entityId);
       }
-      DiagnosticWorker.trace("WRK-ECS", `AlocaÃ§Ã£o Inicial ECS concluÃ­da. Reservados blocos para ${count} provÃ­ncias.`, { geoMatrixSize: geography?.isWater.length });
+      DiagnosticWorker.trace("WRK-ECS", `Alocação Inicial ECS concluída. Reservados blocos para ${count} províncias.`, { geoMatrixSize: geography?.isWater.length });
       break;
     }
     case "EXTRACT_SAVE_STATE": {
@@ -260,13 +260,13 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
     }
     case "RESTORE_ECS_STATE": {
       if (!economy || !population || !military) {
-        DiagnosticWorker.warn("WRK-ERR", "Comando de RestauraÃ§Ã£o falhou: Arrays nulos antes do preenchimento.");
+        DiagnosticWorker.warn("WRK-ERR", "Comando de Restauração falhou: Arrays nulos antes do preenchimento.");
         return;
       }
       const state = command.payload;
       
       // Usamos o tamanho alocado internamente. Mesmo que o JSON recebido 
-      // seja um objeto esparso, garantimos que todos os Ã­ndices recebam o valor ou 0.
+      // seja um objeto esparso, garantimos que todos os índices recebam o valor ou 0.
       if (state.gold) {
         const len = economy.gold.length;
         let nonZeroCount = 0;
@@ -296,11 +296,11 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
         }
         DiagnosticWorker.trace(
           "WRK-ECS",
-          `RestauraÃ§Ã£o Finalizada: ${len} cÃ©lulas restauradas. ${nonZeroCount} continham dados nÃ£o nulos.`
+          `Restauração Finalizada: ${len} células restauradas. ${nonZeroCount} continham dados não nulos.`
         );
       }
       
-      // Handshake CrÃ­tico: Avisa a Main Thread que os dados foram restaurados com sucesso
+      // Handshake Crítico: Avisa a Main Thread que os dados foram restaurados com sucesso
       self.postMessage({ type: "WORKER_STATE_RESTORED" });
       break;
     }
@@ -310,7 +310,7 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
       const { target, operation, value, indices } = command.payload;
       let targetArray: Float64Array | null = null;
 
-      // Roteamento O(1): Mapeia a string segura para o ponteiro de memÃ³ria real
+      // Roteamento O(1): Mapeia a string segura para o ponteiro de memória real
       switch (target) {
         case "gold": targetArray = economy.gold; break;
         case "food": targetArray = economy.food; break;
@@ -323,14 +323,14 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
       }
 
       if (!targetArray) {
-        DiagnosticWorker.warn("WRK-ERR", `APPLY_ECS_EFFECTS ignorado: alvo '${target}' nÃ£o encontrado na arquitetura.`);
+        DiagnosticWorker.warn("WRK-ERR", `APPLY_ECS_EFFECTS ignorado: alvo '${target}' não encontrado na arquitetura.`);
         return;
       } else {
         DiagnosticWorker.trace("WRK-ECS", `APPLY_ECS_EFFECTS: { op: ${operation}, target: ${target}, val: ${value}, indices: ${indices.length} }`);
       }
 
       if (operation === "subtract_empire_total") {
-        // Rateio Proporcional (TaxaÃ§Ã£o Uniforme): Drena recursos percentualmente baseando-se no total do impÃ©rio
+        // Rateio Proporcional (Taxação Uniforme): Drena recursos percentualmente baseando-se no total do império
         let empireTotal = 0;
         for (let i = 0; i < indices.length; i++) {
           const idx = indices[i];
@@ -347,20 +347,20 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
           }
         }
       } else if (operation === "add_empire_total") {
-        // Rateio IgualitÃ¡rio: Distribui uma injeÃ§Ã£o global de recurso fatiada igualmente por todos os territÃ³rios
+        // Rateio Igualitário: Distribui uma injeção global de recurso fatiada igualmente por todos os territórios
         const slice = indices.length > 0 ? value / indices.length : 0;
         for (let i = 0; i < indices.length; i++) {
           const idx = indices[i];
           if (idx >= 0 && idx < targetArray.length) targetArray[idx] += slice;
         }
       } else {
-        // MutaÃ§Ã£o em Lote de Alta Performance Original (Aplica o valor BRUTO em CADA provÃ­ncia, ideal para Modo Deus e Desastres Locais)
+        // Mutação em Lote de Alta Performance Original (Aplica o valor BRUTO em CADA província, ideal para Modo Deus e Desastres Locais)
         for (let i = 0; i < indices.length; i++) {
           const idx = indices[i];
           if (idx >= 0 && idx < targetArray.length) {
             if (operation === "add") targetArray[idx] += value;
             else if (operation === "set") targetArray[idx] = value;
-            else if (operation === "subtract") targetArray[idx] = Math.max(0, targetArray[idx] - value); // ProteÃ§Ã£o contra recursos negativos
+            else if (operation === "subtract") targetArray[idx] = Math.max(0, targetArray[idx] - value); // Proteção contra recursos negativos
           }
         }
       }

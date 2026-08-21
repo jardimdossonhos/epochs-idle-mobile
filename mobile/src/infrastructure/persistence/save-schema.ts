@@ -1,3 +1,5 @@
+﻿import { createVirginEcs } from "./ecs-factory";
+import { restoreEcsFromSnapshot, EcsSnapshot } from "./ecs-snapshot";
 import type { SaveSnapshot } from "../../core/contracts/game-ports";
 import type { Treaty } from "../../core/models/diplomacy";
 import { AutomationLevel, TechnologyDomain } from "../../core/models/enums";
@@ -6,7 +8,7 @@ import { buildTreatyId, buildWarIdFromSides, sortUniqueIds } from "../../core/mo
 import type { WarId } from "../../core/models/types";
 import { generateCulturalName, CultureId } from "../../core/simulation/systems/culture-generator";
 
-export const SAVE_SCHEMA_VERSION = 4;
+export const SAVE_SCHEMA_VERSION = 2;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -50,7 +52,7 @@ export function isValidGameStateShape(input: unknown): input is GameState {
 }
 
 function isKnownSchemaVersion(version: number): boolean {
-  return Number.isInteger(version) && version >= 1 && version <= SAVE_SCHEMA_VERSION;
+  return version === SAVE_SCHEMA_VERSION;
 }
 
 function migrateWars(state: GameState): void {
@@ -157,8 +159,12 @@ export function migrateStateToCurrent(state: GameState): GameState {
   migrateWars(migrated);
   migrateTreaties(migrated);
 
-  if (migrated.ecs) {
-    sanitizeEcsState(migrated.ecs);
+  if ((migrated as any).ecsSnapshot) {
+    // Find total entities - use 10000 as fallback if unknown, but typically it should be based on world
+    const totalEntities = Math.max(10000, migrated.world?.regions ? Object.keys(migrated.world.regions).length : 0);
+    migrated.ecs = createVirginEcs(totalEntities);
+    restoreEcsFromSnapshot(migrated.ecs, (migrated as any).ecsSnapshot as EcsSnapshot);
+    delete (migrated as any).ecsSnapshot;
   }
 
   const worldMutable = migrated.world as GameState["world"] & {

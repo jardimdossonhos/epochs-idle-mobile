@@ -1,3 +1,4 @@
+﻿import { debitGold } from "../../core/ecs/economy-api";
 import type { WarResolver } from "../../core/contracts/services";
 import type { Treaty } from "../../core/models/diplomacy";
 import { DiplomaticRelation, TreatyType } from "../../core/models/enums";
@@ -6,6 +7,7 @@ import { buildTreatyId, sortUniqueIds, buildWarIdFromSides } from "../../core/mo
 import type { StaticWorldData } from "../../core/models/static-world-data";
 import type { KingdomId } from "../../core/models/types";
 import type { DomainEvent } from "../../core/models/events";
+import { getCanonicalRegionOwner, getRegionIndex } from "../../core/simulation/systems/utils";
 
 const PEACE_TREATY_DURATION_MS = 1000 * 60 * 28;
 const WAR_DECLARATION_COOLDOWN_MS = 1000 * 60 * 6;
@@ -183,11 +185,11 @@ function findBorderFrontsMany(
   const defenderRegionSet = new Set<string>();
   for (const d of defenders) {
     for (const rId of Object.keys(state.world.regions)) {
-      if (state.world.regions[rId].ownerId === d) defenderRegionSet.add(rId);
+      if (getCanonicalRegionOwner(state, rId) === d) defenderRegionSet.add(rId);
     }
   }
   for (const a of attackers) {
-    const attackerRegions = Object.keys(state.world.regions).filter(rId => state.world.regions[rId].ownerId === a);
+    const attackerRegions = Object.keys(state.world.regions).filter(rId => getCanonicalRegionOwner(state, rId) === a);
     for (const rId of attackerRegions) {
       const def = definitions[rId];
       if (!def) continue;
@@ -212,13 +214,13 @@ function findBorderFronts(
 ): WarFront[] {
   const attackerRegions = Object.keys(state.world.regions)
     .sort()
-    .filter((regionId) => state.world.regions[regionId].ownerId === attackerId)
+    .filter((regionId) => getCanonicalRegionOwner(state, regionId) === attackerId)
     .sort();
 
   const defenderRegionSet = new Set(
     Object.keys(state.world.regions)
       .sort()
-      .filter((regionId) => state.world.regions[regionId].ownerId === defenderId)
+      .filter((regionId) => getCanonicalRegionOwner(state, regionId) === defenderId)
   );
 
   const fronts: WarFront[] = [];
@@ -247,7 +249,7 @@ function findBorderFronts(
     return fronts;
   }
 
-  const defenderRegions = Object.keys(state.world.regions).filter(r => state.world.regions[r].ownerId === defenderId);
+  const defenderRegions = Object.keys(state.world.regions).filter(r => getCanonicalRegionOwner(state, r) === defenderId);
   const attackerCenter = definitions[state.kingdoms[attackerId]?.capitalRegionId]?.center;
   let bestFallback = state.kingdoms[defenderId]?.capitalRegionId ?? state.kingdoms[attackerId].capitalRegionId;
   
@@ -307,7 +309,7 @@ function applyConquest(
 
   const winnerRegions = Object.keys(state.world.regions)
     .sort()
-    .filter((regionId) => state.world.regions[regionId].ownerId === winnerId)
+    .filter((regionId) => getCanonicalRegionOwner(state, regionId) === winnerId)
     .sort();
 
   const candidates = new Set<string>();
@@ -321,7 +323,7 @@ function applyConquest(
 
     for (const neighborId of definition.neighbors) {
       const neighborState = state.world.regions[neighborId];
-      if (neighborState && loserSet.has(neighborState.ownerId)) {
+      if (neighborState && loserSet.has(getCanonicalRegionOwner(state, neighborId))) {
         candidates.add(neighborId);
       }
     }
@@ -341,7 +343,7 @@ function applyConquest(
 
     targetRegionId = sortedCandidates[0] ?? null;
   } else {
-    const loserRegions = Object.keys(state.world.regions).filter(regionId => loserSet.has(state.world.regions[regionId].ownerId));
+    const loserRegions = Object.keys(state.world.regions).filter(regionId => loserSet.has(getCanonicalRegionOwner(state, regionId)));
     let fallback = loserRegions[0];
     let minDistance = Infinity;
     for (const rId of loserRegions) {
@@ -363,6 +365,15 @@ function applyConquest(
 
   region.ownerId = winnerId;
   region.controllerId = winnerId;
+  
+  const rIdx = getRegionIndex(targetRegionId);
+  if (rIdx !== -1 && state.ecs) {
+    if (winnerId === "k_player") {
+      state.ecs.regionOwner[rIdx] = 1;
+    } else if (winnerId.startsWith("k_npc_")) {
+      state.ecs.regionOwner[rIdx] = parseInt(winnerId.replace("k_npc_", "")) + 1;
+    }
+  }
   region.autonomy = roundTo(clamp(region.autonomy + 0.2, 0, 1));
   region.assimilation = roundTo(clamp(Math.min(region.assimilation, 0.36), 0, 1));
   region.unrest = roundTo(clamp(region.unrest + 0.3, 0, 1));
@@ -564,7 +575,7 @@ export class LocalWarResolver implements WarResolver {
         attacker.diplomacy.warExhaustion = roundTo(
           clamp(attacker.diplomacy.warExhaustion + 0.003 + intensity * 0.004 + longWarPressure * 0.008, 0, 1)
         );
-        attacker.economy.stock.gold = roundTo(Math.max(0, attacker.economy.stock.gold - longWarPressure * (0.22 + intensity * 0.14)));
+        debitGold(state, attacker.id, longWarPressure * (0.22 + intensity * 0.14), "war_pressure");
       }
 
       for (const defenderId of war.defenders) {
@@ -573,7 +584,7 @@ export class LocalWarResolver implements WarResolver {
         defender.diplomacy.warExhaustion = roundTo(
           clamp(defender.diplomacy.warExhaustion + 0.0035 + intensity * 0.004 + longWarPressure * 0.009, 0, 1)
         );
-        defender.economy.stock.gold = roundTo(Math.max(0, defender.economy.stock.gold - longWarPressure * (0.24 + intensity * 0.16)));
+        debitGold(state, defender.id, longWarPressure * (0.24 + intensity * 0.16), "war_pressure");
       }
 
       if (war.warScore >= CONQUEST_THRESHOLD) {

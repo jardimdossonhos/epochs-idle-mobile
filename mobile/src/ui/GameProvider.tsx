@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+﻿import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AppState } from 'react-native';
 import { GameSession } from '../application/game-session';
 import { createStaticWorldData } from '../application/boot/static-world-data';
@@ -67,6 +67,7 @@ const GameContext = createContext<GameContextData>({
 
 export const useGameState = () => useContext(GameContext);
 
+import { logAuditBoot } from "../application/audit-logger";
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<GameSession | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -81,6 +82,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const warResolver = new LocalWarResolver(staticWorldData);
     const clock = new NativeClockService();
 
+    console.log(`[SESSION-LIFECYCLE] SUBSCRIBE | GameProvider effect starting`);
     const newSession = new GameSession({
       gameStateRepository: new MobileGameStateRepository(mmkvStorage),
       saveRepository: new MobileSaveRepository(mmkvStorage) as any,
@@ -100,6 +102,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
 
     let syncInterval: any;
+    let unsubEventBus: (() => void) | null = null;
+
+    unsubEventBus = eventBus.subscribe("game.loaded", (event: any) => {
+      console.log("[GameProvider] [SESSION-LIFECYCLE] SYNCHRONOUS STATE UPDATE via game.loaded event");
+      const s = newSession.getState();
+      if (s) {
+        // Force immediate update to Context
+        setGameState({ ...s });
+      }
+    });
 
     const initGame = async () => {
       try {
@@ -111,7 +123,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         // Since we run synchronously on mobile (no Web Worker yet), we instantly mark the worker as ready.
         newSession.markWorkerReady();
 
-        // ── HYDRATION GATE (TURNO ZERO) ───────────────────────────────────────────────────
+        // â”€â”€ HYDRATION GATE (TURNO ZERO) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Antes de qualquer tick, aterramos o lastUpdatedAt para Date.now().
         // Isso garante que o clock não veja nenhuma dívida de tempo entre o
         // momento em que o save foi gerado e o boot atual. Sem isso, o delta do
@@ -129,14 +141,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           // Avança exatamente um tick para preencher agregações de População,
           // Territórios e Recursos antes de mostrar qualquer coisa na UI.
           // Como justUnpaused=true neste ponto, o clock descarta o primeiro
-          // delta real — por isso usamos advanceTimeForTesting (forcândo ignorePause).
+          // delta real â€” por isso usamos advanceTimeForTesting (forcândo ignorePause).
           newSession.advanceTimeForTesting(s.meta.tickDurationMs);
           s.meta.paused = wasPaused;
         }
 
         // Force first state grab (now fully hydrated with Turn 0 aggregates)
         const startingState = newSession.getState();
-        setGameState({ ...startingState });
+        logAuditBoot("3. GameProvider recebe estado", startingState, newSession.getState()?.meta.sessionId); setGameState({ ...startingState });
         setSession(newSession);
 
         // --- TEMPORARY AUDIT INSTRUMENTATION ---
@@ -161,7 +173,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }, 1000);
         // ----------------------------------------
 
-        // ── SYNC SÍNCRONO DO HUD (Corrige "Piscar para zero") ──
+        // â”€â”€ SYNC SÍNCRONO DO HUD (Corrige "Piscar para zero") â”€â”€
         const pId = Object.keys(startingState.kingdoms).find(id => startingState.kingdoms[id].isPlayer) || "k_player";
         const pk = startingState.kingdoms[pId];
         const pe = pk?.economy;
@@ -186,7 +198,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           playerRegions: Math.floor(startingState?.ecs?.factionRegions?.[1] ?? pk?.ownedRegionIds?.length ?? 0)
         });
 
-        // ── State Summarizer: payload leve com escalares O(1) ───────────
+        // â”€â”€ State Summarizer: payload leve com escalares O(1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Nunca passar TypedArrays para JSON.stringify (OOM em 320k entidades).
         // Apenas escalares do KingdomState e buffers de facção agregados pelo ECS.
         const pKingdomId = Object.keys(startingState.kingdoms).find(
@@ -310,7 +322,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                   playerHasAscended: nextAscended,
                   playerAscensionEligible: nextEligible,
                   playerAscensionPostponed: nextPostponed,
-                  // ── Demographic modal data (O(1) reads from ECS Piggybacking) ──
+                  // â”€â”€ Demographic modal data (O(1) reads from ECS Piggybacking) â”€â”€
                   playerPopulationGrowth: state?.ecs?.factionPopulationGrowth?.[1] ?? 0,
                   playerPopPeasants:   state?.ecs?.factionPeasants?.[1]   ?? 0,
                   playerPopNobles:     state?.ecs?.factionNobles?.[1]     ?? 0,
@@ -318,7 +330,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                   playerPopSoldiers:   state?.ecs?.factionSoldiers?.[1]   ?? 0,
                   playerPopMerchants:  state?.ecs?.factionMerchants?.[1]  ?? 0,
                   playerPopUnrest:     state?.ecs?.factionPopUnrest?.[1]  ?? 0,
-                  // ── Territory modal data (O(1) reads from KingdomState — no loops) ──
+                  // â”€â”€ Territory modal data (O(1) reads from KingdomState â€” no loops) â”€â”€
                   playerAdminCapacity:     k?.administration?.adminCapacity     ?? 0,
                   playerUsedAdminCapacity: k?.administration?.usedCapacity      ?? 0,
                   ...(shouldUpdateFeed ? { worldFeed: state.events.slice(-100) } : {})
@@ -370,9 +382,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
+      console.log(`[SESSION-LIFECYCLE] UNSUBSCRIBE | GameProvider effect cleanup`);
       subscription.remove();
       newSession.stop();
       if (syncInterval) clearInterval(syncInterval);
+      if (unsubEventBus) unsubEventBus();
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
       }
