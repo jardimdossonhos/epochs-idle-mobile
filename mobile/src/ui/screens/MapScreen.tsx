@@ -2,11 +2,11 @@
  * MapScreen.tsx
  *
  * Conecta o SimulationCanvas (Skia) ao GameSession (ECS) sem usar o Web Worker,
- * que não é suportado em React Native bare workflow.
+ * que nÃ£o Ã© suportado em React Native bare workflow.
  *
  * Fluxo de dados:
- *   GameProvider (ECS) â†’ useGameState() â†’ ecsState.regionOwner (Int32Array)
- *                     â†’ useSharedValue  â†’ SimulationCanvas
+ *   GameProvider (ECS) Ã¢â€ â€™ useGameState() Ã¢â€ â€™ ecsState.regionOwner (Int32Array)
+ *                     Ã¢â€ â€™ useSharedValue  Ã¢â€ â€™ SimulationCanvas
  */
 import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
@@ -19,11 +19,34 @@ import { useGameState }      from '../GameProvider';
 import { useUiStore }        from '../stores/use-ui-store';
 import RegionDetailPanel     from '../components/RegionDetailPanel';
 
-// â”€â”€â”€ noop dispatch (combat commands disabled without the Worker engine) â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ noop dispatch (combat commands disabled without the Worker engine) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const NOOP_DISPATCH = (_cmd: [number, number, number, number]) => {};
 
 import { logAuditBoot } from "../../application/audit-logger";
+import { P10Counters } from '../p10-instrumentation';
+const P13_EXPERIMENT_MINIMAL_MAPSCREEN = true;
+
 export default function MapScreen() {
+  P10Counters.mapRenders++;
+  if (P13_EXPERIMENT_MINIMAL_MAPSCREEN) {
+    P10Counters.mapMinimalRenders++;
+    return <MapScreenMinimal />;
+  }
+  P10Counters.mapHeavyRenders++;
+  return <MapScreenHeavyContent />;
+}
+
+function MapScreenMinimal() {
+  return (
+    <View style={styles.container}>
+      <Text style={{ color: 'white', alignSelf: 'center', marginTop: 100 }}>
+        [P13] Minimal MapScreen
+      </Text>
+    </View>
+  );
+}
+
+function MapScreenHeavyContent() {
   const { gameState } = useGameState();
   const selectedHex   = useUiStore((s) => s.selectedHex);
   const clearSelection = useUiStore((s) => s.clearSelection);
@@ -46,7 +69,7 @@ export default function MapScreen() {
   const regionOwner          = useSharedValue<Int32Array>(new Int32Array(320000));
   const mapUpdateTrigger     = useSharedValue<number>(0);
 
-  // Empty placeholders â€” no Worker, no live army/combat data yet
+  // Empty placeholders Ã¢â‚¬â€ no Worker, no live army/combat data yet
   const currentArmyData      = useSharedValue<Float32Array>(new Float32Array(2048 * 4).fill(-1));
   const lastArmyData         = useSharedValue<Float32Array>(new Float32Array(2048 * 4).fill(-1));
   const tickProgress         = useSharedValue<number>(1);
@@ -57,7 +80,7 @@ export default function MapScreen() {
   const lastUpdateTs = React.useRef(0);
   const timeoutRef = React.useRef<any>(null);
 
-  // Shadow cache no JS Heap para Diffing rápido (Alocado UMA VEZ no boot)
+  // Shadow cache no JS Heap para Diffing rÃ¡pido (Alocado UMA VEZ no boot)
   const localRegionCache = useRef(new Int32Array(320000));
   const localStructuresCache = useRef(new Int32Array(320000));
 
@@ -65,7 +88,7 @@ export default function MapScreen() {
   useEffect(() => {
     // BLINDAGEM DE UNMOUNT (Anti-EGLConsumer Leak):
     // Se o componente for desmontado enquanto um sync estiver pendente via setTimeout,
-    // o runOnUI tentaria escrever em uma C++ View já destruída, gerando o spam no Logcat:
+    // o runOnUI tentaria escrever em uma C++ View jÃ¡ destruÃ­da, gerando o spam no Logcat:
     // "[SurfaceTexture...] updateAndRelease: EGLConsumer is not attached to an OpenGL ES context"
     // A flag isMounted e o clearTimeout no cleanup erradicam esse comportamento.
     let isMounted = true;
@@ -90,13 +113,19 @@ export default function MapScreen() {
       }
 
       if (deltas.length > 0) {
-        runOnUI((updates: number[], sv: any, trigger: any) => {
-          'worklet';
-          for (let i = 0; i < updates.length; i += 2) {
-            sv.value[updates[i]] = updates[i+1];
-          }
-          trigger.value += 1;
-        })(deltas, regionOwner, mapUpdateTrigger);
+        const P8_EXPERIMENT_DISABLE_MAP_REANIMATED_DIFF = false;
+        if (!P8_EXPERIMENT_DISABLE_MAP_REANIMATED_DIFF) {
+          P10Counters.runOnUICalls++;
+          runOnUI((updates: number[], sv: any, trigger: any) => {
+            'worklet';
+            for (let i = 0; i < updates.length; i += 2) {
+              sv.value[updates[i]] = updates[i+1];
+            }
+            trigger.value += 1;
+          })(deltas, regionOwner, mapUpdateTrigger);
+        } else {
+          // P8 EXPERIMENT â€” Reanimated diff propagation disabled; React and SimulationCanvas remain active.
+        }
       }
 
       // Also sync hexStructures if available using the same Delta approach
@@ -115,13 +144,19 @@ export default function MapScreen() {
         }
 
         if (deltasS.length > 0) {
+          const P8_EXPERIMENT_DISABLE_MAP_REANIMATED_DIFF = false;
+          if (!P8_EXPERIMENT_DISABLE_MAP_REANIMATED_DIFF) {
+            P10Counters.runOnUICalls++;
           runOnUI((updates: number[], sv: any, trigger: any) => {
-            'worklet';
-            for (let i = 0; i < updates.length; i += 2) {
-              sv.value[updates[i]] = updates[i+1];
-            }
-            trigger.value += 1;
-          })(deltasS, hexStructures, structureUpdateTrigger);
+              'worklet';
+              for (let i = 0; i < updates.length; i += 2) {
+                sv.value[updates[i]] = updates[i+1];
+              }
+              trigger.value += 1;
+            })(deltasS, hexStructures, structureUpdateTrigger);
+          } else {
+            // P8 EXPERIMENT â€” Reanimated diff propagation disabled; React and SimulationCanvas remain active.
+          }
         }
       }
     };
@@ -148,7 +183,7 @@ export default function MapScreen() {
 
     return () => {
       // Cancela qualquer sync pendente e sinaliza desmonte para que o callback
-      // não tente escrever em SharedValues de um Canvas EGL já destruído.
+      // nÃ£o tente escrever em SharedValues de um Canvas EGL jÃ¡ destruÃ­do.
       isMounted = false;
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -157,12 +192,12 @@ export default function MapScreen() {
     };
   }, [gameState]);
 
-  // Câmera reativa: Só foca se a tela estiver com as dimensões prontas E a capital existir no ECS
+  // CÃ¢mera reativa: SÃ³ foca se a tela estiver com as dimensÃµes prontas E a capital existir no ECS
   useEffect(() => {
     if (isCanvasReady && !hasFocusedOnBoot.current && capitalHexId !== undefined && canvasRef.current) {
       const col = capitalHexId % 800;
       const row = Math.floor(capitalHexId / 800);
-      console.log("[AUDIT-BOOT] 8. Câmera recebeu novo target: ", col, row); canvasRef.current.focusOnCapital(col, row, 2.0);
+      console.log("[AUDIT-BOOT] 8. CÃ¢mera recebeu novo target: ", col, row); canvasRef.current.focusOnCapital(col, row, 2.0);
       hasFocusedOnBoot.current = true;
     }
   }, [isCanvasReady, capitalHexId]);
@@ -174,7 +209,7 @@ export default function MapScreen() {
   return (
     <View style={styles.container}>
 
-      {/* â”€â”€ Map layer (full-bleed, behind TopHUD) â”€â”€ */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Map layer (full-bleed, behind TopHUD) Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <View style={styles.mapLayer} onLayout={onMapLayout}>
         <SimulationCanvas
           ref={canvasRef}
@@ -191,11 +226,11 @@ export default function MapScreen() {
         />
       </View>
 
-      {/* â”€â”€ UI overlays (pointerEvents pass-through) â”€â”€ */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ UI overlays (pointerEvents pass-through) Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <View style={styles.uiLayer} pointerEvents="box-none">
         <ImperialOverlay />
 
-        {/* â”€â”€ Painel Modal Focado (Scrim + Centralização) â”€â”€ */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Painel Modal Focado (Scrim + CentralizaÃ§Ã£o) Ã¢â€â‚¬Ã¢â€â‚¬ */}
         {selectedHex && (
           <View style={styles.modalOverlay} pointerEvents="auto">
             <TouchableOpacity 
@@ -213,25 +248,25 @@ export default function MapScreen() {
           </View>
         )}
 
-        {/* â”€â”€ Lens Controls (Top Right) â”€â”€ */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Lens Controls (Top Right) Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <View style={styles.lensControlsContainer} pointerEvents="box-none">
           <TouchableOpacity 
             style={[styles.lensBtn, mapLens === 'PHYSICAL' && styles.lensBtnActive]} 
             onPress={() => setMapLens('PHYSICAL')}
             activeOpacity={0.7}
           >
-            <Text style={styles.lensBtnText}>ðŸŒ</Text>
+            <Text style={styles.lensBtnText}>Ã°Å¸Å’Â</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.lensBtn, mapLens === 'POLITICAL' && styles.lensBtnActive]} 
             onPress={() => setMapLens('POLITICAL')}
             activeOpacity={0.7}
           >
-            <Text style={styles.lensBtnText}>ðŸ‘‘</Text>
+            <Text style={styles.lensBtnText}>Ã°Å¸â€˜â€˜</Text>
           </TouchableOpacity>
         </View>
 
-        {/* â”€â”€ Zoom Controls & Home â”€â”€ */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Zoom Controls & Home Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <View style={styles.zoomControlsContainer} pointerEvents="box-none">
           <TouchableOpacity style={styles.zoomBtn} onPress={() => canvasRef.current?.zoomIn()} activeOpacity={0.7}>
             <Text style={styles.zoomBtnText}>+</Text>
@@ -246,7 +281,7 @@ export default function MapScreen() {
               canvasRef.current?.focusOnCapital(col, row);
             }
           }} activeOpacity={0.7}>
-            <Text style={styles.zoomBtnText}>ðŸŽ¯</Text>
+            <Text style={styles.zoomBtnText}>Ã°Å¸Å½Â¯</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -258,7 +293,7 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A1628', // ocean background â€” visible before tiles load
+    backgroundColor: '#0A1628', // ocean background Ã¢â‚¬â€ visible before tiles load
   },
   mapLayer: {
     ...StyleSheet.absoluteFill,
@@ -345,3 +380,4 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   }
 });
+

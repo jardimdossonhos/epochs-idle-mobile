@@ -18,7 +18,9 @@ const RELATION_LABELS: Record<DiplomaticRelation, string> = {
   [DiplomaticRelation.Overlord]: "Suserano",
 };
 
+import { P10Counters } from '../p10-instrumentation';
 export default function DiplomacyScreen() {
+  P10Counters.diplomacyRenders++;
   const { gameState, session, playerKingdomId } = useGameState();
   const [selectedKingdom, setSelectedKingdom] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState('');

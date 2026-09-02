@@ -1,6 +1,7 @@
 ﻿import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AppState } from 'react-native';
 import { GameSession } from '../application/game-session';
+import { P10Counters, P14_EXPERIMENT_MINIMAL_CONSUMER_TREE } from './p10-instrumentation';
 import { createStaticWorldData } from '../application/boot/static-world-data';
 import { WORLD_DEFINITIONS_V1, WORLD_DEFINITIONS_MAP_ID } from '../application/boot/generated/world-definitions-v1';
 import { createInitialState } from '../application/boot/create-initial-state';
@@ -239,6 +240,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
         // Start engine tick
         newSession.start();
+        if (P14_EXPERIMENT_MINIMAL_CONSUMER_TREE) { setTimeout(() => { console.log('[P14_FIX] Injecting Speed'); newSession.setSpeed(30); newSession.setPaused(false); }, 3000); }
 
         // Filtro de Tick: Previne vazamento de referências e loops infinitos no React (Maximum update depth)
         let lastRenderedTick = -1;
@@ -247,9 +249,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
 
       // Start UI sync bridge (4 FPS)
-      syncInterval = setInterval(() => {
-        const state = newSession.getState();
-        if (state) {
+              syncInterval = setInterval(() => {
+          P10Counters.providerSyncChecks++;
+          const state = newSession.getState();
+          if (state) {
+            P10Counters.currentSpeed = state.meta.speedMultiplier;
           const pId = Object.keys(state.kingdoms).find(id => state.kingdoms[id].isPlayer) || "k_player";
           const k = state.kingdoms[pId];
           const e = k?.economy;
@@ -348,8 +352,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             // Removemos o `{...state}` para preservar a referência de clones saudáveis da Engine.
             if (state.meta.tick !== lastRenderedTick) {
                 lastRenderedTick = state.meta.tick;
+                const RENDER_EXPERIMENT_DISABLE_STATE_PROPAGATION = false;
                 requestAnimationFrame(() => {
-                  setGameState(state);
+                  if (!RENDER_EXPERIMENT_DISABLE_STATE_PROPAGATION) {
+                      P10Counters.providerUpdates++;
+                      setGameState(state);
+                  } else {
+                    // P6.11 EXPERIMENTO — render propagation disabled; simulation remains active.
+                  }
                 });
             }
           }
@@ -408,4 +418,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     </GameContext.Provider>
   );
 }
+
+
+
+
+
+
 

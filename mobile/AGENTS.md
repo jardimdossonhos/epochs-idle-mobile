@@ -93,7 +93,7 @@ O pipeline distingue claramente os seguintes estados. **Nunca confunda exit code
 - Verifica se o pacote est√° instalado
 - **Alerta se APK local tem mais de 60 minutos** (pode n√£o corresponder ao c√≥digo atual)
 - Inicia o app e coleta logcat
-- **N√ÉO garante que o APK instalado √© do c√≥digo atual**
+- **N√ÄO garante que o APK instalado √© do c√≥digo atual**
 - Usar ap√≥s `expo run:android` ou quando o APK j√° foi instalado recentemente
 
 ### `android:full-verify` (lento, ~5-15 min)
@@ -278,10 +278,10 @@ Infrastructure tasks must NOT:
 - Schema version must match `meta.schemaVersion` in createInitialState.
 
 ## Checkpoint e Versionamento
-- **Checkpoint ObrigatÛrio**: … obrigatÛrio criar um commit no Git antes de iniciar qualquer nova fase de refatoraÁ„o ou funcionalidade. NUNCA transite entre fases de arquitetura (C1, C2, etc) ou consertos de bugs P0 sem um commit formal ("checkpoint") provando a integridade dos testes e typecheck.
+- **Checkpoint Obrigat√≥rio**: √â obrigat√≥rio criar um commit no Git antes de iniciar qualquer nova fase de refatora√ß√£o ou funcionalidade. NUNCA transite entre fases de arquitetura (C1, C2, etc) ou consertos de bugs P0 sem um commit formal ("checkpoint") provando a integridade dos testes e typecheck.
 
-## Contrato ECS e PersistÍncia
-- **TypedArrays s„o o Contrato Runtime**: O \EcsState\ È estritamente constituÌdo de TypedArrays (\Float32Array\, \Int32Array\, etc). Eles nunca podem ser convertidos para objetos rasos (POJO).
-- **Proibido structuredClone/Deep Clone no Runtime**: … expressamente proibido utilizar \structuredClone\, \JSON.parse(JSON.stringify())\ ou funÁıes de deep clone sob o \EcsState\ na memÛria ativa do jogo. Polyfills no Hermes destroem os mÈtodos dos TypedArrays (como \.fill()\), quebrando a simulaÁ„o. Em atribuiÁıes de novo jogo ou load, faÁa atribuiÁıes rasas (shallow) ou reidrataÁ„o estrutural estrita.
-- **PersistÍncia Esparsa**: A persistÍncia do ECS n„o clona o array, ela utiliza o formato esparso \EcsSnapshot\, extraindo os dados vivos diretamente para objetos parciais persistÌveis no disco.
-- **O(1) no Hot Path**: A simulaÁ„o nunca deve executar I/O (stringify, parse) ou cÛpias O(N) no frame/hot path da simulaÁ„o.
+## Contrato ECS e Persist√™ncia
+- **TypedArrays s√£o o Contrato Runtime**: O `EcsState` √© estritamente constitu√≠do de TypedArrays (`Float32Array`, `Int32Array`, etc). Eles nunca podem ser convertidos para objetos rasos (POJO).
+- **Proibido structuredClone/Deep Clone no Runtime**: √â expressamente proibido utilizar `structuredClone`, `JSON.parse(JSON.stringify())` ou fun√ß√µes de deep clone sob o `EcsState` na mem√≥ria ativa do jogo. Polyfills no Hermes destroem os m√©todos dos TypedArrays (como `.fill()`), quebrando a simula√ß√£o. Em atribui√ß√µes de novo jogo ou load, fa√ßa atribui√ß√µes rasas (shallow) ou reidrata√ß√£o estrutural estrita.
+- **Persist√™ncia Esparsa**: A persist√™ncia do ECS n√£o clona o array, ela utiliza o formato esparso `EcsSnapshot`, extraindo os dados vivos diretamente para objetos parciais persist√≠veis no disco.
+- **O(1) no Hot Path**: A simula√ß√£o nunca deve executar I/O (stringify, parse) ou c√≥pias O(N) no frame/hot path da simula√ß√£o.

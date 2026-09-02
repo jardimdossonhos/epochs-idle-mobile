@@ -1,4 +1,4 @@
-import React, { useMemo, forwardRef, useImperativeHandle } from 'react';
+import React, { memo, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { StyleSheet, View, Dimensions } from 'react-native';
 import { Canvas, Group, Path, Skia, Atlas, useImage, DashPathEffect } from '@shopify/react-native-skia';
 import type { SkPath, SkRSXform } from '@shopify/react-native-skia';
@@ -84,7 +84,22 @@ function addHexToPath(pathOrBuilder: any, cx: number, cy: number, radius: number
   pathOrBuilder.close();
 }
 
-export const SimulationCanvas = forwardRef<SimulationCanvasRef, SimulationCanvasProps>(({
+const MicroFactionOverlay = ({ index, microPaths }: { index: number; microPaths: any }) => {
+  P10Counters.microOverlayRenders++;
+  const pathSV = useDerivedValue(() => microPaths.value.factions[index]);
+  const color = getFactionColor(index);
+  return <Path path={pathSV} color={color} />;
+};
+
+const MacroFactionOverlay = ({ index, macroFactionsPaths }: { index: number; macroFactionsPaths: SharedValue<SkPath[]> }) => {
+  P10Counters.macroOverlayRenders++;
+  const pathSV = useDerivedValue(() => macroFactionsPaths.value[index]);
+  const color = getFactionColor(index);
+  return <Path path={pathSV} color={color} />;
+};
+
+import { P10Counters } from '../../p10-instrumentation';
+export const SimulationCanvas = memo(forwardRef<SimulationCanvasRef, SimulationCanvasProps>(({
   regionOwner,
   currentArmyData,
   lastArmyData,
@@ -96,6 +111,7 @@ export const SimulationCanvas = forwardRef<SimulationCanvasRef, SimulationCanvas
   playerFactionId = 1,
   capitalHexId,
 }, ref) => {
+  P10Counters.simulationCanvasRenders++;
   
   // ── Viewport state ──────────────────────────────────────────────────────────
   const INITIAL_SCALE = 0.5;
@@ -377,18 +393,6 @@ export const SimulationCanvas = forwardRef<SimulationCanvasRef, SimulationCanvas
   const microTundraPath = useDerivedValue(() => microPaths.value.tundra);
   const microStrokePath = useDerivedValue(() => microPaths.value.stroke);
 
-  const MicroFactionOverlay = ({ index }: { index: number }) => {
-    const pathSV = useDerivedValue(() => microPaths.value.factions[index]);
-    const color = getFactionColor(index);
-    return <Path path={pathSV} color={color} />;
-  };
-
-  const MacroFactionOverlay = ({ index }: { index: number }) => {
-    const pathSV = useDerivedValue(() => macroFactionsPaths.value[index]);
-    const color = getFactionColor(index);
-    return <Path path={pathSV} color={color} />;
-  };
-
   const factionIndices = Array.from({length: MAX_FACTIONS - 1}, (_, i) => i + 1);
 
   // ── DYNAMIC LAYER: sprites (Culling Dinâmico) ───────────────────────────────────
@@ -461,7 +465,7 @@ export const SimulationCanvas = forwardRef<SimulationCanvasRef, SimulationCanvas
               <Path path={microTundraPath} color={mapLens === 'PHYSICAL' ? "#E2E8F0" : "#F0E6D2"} />
               
               <Path path={microStrokePath} color={mapLens === 'PHYSICAL' ? "rgba(0,0,0,0.15)" : "rgba(139,69,19,0.15)"} style="stroke" strokeWidth={0.5} />
-              {factionIndices.map(i => <MicroFactionOverlay key={i} index={i} />)}
+              {factionIndices.map(i => <MicroFactionOverlay key={i} index={i} microPaths={microPaths} />)}
               {cityImage && <Atlas image={cityImage} sprites={citySprites} transforms={spritesTransforms} />}
             </Group>
 
@@ -474,7 +478,7 @@ export const SimulationCanvas = forwardRef<SimulationCanvasRef, SimulationCanvas
                 <Path path={macroLandSkPath} color={mapLens === 'PHYSICAL' ? "#14532D" : "#F0E6D2"} />
                 <Path path={macroDesertSkPath} color={mapLens === 'PHYSICAL' ? "#92400E" : "#F0E6D2"} />
                 <Path path={macroTundraSkPath} color={mapLens === 'PHYSICAL' ? "#E2E8F0" : "#F0E6D2"} />
-                {factionIndices.map(i => <MacroFactionOverlay key={i} index={i} />)}
+                {factionIndices.map(i => <MacroFactionOverlay key={i} index={i} macroFactionsPaths={macroFactionsPaths} />)}
               </Group>
               
               {/* Centro */}
@@ -482,7 +486,7 @@ export const SimulationCanvas = forwardRef<SimulationCanvasRef, SimulationCanvas
                 <Path path={macroLandSkPath} color={mapLens === 'PHYSICAL' ? "#14532D" : "#F0E6D2"} />
                 <Path path={macroDesertSkPath} color={mapLens === 'PHYSICAL' ? "#92400E" : "#F0E6D2"} />
                 <Path path={macroTundraSkPath} color={mapLens === 'PHYSICAL' ? "#E2E8F0" : "#F0E6D2"} />
-                {factionIndices.map(i => <MacroFactionOverlay key={i} index={i} />)}
+                {factionIndices.map(i => <MacroFactionOverlay key={i} index={i} macroFactionsPaths={macroFactionsPaths} />)}
               </Group>
               
               {/* Direita */}
@@ -490,7 +494,7 @@ export const SimulationCanvas = forwardRef<SimulationCanvasRef, SimulationCanvas
                 <Path path={macroLandSkPath} color={mapLens === 'PHYSICAL' ? "#14532D" : "#F0E6D2"} />
                 <Path path={macroDesertSkPath} color={mapLens === 'PHYSICAL' ? "#92400E" : "#F0E6D2"} />
                 <Path path={macroTundraSkPath} color={mapLens === 'PHYSICAL' ? "#E2E8F0" : "#F0E6D2"} />
-                {factionIndices.map(i => <MacroFactionOverlay key={i} index={i} />)}
+                {factionIndices.map(i => <MacroFactionOverlay key={i} index={i} macroFactionsPaths={macroFactionsPaths} />)}
               </Group>
             </Group>
 
@@ -499,7 +503,7 @@ export const SimulationCanvas = forwardRef<SimulationCanvasRef, SimulationCanvas
       </View>
     </GestureDetector>
   );
-});
+}));
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F2D5E' }, // Oceano como fundo base

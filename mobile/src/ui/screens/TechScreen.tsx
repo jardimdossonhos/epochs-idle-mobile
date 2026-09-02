@@ -4,7 +4,9 @@ import { useGameState } from '../GameProvider';
 import { listTechnologyNodes, isTechnologyUnlocked, isTechnologyAvailable } from '../../core/data/technology-tree';
 import { HudAwareScreen } from '../components/HudAwareScreen';
 
+import { P10Counters } from '../p10-instrumentation';
 export default function TechScreen() {
+  P10Counters.technologyRenders++;
   const { gameState, session, playerKingdomId } = useGameState();
 
   if (!gameState || !session) return null;

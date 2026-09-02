@@ -1,0 +1,9 @@
+﻿Date: 2026-09-02 16:53:33
+Dir: C:\Users\joti.SIMPLO\Documents\Epochs_Idle\mobile
+Branch: main
+HEAD: 3d9b84f240519bf4f663d18023200afe9f5997a3
+Git: git version 2.55.0.windows.4
+Node: v24.14.0
+NPM: 11.9.0
+Java: openjdk version "21.0.12" 2026-07-21 LTS
+Expo CLI: 56.1.20

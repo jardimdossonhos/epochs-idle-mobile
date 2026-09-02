@@ -1,3 +1,19 @@
 # ninja log v5
-0	6073	8084359035438469	CMakeFiles/mapbuffer.dir/HybridMapBuffer.cpp.o	66298fb3a55d49b7
-6697	9474	8084359075009493	C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/build/intermediates/cxx/Debug/2d3p426v/obj/armeabi-v7a/libmapbuffer.so	f479930b54a75dee
+10	5298	8098785694290131	CMakeFiles/mapbuffer.dir/HybridMapBuffer.cpp.o	66298fb3a55d49b7
+5299	5394	8098785695360101	C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/build/intermediates/cxx/Debug/2d3p426v/obj/armeabi-v7a/libmapbuffer.so	f479930b54a75dee
+0	10	0	clean	90130498c6f1bf01
+5	5457	8099844406326748	CMakeFiles/mapbuffer.dir/HybridMapBuffer.cpp.o	87ef4ffa2796a4b2
+5457	6142	8099844411675376	C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/build/intermediates/cxx/Debug/2d3p426v/obj/armeabi-v7a/libmapbuffer.so	3fb22a3e61d86017
+1	10	0	clean	90130498c6f1bf01
+9	9121	8099896306454089	CMakeFiles/mapbuffer.dir/HybridMapBuffer.cpp.o	87ef4ffa2796a4b2
+9122	9286	8099896308250262	C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/build/intermediates/cxx/Debug/2d3p426v/obj/armeabi-v7a/libmapbuffer.so	3fb22a3e61d86017
+0	8	0	clean	90130498c6f1bf01
+0	6	0	clean	90130498c6f1bf01
+11	7451	8100502561394749	CMakeFiles/mapbuffer.dir/HybridMapBuffer.cpp.o	87ef4ffa2796a4b2
+7451	7542	8100502562423639	C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/build/intermediates/cxx/Debug/2d3p426v/obj/armeabi-v7a/libmapbuffer.so	3fb22a3e61d86017
+0	8	0	clean	90130498c6f1bf01
+5	3486	8100542845989878	CMakeFiles/mapbuffer.dir/HybridMapBuffer.cpp.o	87ef4ffa2796a4b2
+3487	4009	8100542851336902	C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/build/intermediates/cxx/Debug/2d3p426v/obj/armeabi-v7a/libmapbuffer.so	3fb22a3e61d86017
+0	8	0	clean	90130498c6f1bf01
+7	5162	8100544928008848	CMakeFiles/mapbuffer.dir/HybridMapBuffer.cpp.o	87ef4ffa2796a4b2
+5163	5309	8100544929626702	C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/build/intermediates/cxx/Debug/2d3p426v/obj/armeabi-v7a/libmapbuffer.so	3fb22a3e61d86017

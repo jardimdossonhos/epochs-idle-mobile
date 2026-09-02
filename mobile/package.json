@@ -11,7 +11,6 @@
     "@shopify/react-native-skia": "2.6.2",
     "@types/geojson": "^7946.0.16",
     "expo": "~56.0.13",
-    "expo-dev-client": "~56.0.23",
     "expo-file-system": "~56.0.8",
     "expo-navigation-bar": "~56.0.3",
     "expo-splash-screen": "~56.0.14",
@@ -51,8 +50,8 @@
     "lint": "eslint src --max-warnings 0",
     "test": "jest --passWithNoTests",
     "verify": "node scripts/verify.js",
-    "android:verify": "node scripts/verify.js && node scripts/android-verify.js",
-    "android:full-verify": "node scripts/verify.js && node scripts/android-verify.js --full-build"
+    "android:verify": "node scripts/run-android-pipeline.js",
+    "android:full-verify": "node scripts/run-android-pipeline.js --full-build"
   },
   "private": true
 }

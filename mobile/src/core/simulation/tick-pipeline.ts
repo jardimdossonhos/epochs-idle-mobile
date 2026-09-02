@@ -1,3 +1,4 @@
+﻿import { p10Counters } from '../instrumentation/p10-counters';
 import type { DomainEvent } from "../models/events";
 import type { GameState } from "../models/game-state";
 import type { StaticWorldData } from "../models/static-world-data";
@@ -38,7 +39,7 @@ export class TickPipeline {
   run(previousState: GameState, deltaMs: number, now: number): TickResult {
     const nextState = cloneGameStateForSimulation(previousState);
     
-    // Bypass de Corrupção: Restaura o ponteiro real do Float64Array destruído pelo clone
+    // Bypass de CorrupÃ§Ã£o: Restaura o ponteiro real do Float64Array destruÃ­do pelo clone
     nextState.ecs = previousState.ecs;
 
     const events = this.runInPlace(nextState, deltaMs, now, 1);
@@ -71,7 +72,7 @@ export class TickPipeline {
     const coarseStepTicks = Math.max(1, Math.trunc(options.coarseStepTicks ?? 1));
     const nextState = cloneGameStateForSimulation(previousState);
     
-    // Bypass de Corrupção: Restaura o ponteiro real do Float64Array destruído pelo clone
+    // Bypass de CorrupÃ§Ã£o: Restaura o ponteiro real do Float64Array destruÃ­do pelo clone
     nextState.ecs = previousState.ecs;
     
     const collectedEvents: DomainEvent[] = [];
@@ -101,6 +102,7 @@ export class TickPipeline {
   }
 
   private runInPlace(nextState: GameState, deltaMs: number, now: number, tickScale: number): DomainEvent[] {
+    p10Counters.ticksProcessed += tickScale;
     const context: TickContext = {
       previousState: nextState,
       nextState,
@@ -129,3 +131,5 @@ export class TickPipeline {
     return context.events;
   }
 }
+
+

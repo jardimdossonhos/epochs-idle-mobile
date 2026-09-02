@@ -29,6 +29,9 @@
     "variantName": "debug",
     "isDebuggableEnabled": true,
     "validAbiList": [
+      "armeabi-v7a",
+      "arm64-v8a",
+      "x86",
       "x86_64"
     ],
     "buildTargetSet": [],
@@ -165,9 +168,9 @@
       "C:\\Users\\joti.SIMPLO\\.gradle\\caches\\modules-2\\files-2.1\\com.google.prefab\\cli\\2.1.0\\aa32fec809c44fa531f01dcfb739b5b3304d3050\\cli-2.1.0-all.jar"
     ],
     "prefabPackages": [
-      "C:\\Users\\joti.SIMPLO\\.gradle\\caches\\9.3.1\\transforms\\c174bdaddf1c0c6aae661bdd72ab083c\\workspace\\transformed\\react-android-0.85.3-debug\\prefab",
+      "C:\\Users\\joti.SIMPLO\\.gradle\\caches\\9.3.1\\transforms\\6f9e22f0c697aaa3166c5b27816d5e7c\\workspace\\transformed\\react-android-0.85.3-debug\\prefab",
       "C:\\Users\\joti.SIMPLO\\Documents\\Epochs_Idle\\mobile\\node_modules\\react-native-nitro-modules\\android\\build\\intermediates\\prefab_package\\debug\\prefab",
-      "C:\\Users\\joti.SIMPLO\\.gradle\\caches\\9.3.1\\transforms\\ea766dde9f3ea3c01d2fedc68bbc91e7\\workspace\\transformed\\fbjni-0.7.0\\prefab"
+      "C:\\Users\\joti.SIMPLO\\.gradle\\caches\\9.3.1\\transforms\\6f1f7af63467440b9fe6f23d6ac7fd9b\\workspace\\transformed\\fbjni-0.7.0\\prefab"
     ],
     "prefabPackageConfigurations": [
       "C:\\Users\\joti.SIMPLO\\Documents\\Epochs_Idle\\mobile\\node_modules\\react-native-nitro-modules\\android\\build\\intermediates\\prefab_package_configuration\\debug\\prefabDebugConfigurePackage\\prefab_publication.json"

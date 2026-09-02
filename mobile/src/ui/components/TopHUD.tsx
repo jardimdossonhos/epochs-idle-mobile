@@ -338,7 +338,9 @@ function HexIcon({ size = 20, color = "#A0A0B0" }: { size?: number, color?: stri
 }
 
 // ─── Main TopHUD ──────────────────────────────────────────────────────────────
+import { P10Counters } from '../p10-instrumentation';
 export default function TopHUD() {
+  P10Counters.topHudRenders++;
   const insets = useSafeAreaInsets();
   const { session } = useGameState();
   const { t } = useLanguage();
@@ -472,12 +474,12 @@ export default function TopHUD() {
         {renderContent()}
       </View>
 
-      <AlertsDrawer       visible={alertsVisible}      onClose={() => setAlertsVisible(false)} />
-      <StabilityTooltip   visible={stabilityVisible}   onClose={() => setStabilityVisible(false)} />
-      <TreasuryTooltip    visible={treasuryVisible}     onClose={() => setTreasuryVisible(false)} />
-      <PopulationTooltip  visible={populationVisible}   onClose={() => setPopulationVisible(false)} />
-      <TerritoryTooltip   visible={territoryVisible}    onClose={() => setTerritoryVisible(false)} />
-      <DevModeModal       visible={isDevPanelVisible}   onClose={() => setIsDevPanelVisible(false)} />
+      {/* <AlertsDrawer       visible={alertsVisible}      onClose={() => setAlertsVisible(false)} /> */}
+      {/* <StabilityTooltip   visible={stabilityVisible}   onClose={() => setStabilityVisible(false)} /> */}
+      {/* <TreasuryTooltip    visible={treasuryVisible}     onClose={() => setTreasuryVisible(false)} /> */}
+      {/* <PopulationTooltip  visible={populationVisible}   onClose={() => setPopulationVisible(false)} /> */}
+      {/* <TerritoryTooltip   visible={territoryVisible}    onClose={() => setTerritoryVisible(false)} /> */}
+      {/* <DevModeModal       visible={isDevPanelVisible}   onClose={() => setIsDevPanelVisible(false)} /> */}
     </>
   );
 }

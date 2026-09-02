@@ -85,7 +85,9 @@ function CronicasTab() {
 }
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
+import { P10Counters } from '../p10-instrumentation';
 export default function SistemaScreen() {
+  P10Counters.sistemaRenders++;
   const [activePill, setActivePill] = useState<PillKey>('game');
   const hudHeight = useUIStore((s) => s.hudHeight);
 

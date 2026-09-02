@@ -39,6 +39,13 @@ import CharacterCreationScreen from './src/ui/screens/character-creation/Charact
 
 // ── 5 Main Game Tabs ───────────────────────────────────────────────────────
 import MapScreen        from './src/ui/screens/MapScreen';
+import { P10Counters } from './src/ui/p10-instrumentation';
+
+function P15MinimalConsumerTree() {
+  P10Counters.p14MinimalTreeRenders++;
+  return <View style={{ flex: 1, backgroundColor: '#000' }}><Text style={{ color: 'white' }}>P15 Minimal</Text></View>;
+}
+
 import EstadoScreen     from './src/ui/screens/EstadoScreen';
 import TechScreen       from './src/ui/screens/TechScreen';
 import DiplomacyScreen  from './src/ui/screens/DiplomacyScreen';
@@ -170,14 +177,15 @@ function MainTabs() {
 
 // ─── In-Game Shell (TopHUD + Tabs + Global Modals) ─────────────────────────
 function InGameShell() {
+  P10Counters.inGameShellRenders++;
   return (
     <View style={{ flex: 1, backgroundColor: '#121212' }}>
       {/* Tabs fill the screen */}
-      <MainTabs />
+      <P15MinimalConsumerTree />
       {/* TopHUD floats above everything (position:absolute internally) */}
       <TopHUD />
       {/* Global popup overlays */}
-      <AscensionModal />
+      {/* <AscensionModal /> */}
     </View>
   );
 }
@@ -186,55 +194,11 @@ function InGameShell() {
 export type RootAppState = 'splash' | 'auth' | 'main_menu' | 'character_creation' | 'in_game';
 
 function AppContent() {
+  P10Counters.appContentRenders++;
   const { authStatus, isLoading: isAuthLoading } = useAuth();
   const { gameState } = useGameState();
-  const [appState, setAppState] = useState<RootAppState>('splash');
-
-  useEffect(() => {
-    const sub = DeviceEventEmitter.addListener('navigateTo', (screen: RootAppState) => {
-      setAppState(screen);
-    });
-    return () => sub.remove();
-  }, []);
-
-  useEffect(() => {
-    if (isAuthLoading) {
-      setAppState('splash');
-      return;
-    }
-    if (authStatus === 'unauthenticated') {
-      setAppState('auth');
-    } else {
-      setAppState((prev) => (prev === 'splash' || prev === 'auth' ? 'main_menu' : prev));
-    }
-  }, [authStatus, isAuthLoading]);
-
-  if (appState === 'splash') return <SplashScreen />;
-
-  if (appState === 'auth') {
-    return <AuthScreen onAuthenticated={() => setAppState('main_menu')} />;
-  }
-
-  if (appState === 'main_menu') {
-    return (
-      <MainMenuScreen
-        onNewGame={() => setAppState('character_creation')}
-        onGameLoaded={() => setAppState('in_game')}
-      />
-    );
-  }
-
-  if (appState === 'character_creation') {
-    return (
-      <CharacterCreationScreen
-        onComplete={() => setAppState('in_game')}
-        onCancel={() => setAppState('main_menu')}
-      />
-    );
-  }
-
+  
   if (!gameState) return <SplashScreen />;
-
   return <InGameShell />;
 }
 

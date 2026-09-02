@@ -1,3 +1,17 @@
 # ninja log v5
-0	31301	8069697456413582	CMakeFiles/mapbuffer.dir/HybridMapBuffer.cpp.o	d38b0dc4157079c0
-31312	33107	8069697469828816	C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/build/intermediates/cxx/Debug/2d3p426v/obj/x86_64/libmapbuffer.so	bafdcc33dceb9efa
+8	5073	8098785835465309	CMakeFiles/mapbuffer.dir/HybridMapBuffer.cpp.o	d38b0dc4157079c0
+5074	5171	8098785836585237	C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/build/intermediates/cxx/Debug/2d3p426v/obj/x86_64/libmapbuffer.so	bafdcc33dceb9efa
+0	10	0	clean	90130498c6f1bf01
+6	3163	8099844559911068	CMakeFiles/mapbuffer.dir/HybridMapBuffer.cpp.o	bd3535c52058c0ef
+3163	3251	8099844560901070	C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/build/intermediates/cxx/Debug/2d3p426v/obj/x86_64/libmapbuffer.so	9ae314a02b3bfdb6
+0	7	0	clean	90130498c6f1bf01
+7	4324	8099896388086198	CMakeFiles/mapbuffer.dir/HybridMapBuffer.cpp.o	bd3535c52058c0ef
+4325	4437	8099896389332192	C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/build/intermediates/cxx/Debug/2d3p426v/obj/x86_64/libmapbuffer.so	9ae314a02b3bfdb6
+0	5	0	clean	90130498c6f1bf01
+1	6	0	clean	90130498c6f1bf01
+16	3435	8100502637843280	CMakeFiles/mapbuffer.dir/HybridMapBuffer.cpp.o	bd3535c52058c0ef
+3435	3556	8100502639156130	C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/build/intermediates/cxx/Debug/2d3p426v/obj/x86_64/libmapbuffer.so	9ae314a02b3bfdb6
+0	7	0	clean	90130498c6f1bf01
+0	5	0	clean	90130498c6f1bf01
+11	3888	8100545005032105	CMakeFiles/mapbuffer.dir/HybridMapBuffer.cpp.o	bd3535c52058c0ef
+3889	4062	8100545006924628	C:/Users/joti.SIMPLO/Documents/Epochs_Idle/mobile/modules/react-native-map-buffer/android/build/intermediates/cxx/Debug/2d3p426v/obj/x86_64/libmapbuffer.so	9ae314a02b3bfdb6

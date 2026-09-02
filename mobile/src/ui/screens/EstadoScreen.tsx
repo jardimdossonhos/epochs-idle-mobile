@@ -85,7 +85,9 @@ function GovScreenShim({ defaultTab }: { defaultTab: 'economy' | 'laws' | 'autom
 }
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
+import { P10Counters } from '../p10-instrumentation';
 export default function EstadoScreen() {
+  P10Counters.governmentRenders++;
   const insets = useSafeAreaInsets();
   const isEvolved  = useUIStore((s) => s.playerHasAscended);
   const hudHeight  = useUIStore((s) => s.hudHeight);

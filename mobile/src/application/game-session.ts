@@ -30,6 +30,7 @@ import { parseDomainEventToLogEntry } from "../core/simulation/systems/event-log
 import { generateRoutineAdvice } from "../core/simulation/systems/council-system";
 import { recalculateAdminModifiers } from "../core/simulation/systems/modifier-cache";
 import { AUTOSAVE_SLOT_ID, MANUAL_SLOT_ID } from "../infrastructure/persistence/save-slots";
+import { buildEcsSnapshot } from "../infrastructure/persistence/ecs-snapshot";
 import { geminiService } from "./ai/gemini-service";
 
 export interface GameSessionDeps {
@@ -2911,7 +2912,6 @@ export class GameSession {
         if (ecsBackup) {
           this.currentState.ecs = ecsBackup;
         }
-        this.persistCurrent();
         this.emitState();
       }
 
@@ -2949,13 +2949,17 @@ export class GameSession {
     const state = this.requireState();
     const now = this.deps.clock.now();
 
-    // Cópia Rasa O(1) do estado. Elimina o travamento de 1500ms na hora do Autosave!
+    // Cópia Rasa O(1) do estado. Exclui o ECS bruto (TypedArrays) para evitar 87 MB de payload.
+    // O contrato C1 exige persistência esparsa via EcsSnapshot.
     const stateCopy: GameState = {
       ...state,
-      meta: { ...state.meta }
+      meta: { ...state.meta },
+      ecs: undefined as any,
     };
 
-
+    if (state.ecs) {
+      (stateCopy as any).ecsSnapshot = buildEcsSnapshot(state.ecs);
+    }
 
     return {
       summary: buildSaveSummary(slotId, stateCopy, now),

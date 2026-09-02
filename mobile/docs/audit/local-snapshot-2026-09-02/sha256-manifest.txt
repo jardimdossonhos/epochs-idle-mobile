@@ -1,0 +1,11 @@
+﻿android/app/build/generated/assets/react/release/index.android.bundle | 18234504 | 2026-09-01 13:31:25 | SHA256=CFA8E43DF1865C903AA60D8751DCBD2F6496C12B26EF900A764ED43A46CB9A51 | ignored/generated artifact
+android/app/build/generated/sourcemaps/react/release/index.android.bundle.map | 11603761 | 2026-09-01 13:31:27 | SHA256=1F7E44E58EE504446478CD01061ACFFB84AC34B8242D553997945231B4E25A0C | ignored/generated artifact
+android/app/build/intermediates/assets/debug/mergeDebugAssets/index.android.bundle | 28500234 | 2026-09-02 09:01:14 | SHA256=5955B8047F67CFF30A8ED6C99321548EA2D85DBC2DC1E76ED65C60B7855B05BA | ignored/generated artifact
+android/app/build/intermediates/assets/release/mergeReleaseAssets/index.android.bundle | 18234504 | 2026-09-01 13:31:25 | SHA256=CFA8E43DF1865C903AA60D8751DCBD2F6496C12B26EF900A764ED43A46CB9A51 | ignored/generated artifact
+android/app/build/intermediates/compressed_assets/debug/compressDebugAssets/out/assets/index.android.bundle.jar | 28500386 | 2026-09-02 09:10:01 | SHA256=13D2BE18A6DF25D28B6900C66C37AC6749302D8D51F4005111EC36ED50BB1A40 | ignored/generated artifact
+android/app/build/intermediates/compressed_assets/release/compressReleaseAssets/out/assets/index.android.bundle.jar | 18234656 | 2026-09-01 13:41:09 | SHA256=64FC7762DD2B9B05B0B0C26EB55D25752A535C2B96201307D13B33A568D35357 | ignored/generated artifact
+android/app/build/intermediates/sourcemaps/react/release/index.android.bundle.compiler.map | 5823168 | 2026-09-01 13:31:25 | SHA256=05BD7820612759D7156743408DC6E9D1E5D8932CFB3C2CF575BE1728E94ADF50 | ignored/generated artifact
+android/app/build/intermediates/sourcemaps/react/release/index.android.bundle.packager.map | 45273718 | 2026-09-01 13:30:41 | SHA256=2A480AF52463A7CDC7D579A2257AFA5397B6CF3A0E056B3F72E39755A8C975A5 | ignored/generated artifact
+android/app/build/outputs/apk/debug/app-debug.apk | 349399008 | 2026-09-02 09:20:16 | SHA256=AAECAA3D9D938F538C8BCA8B2ADBEDFBCFB6BD9E4F34BBB6586E31B9652CB8C6 | ignored/generated artifact
+android/app/src/main/assets/index.android.bundle | 28500234 | 2026-09-02 09:01:14 | SHA256=5955B8047F67CFF30A8ED6C99321548EA2D85DBC2DC1E76ED65C60B7855B05BA | ignored/generated artifact
+android/local.properties | 62 | 2026-07-28 15:38:59 | SHA256=121BF1E84B3B2706ED9D0D77CDF2C67F0D09453016C75E151019DAA0C517D1B5 | ignored/local config
