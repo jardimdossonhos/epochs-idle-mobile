@@ -20,6 +20,7 @@
 *   **CondB (Memo ON):** 30 renders/10s | Baseline 65.3 MB → pos-GC 98.8 MB (**+33.5 MB**)
 
 ### E4 (Atribuição de Memória via smaps)
+*Nota metodológica:* Os blocos hades-segment representam heap privado anônimo alocado pelo Hermes. O soak test (Tarefa 2) coleta o campo Anonymous: em vez de Pss:. Para blocos de memória anônima exclusiva (não compartilhada), Pss: e Anonymous: são estruturalmente equivalentes, mantendo consistência exata com a medição base de P15.
 *   **Scudo (Native/JSI/Fabric):** 494.45 MB → 409.82 MB (Flat/Queda)
 *   **Dalvik (Java/ART):** cresce +6.8MB e estabiliza a partir de T20 — mesma forma do Hades, magnitude menor (14.50 MB → 21.00 MB → 21.30 MB)
 *   **Hades (Hermes GC Heap):** 15.60 MB → 32.61 MB (Crescimento Rápido e Platô)
@@ -81,3 +82,25 @@ Para validar a curva ao longo de horas de tela e ciclos de background:
 ## 6. Histórico de Commits e Dívida Técnica
 *   **Baseline Pré-P15:** e152847 (contém 3 falhas nos testes documentadas em issues [dívida pré-P15]).
 *   **D.3C, E4, E5, E6:** Execuções baseadas na branch do TopHUD (3d9b84f e afins), testadas localmente via un_e*.ps1.
+
+
+### Objeto Literal de HermesInternal
+Exemplo capturado em tempo real via getInstrumentedStats():
+```json
+{
+  "js_VMExperiments": 0,
+  "js_numGCs": 42,
+  "js_gcCPUTime": 0.115603,
+  "js_gcTime": 0.115965,
+  "js_totalAllocatedBytes": 119503224,
+  "js_allocatedBytes": 30462992,
+  "js_heapSize": 33554432,
+  "js_mallocSizeEstimate": 0,
+  "js_vaSize": 33554432,
+  "js_externalBytes": 53322498,
+  "js_markStackOverflows": 0
+}
+```
+
+
+

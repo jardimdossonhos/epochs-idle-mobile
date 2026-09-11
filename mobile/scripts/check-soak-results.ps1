@@ -1,4 +1,4 @@
-﻿$logFile = "soak-test-results.csv"
+$logFile = "soak-test-results.csv"
 if (-not (Test-Path $logFile)) {
     Write-Host "Log file $logFile not found."
     exit
@@ -25,16 +25,15 @@ if ($samples.Count -ge 2) {
     Write-Host "Final:   $($last.Hades_MB) MB"
     
     try {
-        $hInitial = (ConvertFrom-Json $first.Hermes_Stats).GC_Heap_Size / 1024 / 1024
-        $hFinal = (ConvertFrom-Json $last.Hermes_Stats).GC_Heap_Size / 1024 / 1024
-        Write-Host "
-[HermesInternal GC_Heap_Size]"
+        $hInitial = (ConvertFrom-Json $first.Hermes_Stats).js_heapSize / 1024 / 1024
+        $hFinal = (ConvertFrom-Json $last.Hermes_Stats).js_heapSize / 1024 / 1024
+        Write-Host "`n[HermesInternal js_heapSize]"
         Write-Host "Initial: $([math]::Round($hInitial, 2)) MB"
         Write-Host "Final:   $([math]::Round($hFinal, 2)) MB"
         
         Write-Host "
 [Correlation Table (First Sample)]"
-        Write-Host "smaps Hades: $($first.Hades_MB) MB  <-->  Hermes GC_Heap_Size: $([math]::Round($hInitial, 2)) MB"
+        Write-Host "smaps Hades: $($first.Hades_MB) MB  <-->  Hermes js_heapSize: $([math]::Round($hInitial, 2)) MB"
     } catch {
         Write-Host "
 Could not parse Hermes_Stats JSON."
