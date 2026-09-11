@@ -49,3 +49,4 @@ O método \global.HermesInternal.getInstrumentedStats()\ **existe** e retorna os
 - **Integração Real de Telemetria:** Nenhuma dependência (Sentry/Crashlytics/Datadog) foi encontrada no \package.json\. A captura foi delegada a simples \console.log\ com comentários \TODO\. **A equipe precisa definir qual SDK de observabilidade será adotado para a produção e atuar no módulo \memoryWatch.ts\.**
 - **Revisão Pós-Soak Test:** O Soak test durará 3 horas. Alguém do time deve rodar fisicamente \.\scripts\check-soak-results.ps1\ e transcrever a correlação de dados pra \P15-memory.md\ assim que terminar.
 
+
