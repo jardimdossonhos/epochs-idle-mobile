@@ -18,6 +18,10 @@ import React, { useState, useEffect } from 'react';
 import { Text, View, DeviceEventEmitter } from 'react-native';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { startMemoryWatch } from './src/telemetry/memoryWatch';
+
+// Start light memory watch (60s for soak test, can be increased for prod later)
+startMemoryWatch(60000);
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
