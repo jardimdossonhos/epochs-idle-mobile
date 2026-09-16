@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { PanGestureHandler, State as GestureState } from 'react-native-gesture-handler';
-import { getRegionIndex } from '../../core/simulation/systems/utils';
+import { getRegionIndex, getCanonicalRegionOwner } from '../../core/simulation/systems/utils';
 import Svg, { G, Polygon, Circle, Path } from 'react-native-svg';
 import { useGameState } from '../GameProvider';
 import { DiplomaticRelation } from '../../core/models/enums';
@@ -123,8 +123,7 @@ export default function WorldMapSvg({ onRegionPress, selectedRegionId }: WorldMa
 
     for (let i = 0; i < staticGrid.length; i++) {
       const base = staticGrid[i];
-      const regionState: RegionState | undefined = gameState.world.regions[base.regionId];
-      const ownerId = regionState?.ownerId ?? '';
+      const ownerId = getCanonicalRegionOwner(gameState, base.regionId);
       
       const isPlayer = ownerId === playerKingdomId;
       if (isPlayer) {

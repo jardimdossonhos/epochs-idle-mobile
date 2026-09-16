@@ -273,13 +273,28 @@ console.log('');
 if (overall === STATUS.FAIL) {
   const failed = results.filter(r => r.status === STATUS.FAIL || r.status === STATUS.NOT_EXECUTED);
   console.error(`[verify] ❌ FAIL — ${failed.map(r => r.name).join(', ')}`);
-  process.exit(1);
 } else if (overall === STATUS.PARTIAL) {
   const partial = results.filter(r => r.status === STATUS.NOT_CONFIGURED || r.status === STATUS.PASS_WITH_WARNINGS);
   console.log(`[verify] ⚠  PARTIAL — Verificação incompleta: ${partial.map(r => r.name + '(' + r.status + ')').join(', ')}`);
-  // PARTIAL não falha o pipeline — é informativo para o agente
-  process.exit(0);
 } else {
   console.log('[verify] ✅  PASS — Todas as verificações configuradas passaram.');
+}
+
+const { updateEvidence } = require('./evidence');
+const typecheckStatus = results.find(r => r.name.includes('TypeScript'))?.status;
+const testsStatus = results.find(r => r.name.includes('Testes'))?.status;
+const expoDoctorStatus = results.find(r => r.name.includes('Expo Doctor'))?.status;
+
+updateEvidence({
+  verify_overall: overall,
+  typecheck: typecheckStatus,
+  tests: testsStatus,
+  expo_doctor: expoDoctorStatus
+});
+
+if (overall === STATUS.FAIL) {
+  process.exit(1);
+} else {
   process.exit(0);
 }
+

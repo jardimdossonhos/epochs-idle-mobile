@@ -338,7 +338,7 @@ function HexIcon({ size = 20, color = "#A0A0B0" }: { size?: number, color?: stri
 }
 
 // ─── Main TopHUD ──────────────────────────────────────────────────────────────
-export default function TopHUD() {
+function TopHUD() {
   const insets = useSafeAreaInsets();
   const { session } = useGameState();
   const { t } = useLanguage();
@@ -438,9 +438,13 @@ export default function TopHUD() {
             <Text style={styles.chipValue}>{regions}</Text>
           </TouchableOpacity>
 
-          {/* Play/Pause */}
-          <TouchableOpacity style={styles.playBtn} onPress={handleTogglePause} hitSlop={10}>
-            <Text style={styles.playIcon}>{isPaused ? '▶' : '⏸'}</Text>
+          {/* Play/Pause e Calendario */}
+          <TouchableOpacity style={[styles.playBtn, { flexDirection: 'row', gap: 6, paddingHorizontal: 8 }]} onPress={handleTogglePause} hitSlop={10}>
+            <Text style={styles.playIcon}>{isPaused ? '⏸' : '▶'}</Text>
+            <View style={{ alignItems: 'flex-start' }}>
+              <Text style={{ color: '#E0E0E0', fontSize: 12, fontWeight: 'bold' }}>Ano {year}</Text>
+              <Text style={{ color: '#888', fontSize: 9 }}>Mês {(tick % 12) + 1}</Text>
+            </View>
           </TouchableOpacity>
 
           {/* Stability chip — tappable */}
@@ -680,3 +684,5 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 });
+
+export default React.memo(TopHUD);

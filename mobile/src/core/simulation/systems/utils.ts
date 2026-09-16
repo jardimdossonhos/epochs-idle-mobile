@@ -28,26 +28,19 @@ export function getOwnedRegionIds(state: GameState, kingdomId: KingdomId): strin
   const kingdom = state.kingdoms[kingdomId];
   if (!kingdom) return [];
 
-  if (!kingdom.ownedRegionIds) {
-    const regionIds = Object.keys(state.world.regions);
-    for (const kid of Object.keys(state.kingdoms)) {
-      state.kingdoms[kid].ownedRegionIds = [];
-    }
-
-    for (let i = 0; i < regionIds.length; i++) {
-      const regionId = regionIds[i];
-      const ownerId = state.world.regions[regionId].ownerId;
-      if (ownerId && state.kingdoms[ownerId]) {
-        state.kingdoms[ownerId].ownedRegionIds!.push(regionId);
-      }
-    }
-
-    for (const kid of Object.keys(state.kingdoms)) {
-      state.kingdoms[kid].ownedRegionIds!.sort();
+  // SEMPRE recalcular baseado no ECS. Evita cache sujo da infraestrutura legada O.O.
+  const regionIds = Object.keys(state.world.regions);
+  const owned: string[] = [];
+  for (let i = 0; i < regionIds.length; i++) {
+    const rId = regionIds[i];
+    if (getCanonicalRegionOwner(state, rId) === kingdomId) {
+      owned.push(rId);
     }
   }
-
-  return kingdom.ownedRegionIds || [];
+  
+  // Atualiza o O.O. temporariamente para não quebrar serializers, mas retorna o array fresco
+  kingdom.ownedRegionIds = owned;
+  return owned;
 }
 
 export function ensureResourceNonNegative(kingdom: KingdomState): void {
@@ -100,4 +93,20 @@ export function getRegionIndex(regionId: string | undefined | null): number {
   if (isNaN(num) || num < 0 || num >= TOTAL_HEXES) return -1;
   
   return num;
+}
+
+/**
+ * Retorna o dono canônico de uma região consultando estritamente a Fonte Única de Verdade (ECS).
+ * Garante que todos os sistemas operacionais do jogo e a UI utilizem o mesmo dado.
+ */
+export function getCanonicalRegionOwner(state: GameState, regionId: string): string {
+  const index = getRegionIndex(regionId);
+  if (index === -1 || !state.ecs || !state.ecs.regionOwner) {
+    // Fallback temporário caso ECS não esteja instanciado (Ex: Early Boot/Unit Tests)
+    return state.world?.regions?.[regionId]?.ownerId || "k_nature";
+  }
+  const factionId = state.ecs.regionOwner[index];
+  if (factionId === -1) return "k_nature";
+  
+  return getFactionStringId(factionId) || "k_nature";
 }

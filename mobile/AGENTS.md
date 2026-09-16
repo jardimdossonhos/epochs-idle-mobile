@@ -276,3 +276,12 @@ Infrastructure tasks must NOT:
 ### Save System
 - `SAVE_SCHEMA_VERSION = 4` (src/infrastructure/persistence/save-schema.ts)
 - Schema version must match `meta.schemaVersion` in createInitialState.
+
+## Checkpoint e Versionamento
+- **Checkpoint Obrigatório**: É obrigatório criar um commit no Git antes de iniciar qualquer nova fase de refatoração ou funcionalidade. NUNCA transite entre fases de arquitetura (C1, C2, etc) ou consertos de bugs P0 sem um commit formal ("checkpoint") provando a integridade dos testes e typecheck.
+
+## Contrato ECS e Persistência
+- **TypedArrays são o Contrato Runtime**: O \EcsState\ é estritamente constituído de TypedArrays (\Float32Array\, \Int32Array\, etc). Eles nunca podem ser convertidos para objetos rasos (POJO).
+- **Proibido structuredClone/Deep Clone no Runtime**: É expressamente proibido utilizar \structuredClone\, \JSON.parse(JSON.stringify())\ ou funções de deep clone sob o \EcsState\ na memória ativa do jogo. Polyfills no Hermes destroem os métodos dos TypedArrays (como \.fill()\), quebrando a simulação. Em atribuições de novo jogo ou load, faça atribuições rasas (shallow) ou reidratação estrutural estrita.
+- **Persistência Esparsa**: A persistência do ECS não clona o array, ela utiliza o formato esparso \EcsSnapshot\, extraindo os dados vivos diretamente para objetos parciais persistíveis no disco.
+- **O(1) no Hot Path**: A simulação nunca deve executar I/O (stringify, parse) ou cópias O(N) no frame/hot path da simulação.

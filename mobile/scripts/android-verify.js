@@ -118,8 +118,11 @@ function getArg(name, defaultVal) {
 
 function log(msg)  { console.log(`[android:verify] ${msg}`); }
 function warn(msg) { console.warn(`[android:verify] WARN: ${msg}`); }
+const { updateEvidence } = require('./evidence');
+
 function fail(msg, code = 1) {
   console.error(`[android:verify] FAIL: ${msg}`);
+  updateEvidence({ android_verify_status: 'FAIL', android_verify_message: msg, android_verify_code: code });
   process.exit(code);
 }
 
@@ -506,6 +509,20 @@ async function main() {
 
   const modeLabel = FULL_BUILD ? 'FULL_BUILD' : 'QUICK_VERIFY';
   log(`STATUS: PASS [${modeLabel}] ✓`);
+  
+  updateEvidence({
+    android_verify_status: warnCount > 0 ? 'PASS_WITH_WARNINGS' : 'PASS',
+    android_verify_mode: modeLabel,
+    apk_source_match: FULL_BUILD ? 'VERIFIED' : 'UNVERIFIED',
+    android_build: FULL_BUILD ? 'PASS' : 'SKIPPED',
+    install: 'PASS',
+    launch: 'PASS',
+    crashes: crashLines.length,
+    anrs: anrLines.length,
+    logcat_errors: errorLines.length,
+    logcat_warnings: warnCount
+  });
+  
   process.exit(0);
 }
 

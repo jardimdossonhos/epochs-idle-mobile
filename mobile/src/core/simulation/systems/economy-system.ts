@@ -1,12 +1,13 @@
-import { buildEvent } from "../../ecs/event-pool";
+﻿import { buildEvent } from "../../ecs/event-pool";
 import { ResourceType, TreatyType } from "../../models/enums";
 import { createEmptyStock } from "../../models/economy";
 import { getGovernmentModifiers } from "../../data/government-types";
 import { DEFAULT_ADMIN_MODIFIERS } from "./modifier-cache";
 import type { SimulationSystem } from "../tick-pipeline";
-import { clamp, createEventId, ensureResourceNonNegative, getOwnedRegionIds, roundTo } from "./utils";
+import { clamp, createEventId, ensureResourceNonNegative, getOwnedRegionIds, roundTo, getRegionIndex } from "./utils";
 
 export function createEconomySystem(): SimulationSystem {
+  let firstRun = true;
   return {
     id: "economy",
     run(context): void {
@@ -22,14 +23,20 @@ export function createEconomySystem(): SimulationSystem {
         const regionEconomy = ownedRegionIds.reduce(
           (acc, regionId) => {
             const definition = definitions[regionId];
-            const region = state.world.regions[regionId];
+            if (!definition) return acc;
 
-            if (!definition || !region) {
-              return acc;
-            }
+            const idx = getRegionIndex(regionId);
+            if (idx === -1) return acc;
+
+            // FASE B FIX: ECS architecture replaces OO regions
+            // If the values are not yet in ECS, assume neutral state (productivity = 1.0)
+            const unrest = state.ecs?.regionFaithUnrest?.[idx] ?? 0;
+            const devastation = 0; // Not yet in ECS
+            const autonomy = 0;    // Not yet in ECS
+            const assimilation = 1.0; // Not yet in ECS
 
             const productivity = clamp(
-              1 - region.unrest * 0.48 - region.devastation * 0.62 - region.autonomy * 0.2 + region.assimilation * 0.16,
+              1 - unrest * 0.48 - devastation * 0.62 - autonomy * 0.2 + assimilation * 0.16,
               0.28,
               1.35
             );
@@ -37,7 +44,7 @@ export function createEconomySystem(): SimulationSystem {
             return {
               economy: acc.economy + definition.economyValue * productivity,
               military: acc.military + definition.militaryValue * productivity,
-              food: acc.food + definition.economyValue * (1.12 - region.devastation * 0.5)
+              food: acc.food + definition.economyValue * (1.12 - devastation * 0.5)
             };
           },
           { economy: 0, military: 0, food: 0 }

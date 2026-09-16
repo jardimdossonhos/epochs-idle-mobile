@@ -8,10 +8,12 @@ import {
   Alert,
 } from 'react-native';
 import { useGameState } from '../GameProvider';
+import { useUIStore } from '../store/game-store';
 import { BuildingType } from '../../core/models/enums';
+import { BUILDING_CONFIGS } from '../../core/models/buildings';
 import type { RegionActionType } from '../../application/game-session';
 import worldMapData from '../../assets/data/world_map_data.json';
-import { getFactionStringId, getRegionIndex } from '../../core/simulation/systems/utils';
+import { getFactionStringId, getRegionIndex, getCanonicalRegionOwner } from '../../core/simulation/systems/utils';
 
 interface RegionDetailPanelProps {
   regionId: string;
@@ -98,6 +100,7 @@ const statBarStyles = StyleSheet.create({
 // ─── Componente Principal ─────────────────────────────────────────────────
 export default function RegionDetailPanel({ regionId, onClose, isMergedView = false }: RegionDetailPanelProps) {
   const { gameState, session, playerKingdomId, staticWorldData } = useGameState();
+  const playerHasAscended = useUIStore(s => s.playerHasAscended);
 
   if (!gameState || !gameState.kingdoms || !session || !staticWorldData) return null;
 
@@ -106,7 +109,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
   const getContiguousRegions = useCallback((startRegionId: string): string[] => {
     const startRegionState = gameState.world.regions[startRegionId];
     if (!startRegionState) return [startRegionId];
-    const ownerId = startRegionState.ownerId;
+    const ownerId = getCanonicalRegionOwner(gameState, startRegionId);
     if (!ownerId || ownerId === 'unclaimed' || ownerId === 'k_nature' || ownerId === 'nature') {
       return [startRegionId];
     }
@@ -123,7 +126,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
       for (const neighborId of neighbors) {
         if (!visited.has(neighborId)) {
           const neighborState = gameState.world.regions[neighborId];
-          if (neighborState && neighborState.ownerId === ownerId) {
+          if (neighborState && getCanonicalRegionOwner(gameState, neighborId) === ownerId) {
             visited.add(neighborId);
             queue.push(neighborId);
           }
@@ -186,12 +189,7 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
 
   const numericRId = getRegionIndex(regionId);
   
-  // Read owner directly from ECS (source of truth)
-  let ecsOwnerId: string | undefined;
-  if (gameState.ecs?.regionOwner) {
-    const factionId = gameState.ecs.regionOwner[numericRId];
-    ecsOwnerId = getFactionStringId(factionId);
-  }
+  const ecsOwnerId = getCanonicalRegionOwner(gameState, regionId);
 
   // Read local infrastructure directly from legacy Object (Lazy Hydrated)
   const regionState = gameState.world.regions[regionId];
@@ -247,6 +245,17 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
           targetRegionId = candidates[0];
         }
       }
+
+      console.log(`[AUDIT-BUILD-UI]
+selectedRegionId = ${regionId}
+selectedRegionIndex = ${numericRId}
+UI owner/faction = ${ecsOwnerId}
+UI playerId = ${playerKingdomId}
+UI kingdomId = ${owner?.id}
+targetRegionId = ${targetRegionId}
+targetRegionOwner = ${getCanonicalRegionOwner(gameState, targetRegionId)}
+isMergedView = ${isMergedView}
+`);
 
       const result = session.executeBuildStructure(targetRegionId, buildingType);
       if (!result.ok) {
@@ -393,10 +402,12 @@ export default function RegionDetailPanel({ regionId, onClose, isMergedView = fa
             <View style={styles.actionsGrid}>
               {Object.entries(BUILDING_META).map(([bType, meta]) => {
                 const bt = bType as BuildingType;
+                const requiresAscension = BUILDING_CONFIGS[bt]?.requiresAscension;
+                const blockedByEra = requiresAscension && !playerHasAscended;
                 const alreadyBuilt = buildings.includes(bt);
                 const isUnderConstruction = !!regionState?.construction;
                 const isThisBuildingUnderConstruction = regionState?.construction?.buildingType === bt;
-                const isDisabled = alreadyBuilt || isUnderConstruction;
+                const isDisabled = alreadyBuilt || isUnderConstruction || blockedByEra;
                 return (
                   <TouchableOpacity
                     key={bt}
@@ -681,4 +692,5 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   }
 });
+
 

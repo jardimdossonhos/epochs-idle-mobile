@@ -1,3 +1,4 @@
+﻿import { getFactionGold, creditGold, debitGold } from "../../core/ecs/economy-api";
 import type { DiplomacyResolver, NpcDecision } from "../../core/contracts/services";
 import type { BilateralRelation, Treaty } from "../../core/models/diplomacy";
 import { DiplomaticRelation, TreatyType, ResourceType } from "../../core/models/enums";
@@ -5,6 +6,7 @@ import type { GameState, KingdomState } from "../../core/models/game-state";
 import { buildTreatyId, sortUniqueIds } from "../../core/models/identifiers";
 import type { KingdomId } from "../../core/models/types";
 import type { DomainEvent } from "../../core/models/events";
+import { getCanonicalRegionOwner } from "../../core/simulation/systems/utils";
 
 const DEFAULT_TREATY_DURATION_MS = 1000 * 60 * 18;
 
@@ -22,7 +24,7 @@ function getOwnedRegionCount(state: GameState, kingdomId: KingdomId): number {
 
   for (const regionId of Object.keys(state.world.regions).sort()) {
     const region = state.world.regions[regionId];
-    if (region.ownerId === kingdomId) {
+    if (getCanonicalRegionOwner(state, regionId) === kingdomId) {
       total += 1;
     }
   }
@@ -38,7 +40,7 @@ function buildTerritoryCounts(state: GameState): Map<KingdomId, number> {
   }
 
   for (const regionId of Object.keys(state.world.regions).sort()) {
-    const ownerId = state.world.regions[regionId].ownerId;
+    const ownerId = getCanonicalRegionOwner(state, regionId);
     counts.set(ownerId, (counts.get(ownerId) ?? 0) + 1);
   }
 
@@ -365,7 +367,7 @@ export class LocalDiplomacyResolver implements DiplomacyResolver {
           }
         }
 
-        // MECÂNICA DE CISMA: Ódio diplomático entre a fé-mãe e a heresia.
+        // MECÃ‚NICA DE CISMA: Ã“dio diplomático entre a fé-mãe e a heresia.
         const otherKingdom = state.kingdoms[relationId];
         if (otherKingdom) {
           const kingdomFaithDef = state.world.religions[kingdom.religion.stateFaith];
@@ -374,7 +376,7 @@ export class LocalDiplomacyResolver implements DiplomacyResolver {
           if (kingdomFaithDef && otherFaithDef) {
             const isSchism = kingdomFaithDef.parentReligionId === otherFaithDef.id || otherFaithDef.parentReligionId === kingdomFaithDef.id;
             if (isSchism) {
-              relation.score.trust = roundTo(clamp(relation.score.trust - 0.025, 0, 1)); // Ódio corrói a confiança
+              relation.score.trust = roundTo(clamp(relation.score.trust - 0.025, 0, 1)); // Ã“dio corrói a confiança
               relation.score.rivalry = roundTo(clamp(relation.score.rivalry + 0.015, 0, 1)); // Aumenta a rivalidade
               relation.grievance = roundTo(clamp(relation.grievance + 0.01, 0, 1)); // Gera agravo contínuo
             }
@@ -411,7 +413,7 @@ export class LocalDiplomacyResolver implements DiplomacyResolver {
         }
       }
 
-      // APLICAÇÃO DE BENEFÍCIOS ECONÔMICOS DOS ACORDOS COMERCIAIS
+      // APLICAÃ‡ÃƒO DE BENEFÍCIOS ECONÃ”MICOS DOS ACORDOS COMERCIAIS
       for (const treaty of kingdom.diplomacy.treaties) {
         if (treaty.type === TreatyType.TradeAgreement && (treaty.expiresAt === null || treaty.expiresAt > now)) {
           // Para cada acordo comercial ativo, aplica bônus econômico
@@ -481,7 +483,7 @@ export class LocalDiplomacyResolver implements DiplomacyResolver {
           }
         }
       }
-      // SISTEMA DE COALIZÃO SECRETA: Ódio emerge matematicamente
+      // SISTEMA DE COALIZÃƒO SECRETA: Ã“dio emerge matematicamente
       for (const treaty of kingdom.diplomacy.treaties) {
         if (treaty.type === TreatyType.SecretCoalition && (treaty.expiresAt === null || treaty.expiresAt > now)) {
           const coalitionTargetId = String(treaty.terms?.targetKingdomId);
@@ -700,12 +702,12 @@ export class LocalDiplomacyResolver implements DiplomacyResolver {
       }
       case "financiar_guerra": {
         // Financiamento de guerra: fornece recursos financeiros ao aliado em guerra
-const fundingAmount = Math.min(actor.economy.stock[ResourceType.Gold] * 0.1, 200); // 10% do tesouro ou 200 max
+const fundingAmount = Math.min(getFactionGold(state, actor.id) * 0.1, 200); // 10% do tesouro ou 200 max
 
         if (fundingAmount > 10) { // Só financia se tiver recursos significativos
           // Transfere ouro
-          actor.economy.stock[ResourceType.Gold] = Math.max(0, actor.economy.stock[ResourceType.Gold] - fundingAmount);
-          target.economy.stock[ResourceType.Gold] += fundingAmount;
+          debitGold(state, actor.id, fundingAmount, "diplomacy_fund");
+          creditGold(state, target.id, fundingAmount, "diplomacy_fund");
 
           // Melhora relações
           actorRelation.score.trust = roundTo(clamp(actorRelation.score.trust + 0.06, 0, 1));
