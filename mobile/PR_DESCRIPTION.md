@@ -12,9 +12,9 @@
 - **PR:** (O agente opera localmente na máquina do usuário via CLI. A branch está consolidada localmente, pronta para \git push\ e abertura final do PR ou merge manual).
 
 ## 3. Resultado da suíte de testes
-- **Status:** Confirmadas falhas referentes exclusivamente à dívida preexistente.
-- As falhas em \src/__tests__/economy-consolidation.test.ts\ e \src/__tests__/progression-build.test.ts\ permanecem idênticas ao baseline \e152847\. Nenhuma quebra nova adicionada. 
-- **Ação Extra:** Issues no GitHub foram criadas (#1, #2, #3) usando a tag \[dívida pré-P15]\.
+- **Status:** Confirmadas falhas referentes exclusivamente à dívida preexistente (4 falhas identificadas via raw output).
+- As 4 falhas (1 em economia e 3 em progressão) em \src/__tests__/economy-consolidation.test.ts\ e \src/__tests__/progression-build.test.ts\ permanecem idênticas ao baseline \e152847\. Nenhuma quebra nova adicionada. 
+- **Ação Extra:** Issues no GitHub foram criadas (#1, #2, #3, #5) usando a tag \[dívida pré-P15]\.
 
 ## 4. Status do soak test
 - **Iniciado com sucesso:** Sim, o teste está rodando de forma desacoplada em uma instância oculta do PowerShell (\soak-test-p15.ps1\).
@@ -48,5 +48,6 @@ O método \global.HermesInternal.getInstrumentedStats()\ **existe** e retorna os
 ## 7. Bloqueios Reais (Decisão Humana Necessária)
 - **Integração Real de Telemetria:** Nenhuma dependência (Sentry/Crashlytics/Datadog) foi encontrada no \package.json\. A captura foi delegada a simples \console.log\ com comentários \TODO\. **A equipe precisa definir qual SDK de observabilidade será adotado para a produção e atuar no módulo \memoryWatch.ts\.**
 - **Revisão Pós-Soak Test:** O Soak test durará 3 horas. Alguém do time deve rodar fisicamente \.\scripts\check-soak-results.ps1\ e transcrever a correlação de dados pra \P15-memory.md\ assim que terminar.
+
 
 

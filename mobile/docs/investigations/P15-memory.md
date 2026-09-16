@@ -80,7 +80,9 @@ Para validar a curva ao longo de horas de tela e ciclos de background:
 ---
 
 ## 6. Histórico de Commits e Dívida Técnica
-*   **Baseline Pré-P15:** e152847 (contém 3 falhas nos testes documentadas em issues [dívida pré-P15]).
+*   **Baseline Pré-P15:** e152847 (contém 4 falhas nos testes documentadas em issues [dívida pré-P15]).
+> **Nota sobre Triagem de Testes:** A falha no 'Cenário B' apenas foi identificada após a captura e auditoria do output bruto e completo do \
+pm run test\ (não revelada nos resumos simplificados anteriores). Isso atesta o valor de não confiar apenas em relatórios sumarizados e sempre exportar o raw output durante encerramento de investigações.
 *   **D.3C, E4, E5, E6:** Execuções baseadas na branch do TopHUD (3d9b84f e afins), testadas localmente via un_e*.ps1.
 
 
@@ -101,6 +103,7 @@ Exemplo capturado em tempo real via getInstrumentedStats():
   "js_markStackOverflows": 0
 }
 ```
+
 
 
 
