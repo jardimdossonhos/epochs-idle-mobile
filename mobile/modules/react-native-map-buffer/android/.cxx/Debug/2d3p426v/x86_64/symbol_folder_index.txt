@@ -1,1 +1,0 @@
-C:\Users\joti.SIMPLO\Documents\Epochs_Idle\mobile\modules\react-native-map-buffer\android\build\intermediates\cxx\Debug\2d3p426v\obj\x86_64
