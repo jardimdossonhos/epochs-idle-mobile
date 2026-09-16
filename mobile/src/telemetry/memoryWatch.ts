@@ -1,6 +1,24 @@
 ﻿// Telemetria leve de memória para produção
 // Faz sampling do Hermes GC periodicamente.
 
+declare const global: typeof globalThis & {
+  HermesInternal?: {
+    getInstrumentedStats: () => {
+      js_VMExperiments: number;
+      js_numGCs: number;
+      js_gcCPUTime: number;
+      js_gcTime: number;
+      js_totalAllocatedBytes: number;
+      js_allocatedBytes: number;
+      js_heapSize: number;
+      js_mallocSizeEstimate: number;
+      js_vaSize: number;
+      js_externalBytes: number;
+      js_markStackOverflows: number;
+    };
+  };
+};
+
 const MEMORY_WATCH_ENABLED = false; // Desativado por padrão conforme decisão de P15
 
 export function startMemoryWatch(intervalMs = 60000) {
@@ -20,7 +38,7 @@ export function startMemoryWatch(intervalMs = 60000) {
 
     setInterval(() => {
         try {
-            const stats = global.HermesInternal.getInstrumentedStats();
+            const stats = global.HermesInternal!.getInstrumentedStats();
             // Para o Soak Test via adb logcat:
             console.log('[SOAK_HERMES_STATS] ' + JSON.stringify(stats));
 

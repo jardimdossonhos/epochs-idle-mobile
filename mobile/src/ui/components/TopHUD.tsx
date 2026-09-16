@@ -338,7 +338,7 @@ function HexIcon({ size = 20, color = "#A0A0B0" }: { size?: number, color?: stri
 }
 
 // ─── Main TopHUD ──────────────────────────────────────────────────────────────
-export default function TopHUD() {
+function TopHUD() {
   const insets = useSafeAreaInsets();
   const { session } = useGameState();
   const { t } = useLanguage();
@@ -684,3 +684,5 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 });
+
+export default React.memo(TopHUD);
