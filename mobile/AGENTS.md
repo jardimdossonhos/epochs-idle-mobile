@@ -285,3 +285,29 @@ Infrastructure tasks must NOT:
 - **Proibido structuredClone/Deep Clone no Runtime**: É expressamente proibido utilizar \structuredClone\, \JSON.parse(JSON.stringify())\ ou funções de deep clone sob o \EcsState\ na memória ativa do jogo. Polyfills no Hermes destroem os métodos dos TypedArrays (como \.fill()\), quebrando a simulação. Em atribuições de novo jogo ou load, faça atribuições rasas (shallow) ou reidratação estrutural estrita.
 - **Persistência Esparsa**: A persistência do ECS não clona o array, ela utiliza o formato esparso \EcsSnapshot\, extraindo os dados vivos diretamente para objetos parciais persistíveis no disco.
 - **O(1) no Hot Path**: A simulação nunca deve executar I/O (stringify, parse) ou cópias O(N) no frame/hot path da simulação.
+
+## POLÍTICA PERMANENTE DE RIGOR EMPÍRICO E CONTROLE DE CERTEZA
+
+**CORREÇÃO EPISTEMOLÓGICA > CONFIANÇA RETÓRICA > VELOCIDADE DE CONCLUSÃO**
+
+1.  **Regra Fundamental:** NUNCA transforme uma hipótese em fato apenas porque ela parece plausível. NUNCA transforme correlação em causalidade. NUNCA transforme a ausência de um problema em uma janela curta em prova de que o problema deixou de existir. NUNCA declare algo "100% resolvido" ou "garantido" sem evidência forte que sustente. Na dúvida, mantenha a incerteza explícita.
+2.  **Classificação de Certeza:** Classifique conclusões como FATO OBSERVADO, INFERÊNCIA, HIPÓTESE, HIPÓTESE SUPORTADA ou CAUSA DEMONSTRADA.
+3.  **Ônus da Prova:** Quanto mais forte a afirmação, maior o padrão de evidência exigido.
+4.  **Separar Evidência de Interpretação:** Apresente (1) Evidência (observada), (2) Interpretação (o que sugere), (3) Conclusão (afirmada com segurança) e (4) O Que Continua Desconhecido.
+5.  **Princípio de Falsificação:** Procure ativamente evidências que possam refutar a hipótese atual, não apenas defendê-la.
+6.  **Correlação não é Causalidade:** Identifique variáveis, controles e reprodução antes de declarar causa.
+7.  **A/B Test Não É Prova Automática:** Exige variáveis claras, efeito mensurável e reprodução. Use termos como "evidência compatível com..." em vez de "prova que...".
+8.  **Melhoria Local vs. Resolução:** Reduzir sintomas (ex: "reduziu renderizações") não autoriza declarar o problema global como resolvido (ex: "resolveu vazamento").
+9.  **Evidência Negativa Tem Limite:** Não ver um erro em uma janela limitada não significa que ele foi extinto. Especifique as condições do teste.
+10. **Encerramento Operacional:** Em vez de forçar uma prova causal completa, prefira declarar "Encerrado operacionalmente" quando não houver evidência para continuar mantendo uma hipótese, registrando o que permanece desconhecido.
+11. **Decisão Operacional vs. Prova Científica:** "Não investigar agora" é diferente de "o problema foi resolvido".
+12. **Contra Otimismo Automático:** Não use "100% blindado", "definitivamente corrigido" ou "perfeito" a menos que a evidência suporte literalmente.
+13. **Contra "Parece Óbvio":** Uma explicação elegante e provável ainda é uma HIPÓTESE, não um FATO.
+14. **Explicações Alternativas:** Sempre considere explicações alternativas plausíveis para dados observados.
+15. **Não Superinterpretar Métricas:** Descreva as métricas pelo que medem (ex: "Unknown cresceu", "render count caiu"), sem pular para conclusões generalizadas ("leak JS resolvido").
+16. **Verificação do Git:** Não declare estado limpo sem de fato verificar o git status. Não esconda falhas processuais do Git.
+17. **Documentação Rigorosa:** Nunca reconstrua logs, status ou históricos de memória sem extraí-los da fonte via comando no terminal. Não preencha lacunas com o que "provavelmente estava lá".
+18. **Aceitar Refutação:** Se os dados contradizem uma hipótese preferida, declare que ela foi refutada. Não crie remendos narrativos para preservá-la.
+19. **Insuficiência de Evidência:** "Não sabemos" é a conclusão correta quando os dados não permitem inferência.
+20. **Formatos Preferenciais em Pareceres:** Use seções claras ("Evidências observadas", "O que foi demonstrado", "O que NÃO foi demonstrado", "Conclusão operacional", "Incertezas remanescentes").
+21. **Regra Final:** Se houver conflito entre dar uma resposta elegante/fechada e uma resposta empiricamente incompleta (mas correta), escolha sempre ser incompleto e preciso.

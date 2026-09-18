@@ -167,9 +167,9 @@ As fases anteriores (P6 a P9) dedicaram-se a rastrear o rápido consumo de memó
 
 ### Direção do Projeto após P15
 
-P15 está encerrada. 
+P15 está encerrada operacionalmente, permanecendo desconhecido o mecanismo interno exato do crescimento de memória observado.
 * O baseline de testes foi preservado (4 falhas).
-* A otimização `React.memo(TopHUD)` provou-se uma otimização real de renderização/CPU e foi mantida.
+* A otimização `React.memo(TopHUD)` reduziu comprovadamente as renderizações medidas do TopHUD nas condições testadas, e foi mantida.
 * Nenhuma cirurgia arquitetural adicional será feita agora. 
 
 **A prioridade correta passa a ser a Fundação Temporal (P1)** prevista no roadmap: 1 tick = 1 dia, calendário, velocidades 1x–30x, offline progression e validação das consequências temporais sobre os sistemas dependentes, visto que o tempo é uma dependência de primeira ordem do ECS.
