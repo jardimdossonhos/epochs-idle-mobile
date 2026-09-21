@@ -1,0 +1,95 @@
+﻿
+09-02 12:47:08.105  3770  3830 I ReactNativeJS: [P10] elapsedMs=30255 ticks=0 speed=0 providerUpdates=0 appContent=1 
+inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-02 12:47:08.106  3770  3830 I ReactNativeJS: [P10] elapsedMs=1 ticks=0 speed=0 providerUpdates=0 appContent=0 
+inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-02 12:47:08.107  3770  3830 I ReactNativeJS: [P10] elapsedMs=1 ticks=0 speed=0 providerUpdates=0 appContent=0 
+inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-02 12:47:17.908  3770  3830 I ReactNativeJS: [P10] elapsedMs=9801 ticks=18 speed=30 providerUpdates=17 
+appContent=19 inGameShell=18 topHud=33 p14Minimal=18 mapHeavy=0 canvas=0
+09-02 12:47:27.928  3770  3830 I ReactNativeJS: [P10] elapsedMs=10020 ticks=30 speed=30 providerUpdates=31 
+appContent=31 inGameShell=31 topHud=58 p14Minimal=31 mapHeavy=0 canvas=0
+09-02 12:47:37.941  3770  3830 I ReactNativeJS: [P10] elapsedMs=10013 ticks=30 speed=30 providerUpdates=29 
+appContent=29 inGameShell=29 topHud=52 p14Minimal=29 mapHeavy=0 canvas=0
+09-02 12:47:47.958  3770  3830 I ReactNativeJS: [P10] elapsedMs=10017 ticks=30 speed=30 providerUpdates=31 
+appContent=31 inGameShell=31 topHud=56 p14Minimal=31 mapHeavy=0 canvas=0
+09-02 12:47:57.975  3770  3830 I ReactNativeJS: [P10] elapsedMs=10017 ticks=30 speed=30 providerUpdates=29 
+appContent=29 inGameShell=29 topHud=52 p14Minimal=29 mapHeavy=0 canvas=0
+09-02 12:48:07.991  3770  3830 I ReactNativeJS: [P10] elapsedMs=10016 ticks=30 speed=30 providerUpdates=31 
+appContent=31 inGameShell=31 topHud=57 p14Minimal=31 mapHeavy=0 canvas=0
+09-02 12:48:18.008  3770  3830 I ReactNativeJS: [P10] elapsedMs=10017 ticks=30 speed=30 providerUpdates=29 
+appContent=28 inGameShell=28 topHud=50 p14Minimal=28 mapHeavy=0 canvas=0
+09-02 12:48:28.025  3770  3830 I ReactNativeJS: [P10] elapsedMs=10017 ticks=30 speed=30 providerUpdates=31 
+appContent=31 inGameShell=31 topHud=58 p14Minimal=31 mapHeavy=0 canvas=0
+09-02 12:48:38.042  3770  3830 I ReactNativeJS: [P10] elapsedMs=10017 ticks=30 speed=30 providerUpdates=29 
+appContent=29 inGameShell=29 topHud=54 p14Minimal=29 mapHeavy=0 canvas=0
+09-02 12:48:48.058  3770  3830 I ReactNativeJS: [P10] elapsedMs=10016 ticks=30 speed=30 providerUpdates=31 
+appContent=31 inGameShell=31 topHud=57 p14Minimal=31 mapHeavy=0 canvas=0
+09-02 12:48:58.076  3770  3830 I ReactNativeJS: [P10] elapsedMs=10018 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=55 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:49:08.190  3770  3830 I ReactNativeJS: [P10] elapsedMs=10114 ticks=31 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=57 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:49:18.116  3770  3830 I ReactNativeJS: [P10] elapsedMs=9926 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=50 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:49:28.190  3770  3830 I ReactNativeJS: [P10] elapsedMs=10074 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=57 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:49:38.141  3770  3830 I ReactNativeJS: [P10] elapsedMs=9951 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=55 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:49:48.202  3770  3830 I ReactNativeJS: [P10] elapsedMs=10061 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=56 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:49:58.174  3770  3830 I ReactNativeJS: [P10] elapsedMs=9972 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=55 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:50:08.192  3770  3830 I ReactNativeJS: [P10] elapsedMs=10018 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=58 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:50:18.206  3770  3830 I ReactNativeJS: [P10] elapsedMs=10014 ticks=30 speed=30 providerUpdates=30 
+appContent=29 inGameShell=29 topHud=55 p14Minimal=29 mapHeavy=0 canvas=0
+09-02 12:50:28.279  3770  3830 I ReactNativeJS: [P10] elapsedMs=10073 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=60 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:50:38.244  3770  3830 I ReactNativeJS: [P10] elapsedMs=9965 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=52 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:50:48.258  3770  3830 I ReactNativeJS: [P10] elapsedMs=10014 ticks=30 speed=30 providerUpdates=31 
+appContent=31 inGameShell=31 topHud=54 p14Minimal=31 mapHeavy=0 canvas=0
+09-02 12:50:58.275  3770  3830 I ReactNativeJS: [P10] elapsedMs=10016 ticks=30 speed=30 providerUpdates=29 
+appContent=29 inGameShell=29 topHud=52 p14Minimal=29 mapHeavy=0 canvas=0
+09-02 12:51:08.292  3770  3830 I ReactNativeJS: [P10] elapsedMs=10018 ticks=30 speed=30 providerUpdates=31 
+appContent=31 inGameShell=31 topHud=53 p14Minimal=31 mapHeavy=0 canvas=0
+09-02 12:51:18.309  3770  3830 I ReactNativeJS: [P10] elapsedMs=10017 ticks=30 speed=30 providerUpdates=29 
+appContent=29 inGameShell=29 topHud=51 p14Minimal=29 mapHeavy=0 canvas=0
+09-02 12:51:28.325  3770  3830 I ReactNativeJS: [P10] elapsedMs=10015 ticks=30 speed=30 providerUpdates=31 
+appContent=31 inGameShell=31 topHud=52 p14Minimal=31 mapHeavy=0 canvas=0
+09-02 12:51:38.342  3770  3830 I ReactNativeJS: [P10] elapsedMs=10018 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=54 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:51:48.359  3770  3830 I ReactNativeJS: [P10] elapsedMs=10017 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=54 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:51:58.375  3770  3830 I ReactNativeJS: [P10] elapsedMs=10016 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=54 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:52:08.392  3770  3830 I ReactNativeJS: [P10] elapsedMs=10017 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=53 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:52:18.409  3770  3830 I ReactNativeJS: [P10] elapsedMs=10017 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=51 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:52:28.431  3770  3830 I ReactNativeJS: [P10] elapsedMs=10022 ticks=31 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=50 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:52:38.442  3770  3830 I ReactNativeJS: [P10] elapsedMs=10011 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=49 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:52:48.459  3770  3830 I ReactNativeJS: [P10] elapsedMs=10017 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=50 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:52:58.476  3770  3830 I ReactNativeJS: [P10] elapsedMs=10017 ticks=30 speed=30 providerUpdates=30 
+appContent=30 inGameShell=30 topHud=50 p14Minimal=30 mapHeavy=0 canvas=0
+09-02 12:53:08.493  3770  3830 I ReactNativeJS: [P10] elapsedMs=10017 ticks=30 speed=30 providerUpdates=31 
+appContent=31 inGameShell=31 topHud=50 p14Minimal=31 mapHeavy=0 canvas=0
+09-02 12:53:18.509  3770  3830 I ReactNativeJS: [P10] elapsedMs=10016 ticks=30 speed=30 providerUpdates=29 
+appContent=28 inGameShell=28 topHud=49 p14Minimal=28 mapHeavy=0 canvas=0
+09-02 12:53:28.526  3770  3830 I ReactNativeJS: [P10] elapsedMs=10017 ticks=30 speed=30 providerUpdates=31 
+appContent=31 inGameShell=31 topHud=56 p14Minimal=31 mapHeavy=0 canvas=0
+09-02 12:53:38.542  3770  3830 I ReactNativeJS: [P10] elapsedMs=10016 ticks=30 speed=30 providerUpdates=29 
+appContent=29 inGameShell=29 topHud=53 p14Minimal=29 mapHeavy=0 canvas=0
+09-02 12:53:48.560  3770  3830 I ReactNativeJS: [P10] elapsedMs=10018 ticks=30 speed=30 providerUpdates=31 
+appContent=31 inGameShell=31 topHud=59 p14Minimal=31 mapHeavy=0 canvas=0
+09-02 12:53:58.576  3770  3830 I ReactNativeJS: [P10] elapsedMs=10016 ticks=30 speed=30 providerUpdates=29 
+appContent=29 inGameShell=29 topHud=55 p14Minimal=29 mapHeavy=0 canvas=0
+09-02 12:54:08.591  3770  3830 I ReactNativeJS: [P10] elapsedMs=10014 ticks=30 speed=30 providerUpdates=31 
+appContent=31 inGameShell=31 topHud=59 p14Minimal=31 mapHeavy=0 canvas=0
+09-02 12:54:18.610  3770  3830 I ReactNativeJS: [P10] elapsedMs=10020 ticks=30 speed=30 providerUpdates=30 
+appContent=29 inGameShell=29 topHud=59 p14Minimal=29 mapHeavy=0 canvas=0
+
+

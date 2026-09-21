@@ -1,0 +1,276 @@
+﻿
+09-03 18:41:28.464  5302  5341 I ReactNativeJS: [P10] elapsedMs=10218 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=3 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:41:38.271  5302  5341 I ReactNativeJS: [P10] elapsedMs=9807 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=0 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=0 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:41:48.287  5302  5341 I ReactNativeJS: [P10] elapsedMs=10016 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:41:58.304  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:42:08.320  5302  5341 I ReactNativeJS: [P10] elapsedMs=10016 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:42:18.338  5302  5341 I ReactNativeJS: [P10] elapsedMs=10018 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:42:28.355  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:42:38.371  5302  5341 I ReactNativeJS: [P10] elapsedMs=10016 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=0 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=0 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:42:48.387  5302  5341 I ReactNativeJS: [P10] elapsedMs=10016 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:42:58.404  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:43:08.419  5302  5341 I ReactNativeJS: [P10] elapsedMs=10015 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:43:18.436  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:43:28.460  5302  5341 I ReactNativeJS: [P10] elapsedMs=10024 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:43:38.472  5302  5341 I ReactNativeJS: [P10] elapsedMs=10012 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:43:48.486  5302  5341 I ReactNativeJS: [P10] elapsedMs=10014 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:43:58.503  5302  5341 I ReactNativeJS: [P10] elapsedMs=10016 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:44:08.519  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:44:18.536  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:44:28.553  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:44:38.571  5302  5341 I ReactNativeJS: [P10] elapsedMs=10018 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=2 ctxTrig=0 zusTrig=2 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=2 ctxTrig=0 zusTrig=2 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:44:48.586  5302  5341 I ReactNativeJS: [P10] elapsedMs=10015 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:44:58.604  5302  5341 I ReactNativeJS: [P10] elapsedMs=10018 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:45:08.620  5302  5341 I ReactNativeJS: [P10] elapsedMs=10015 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:45:18.639  5302  5341 I ReactNativeJS: [P10] elapsedMs=10020 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:45:28.656  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:45:38.744  5302  5341 I ReactNativeJS: [P10] elapsedMs=10088 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:45:48.689  5302  5341 I ReactNativeJS: [P10] elapsedMs=9945 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:45:58.703  5302  5341 I ReactNativeJS: [P10] elapsedMs=10014 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:46:08.720  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:46:18.738  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:46:28.753  5302  5341 I ReactNativeJS: [P10] elapsedMs=10016 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:46:38.771  5302  5341 I ReactNativeJS: [P10] elapsedMs=10018 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:46:48.787  5302  5341 I ReactNativeJS: [P10] elapsedMs=10016 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:46:58.803  5302  5341 I ReactNativeJS: [P10] elapsedMs=10016 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:47:08.836  5302  5341 I ReactNativeJS: [P10] elapsedMs=10033 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:47:18.853  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:47:28.871  5302  5341 I ReactNativeJS: [P10] elapsedMs=10018 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:47:38.887  5302  5341 I ReactNativeJS: [P10] elapsedMs=10016 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:47:48.903  5302  5341 I ReactNativeJS: [P10] elapsedMs=10016 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:47:58.920  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:48:08.937  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:48:18.952  5302  5341 I ReactNativeJS: [P10] elapsedMs=10015 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:48:28.970  5302  5341 I ReactNativeJS: [P10] elapsedMs=10018 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:48:38.969  5302  5341 I ReactNativeJS: [P10] elapsedMs=9999 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:48:48.990  5302  5341 I ReactNativeJS: [P10] elapsedMs=10021 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:48:59.005  5302  5341 I ReactNativeJS: [P10] elapsedMs=10015 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:49:09.019  5302  5341 I ReactNativeJS: [P10] elapsedMs=10014 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:49:19.037  5302  5341 I ReactNativeJS: [P10] elapsedMs=10018 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:49:29.054  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:49:39.070  5302  5341 I ReactNativeJS: [P10] elapsedMs=10016 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:49:49.087  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:49:59.103  5302  5341 I ReactNativeJS: [P10] elapsedMs=10016 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:50:09.120  5302  5341 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=0 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=0 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:50:19.136  5302  5341 I ReactNativeJS: [P10] elapsedMs=10016 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:50:29.152  5302  5341 I ReactNativeJS: [P10] elapsedMs=10016 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:50:39.170  5302  5341 I ReactNativeJS: [P10] elapsedMs=10018 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:51:09.971  5631  5667 I ReactNativeJS: [P10] elapsedMs=10008 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=0 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=0 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=4 inGameShell=2 topHud=0 p14Minimal=2 mapHeavy=0 canvas=0
+09-03 18:51:19.987  5631  5667 I ReactNativeJS: [P10] elapsedMs=10016 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:51:30.005  5631  5667 I ReactNativeJS: [P10] elapsedMs=10018 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:51:40.020  5631  5667 I ReactNativeJS: [P10] elapsedMs=10015 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:51:50.035  5631  5667 I ReactNativeJS: [P10] elapsedMs=10015 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:52:00.053  5631  5667 I ReactNativeJS: [P10] elapsedMs=10018 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:52:10.071  5631  5667 I ReactNativeJS: [P10] elapsedMs=10018 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:52:20.087  5631  5667 I ReactNativeJS: [P10] elapsedMs=10015 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:52:30.103  5631  5667 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:52:40.119  5631  5667 I ReactNativeJS: [P10] elapsedMs=10016 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:52:50.136  5631  5667 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:53:00.153  5631  5667 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:53:10.170  5631  5667 I ReactNativeJS: [P10] elapsedMs=10016 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:53:20.186  5631  5667 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=4 ctxTrig=0 zusTrig=4 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=4 ctxTrig=0 zusTrig=4 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:53:30.204  5631  5667 I ReactNativeJS: [P10] elapsedMs=10018 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:53:40.220  5631  5667 I ReactNativeJS: [P10] elapsedMs=10016 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:53:50.235  5631  5667 I ReactNativeJS: [P10] elapsedMs=10015 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:54:00.254  5631  5667 I ReactNativeJS: [P10] elapsedMs=10019 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:54:10.272  5631  5667 I ReactNativeJS: [P10] elapsedMs=10018 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:54:20.287  5631  5667 I ReactNativeJS: [P10] elapsedMs=10015 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:54:30.302  5631  5667 I ReactNativeJS: [P10] elapsedMs=10015 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:54:40.319  5631  5667 I ReactNativeJS: [P10] elapsedMs=10017 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:54:50.338  5631  5667 I ReactNativeJS: [P10] elapsedMs=10019 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:55:00.352  5631  5667 I ReactNativeJS: [P10] elapsedMs=10014 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:55:10.370  5631  5667 I ReactNativeJS: [P10] elapsedMs=10018 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:55:20.387  5631  5667 I ReactNativeJS: [P10] elapsedMs=10017 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:55:30.406  5631  5667 I ReactNativeJS: [P10] elapsedMs=10019 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:55:40.444  5631  5667 I ReactNativeJS: [P10] elapsedMs=10038 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:55:50.453  5631  5667 I ReactNativeJS: [P10] elapsedMs=10009 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:56:00.474  5631  5667 I ReactNativeJS: [P10] elapsedMs=10021 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:56:10.490  5631  5667 I ReactNativeJS: [P10] elapsedMs=10016 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:56:20.506  5631  5667 I ReactNativeJS: [P10] elapsedMs=10016 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:56:30.521  5631  5667 I ReactNativeJS: [P10] elapsedMs=10015 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+09-03 18:56:40.539  5631  5667 I ReactNativeJS: [P10] elapsedMs=10018 ticks=1 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=1 tickMismatch=1 selectorChanges=1 ctxTrig=0 zusTrig=1 syncInterval=0 zSetState=1 tickMismatch=1 
+selectorChanges=1 ctxTrig=0 zusTrig=1 appContent=1 inGameShell=1 topHud=0 p14Minimal=1 mapHeavy=0 canvas=0
+09-03 18:56:50.556  5631  5667 I ReactNativeJS: [P10] elapsedMs=10017 ticks=0 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=0 tickMismatch=0 selectorChanges=0 ctxTrig=0 zusTrig=0 syncInterval=0 zSetState=0 tickMismatch=0 
+selectorChanges=0 ctxTrig=0 zusTrig=0 appContent=0 inGameShell=0 topHud=0 p14Minimal=0 mapHeavy=0 canvas=0
+
+

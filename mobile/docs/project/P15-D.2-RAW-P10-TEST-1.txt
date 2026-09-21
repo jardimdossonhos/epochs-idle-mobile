@@ -1,0 +1,7 @@
+﻿
+09-04 11:47:58.267  2910  3135 I ReactNativeJS: [P10] elapsedMs=10041 ticks=26 speed=0 providerUpdates=0 
+syncInterval=0 zSetState=30 tickMismatch=28 selectorChanges=13 ctxTrig=0 zusTrig=13 syncInterval=0 zSetState=30 
+tickMismatch=28 selectorChanges=13 ctxTrig=0 zusTrig=13 appContent=13 inGameShell=13 topHud=23 p14Minimal=13 
+mapHeavy=0 canvas=0
+
+

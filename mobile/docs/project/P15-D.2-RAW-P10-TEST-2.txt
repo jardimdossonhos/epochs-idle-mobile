@@ -1,0 +1,10 @@
+﻿
+09-04 11:48:28.610  2910  3135 I ReactNativeJS: [P10] elapsedMs=10811 ticks=31 speed=0 providerUpdates=0 
+syncInterval=0 zSetState=33 tickMismatch=33 selectorChanges=17 ctxTrig=0 zusTrig=17 syncInterval=0 zSetState=33 
+tickMismatch=33 selectorChanges=17 ctxTrig=0 zusTrig=17 appContent=17 inGameShell=17 topHud=34 p14Minimal=17 
+mapHeavy=0 canvas=0
+09-04 11:48:38.141  2910  3135 I ReactNativeJS: [P10] elapsedMs=9531 ticks=30 speed=0 providerUpdates=0 syncInterval=0 
+zSetState=35 tickMismatch=35 selectorChanges=18 ctxTrig=0 zusTrig=18 syncInterval=0 zSetState=35 tickMismatch=35 
+selectorChanges=18 ctxTrig=0 zusTrig=18 appContent=16 inGameShell=16 topHud=31 p14Minimal=16 mapHeavy=0 canvas=0
+
+
