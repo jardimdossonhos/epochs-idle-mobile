@@ -4,54 +4,37 @@ Este documento formaliza as regras absolutas (invariantes) que o sistema tempora
 
 Qualquer futura refatora??o das unidades de tempo deve manter essas invariantes v?lidas.
 
-## 1. Monotonicidade e Continuidade
+## 1. Monotonicidade, Continuidade e Escala
 
-*   **Invariante:** O rel?gio da simula??o (meta.tick) avan?a de forma estritamente monot?nica e cont?nua. Ticks nunca podem retroceder ou pular intervalos sem processar o tempo transcorrido (a menos que limitado propositalmente por um teto configur?vel, como o limite offline).
+*   **Invariante:** O avan?o de meta.tick deve corresponder estritamente ? quantidade de tempo (e simula??o) realmente executada. Ticks n?o podem retroceder. O 	ickScale aplicado aos sistemas deve representar o salto temporal exato injetado no rel?gio master.
 *   **Classifica??o:** REQUISITO DE DESIGN.
 
 ## 2. Rela??o Tick/Dura??o
 
-*   **Invariante:** Cada incremento discreto em meta.tick corresponde a um volume fixo de tempo real base (meta.tickDurationMs). O somat?rio final de avan?o do estado ? puramente o produto de 	ick * tickDurationMs.
-*   **Classifica??o:** FATO OBSERVADO / REQUISITO DE DESIGN.
+*   **Invariante:** Cada incremento num?rico na totaliza??o do estado deve ser o produto da dura??o base computada.
+*   **Classifica??o:** REQUISITO DE DESIGN.
 
 ## 3. Equival?ncia de Batch (Simula??o Coarse)
 
-*   **Invariante:** Executar o pipeline para $ ticks isoladamente deve produzir um delta no estado (economia, 	ecnologia, popula??o) matematicamente equivalente a executar 1 "Batch" que pule o tempo em $ ticks de uma s? vez (via 	ickScale).
-*   **Classifica??o:** REQUISITO DE DESIGN (Atualmente violado: QUEST?O EM ABERTO / BUG DEMONSTRADO).
+*   **Invariante:** Executar o pipeline para $ ticks isoladamente deve produzir um delta no estado (economia, 	ecnologia, popula??o) matematicamente equivalente a executar 1 "Batch" que pule o tempo em $ ticks de uma s? vez (via 	ickScale), ressalvadas diferen?as decorrentes de aproxima??es de ponto flutuante ou eventos rand?micos intra-tick.
+*   **Classifica??o:** REQUISITO DE DESIGN (Atualmente: QUEST?O EM ABERTO / EVID?NCIA ESTRUTURAL DE DIVERG?NCIA).
 
 ## 4. Coer?ncia Online/Offline
 
-*   **Invariante:** 1 hora de inatividade com o aplicativo fechado deve gerar exatamente a mesma quantia de progresso matem?tico de 1 hora com o aplicativo aberto, desde que os fatores externos (eventos n?o determin?sticos) n?o variem, at? o limite do teto offline.
-*   **Classifica??o:** REQUISITO DE DESIGN.
+*   **Invariante:** Um volume $ de tempo inativo (offline) e um volume $ de tempo ativo (online) devem gerar o mesmo progresso matem?tico final no estado, condicionado ao determinismo da simula??o e ? aus?ncia de intera??es ativas do jogador.
+*   **Classifica??o:** REQUISITO DE DESIGN A VALIDAR.
 
-## 5. Limite Offline Restrito
+## 5. Limite e Descarte Offline 
 
-*   **Invariante:** O c?lculo da passagem do tempo retroativo descarta integralmente a por??o de tempo decorrida al?m do teto configur?vel (ex: 12_000 ticks). O remanescente n?o deve se converter em um atraso pendente no rel?gio.
-*   **Classifica??o:** FATO OBSERVADO / REQUISITO DE DESIGN.
+*   **Atual Comportamento:** O c?lculo da passagem do tempo retroativo offline descarta integralmente a por??o de tempo decorrida al?m do teto configur?vel (ex: 12_000 ticks). O remanescente n?o se converte em um atraso pendente no rel?gio.
+*   **Classifica??o:** COMPORTAMENTO OBSERVADO DA IMPLEMENTA??O ATUAL (N?o ? um invariante de design intr?nseco, requer avalia??o do Game Design).
 
 ## 6. Transi??es Anuais e Envelhecimento
 
-*   **Invariante:** Monarcas e popula??es envelhecem a uma taxa fixa relacionada ? supera??o de "Anos". O ano ? atualmente definido estruturalmente pelo cruzamento da equa??o loor(tick / BASE_ANUAL).
-*   **Classifica??o:** FATO OBSERVADO.
+*   **Atual Comportamento:** O envelhecimento nos sistemas mapeados (character-system) utiliza a base estrutural de 12 ticks/m?dulos para transi??es anuais.
+*   **Classifica??o:** COMPORTAMENTO OBSERVADO PARCIAL (Verificado em character-system; n?o assumido globalmente para sistemas lineares).
 
-## 7. Produ??o Econ?mica e Pesquisa
+## 7. Descarte de Backlog Online (Ac?mulo Excessivo)
 
-*   **Invariante:** As taxas operacionais (ex: incomePerTick, 
-esearchDelta) s?o tratadas como unidades completas a cada tick individual. Se o "ano" for esticado computacionalmente, essas taxas produzir?o valores anuais finais proporcionais ao novo tamanho nominal do ano, se n?o fracionadas.
-*   **Classifica??o:** FATO OBSERVADO.
-
-## 8. Popula??o e Mortalidade
-
-*   **Invariante:** A mortalidade e a natalidade operam dentro de loops de ciclo, sendo agregadas ?s matrizes ativas por tick processado em batch.
-*   **Classifica??o:** HIP?TESE SUPORTADA (Verificar integra??o com population-system.ts).
-
-## 9. Eventos Peri?dicos e Cooldowns
-
-*   **Invariante:** Janelas de a??o, acionamento de cat?strofes, ou tempo limite de conc?lio s?o aferidos pelo delta entre o tick atual e o tick gravado na base de dados (meta.tick - triggerTick > cooldown).
-*   **Classifica??o:** FATO OBSERVADO.
-
-## 10. Pausa e Multiplicador de Velocidade
-
-*   **Invariante:** Se meta.paused == true, nenhum processamento de batch ou de 
-unInPlace deve ocorrer para as entidades puras da simula??o. O speedMultiplier afeta unicamente a taxa de consumo de deltaMs convertidos em desiredTicks, n?o afetando as f?rmulas matem?ticas internas de cada sistema por tick.
-*   **Classifica??o:** FATO OBSERVADO.
+*   **Atual Comportamento:** A engine possui um mecanismo limitador de performance SYS-PERF em GameSession.processClockTick(). Se o loop online atrasar massivamente (ccumulatedMs > maxAccumulatedMs), o backlog ? sumariamente truncado (ex: ccumulatedMs = 1000).
+*   **Classifica??o:** FATO OBSERVADO: descarte de backlog online sob ac?mulo excessivo (Necessita teste de caracteriza??o real para avaliar impacto sist?mico).
