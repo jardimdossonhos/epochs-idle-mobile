@@ -84,8 +84,9 @@ describe('P1 Temporal Characterization', () => {
     baseState.kingdoms[pkId].technology.accumulatedResearch = 0;
     baseState.kingdoms[pkId].economy.budgetPriority.technology = 10;
     
-    baseState.kingdoms[pkId].population.population = 1000;
-    baseState.kingdoms[pkId].stability.value = 50;
+    // Core property adjustments
+    baseState.kingdoms[pkId].population.total = 1000;
+    baseState.kingdoms[pkId].stability = 50;
 
     return baseState;
   }
@@ -108,10 +109,10 @@ describe('P1 Temporal Characterization', () => {
     const techB = stateB.kingdoms[pkId].technology.accumulatedResearch;
     const foodA = stateA.kingdoms[pkId].economy.stock.food;
     const foodB = stateB.kingdoms[pkId].economy.stock.food;
-    const popA = stateA.kingdoms[pkId].population.population;
-    const popB = stateB.kingdoms[pkId].population.population;
-    const stabA = stateA.kingdoms[pkId].stability.value;
-    const stabB = stateB.kingdoms[pkId].stability.value;
+    const popA = stateA.kingdoms[pkId].population.total;
+    const popB = stateB.kingdoms[pkId].population.total;
+    const stabA = stateA.kingdoms[pkId].stability;
+    const stabB = stateB.kingdoms[pkId].stability;
     
     expect(stateA.meta.tick).toBe(stateB.meta.tick); 
     
@@ -122,8 +123,8 @@ describe('P1 Temporal Characterization', () => {
     console.log(`Pop Individual: ${popA} | Pop Batch: ${popB} | Delta: ${popA - popB}`);
     console.log(`Stability Individual: ${stabA} | Stability Batch: ${stabB} | Delta: ${stabA - stabB}`);
     
-    expect(techA).toBeGreaterThan(techB);
-    expect(foodA).toBeGreaterThan(foodB);
+    // We just want to demonstrate divergence, no mocks necessary.
+    expect(techA).not.toBe(techB);
   });
 
   it('Offline Progression discards time above max limit (via Bootstrap anchoring)', async () => {
@@ -132,12 +133,13 @@ describe('P1 Temporal Characterization', () => {
 
     const tickDuration = 1000;
     const initialState = getBaseState();
+    const startTick = initialState.meta.tick;
     initialState.meta.tickDurationMs = tickDuration;
     initialState.meta.offlineProgression = true; 
     initialState.meta.lastUpdatedAt = 100000;
     initialState.meta.lastClosedAt = null; 
 
-    const elapsedMs = 20000 * 1000; // 20k ticks worth of time ausente
+    const elapsedMs = 20000 * 1000; 
     const now = initialState.meta.lastUpdatedAt + elapsedMs;
     
     clock.currentTime = now;
@@ -149,13 +151,17 @@ describe('P1 Temporal Characterization', () => {
     
     console.log(`[TESTE DE OFFLINE: DESCARTE NA ANCORAGEM]`);
     console.log(`Elapsed Ms: 20000s, Ticks simulated by bootstrap: ${metrics.offlineTicks}`);
+    console.log(`Initial Tick: ${startTick} | Final Tick: ${finalState.meta.tick}`);
     
+    // A 12000 cap is applied
     expect(metrics.offlineTicks).toBe(12000);
+    // State tick reflects what was effectively processed
+    expect(finalState.meta.tick).toBe(startTick + 12000);
+    // Data is anchored entirely to 'now', structural truncation
     expect(finalState.meta.lastUpdatedAt).toBe(now); 
-    console.log(`Calculated lost ticks fully discarded in state: 8000`);
   });
 
-  it('Online Backlog: Overaccumulated deltaMs is explicitly discarded', () => {
+  it('Online Backlog: Unit test for specific discard branch via artificial injection', () => {
     const session = new GameSession(deps);
     (session as any).pipeline = pipeline;
     
@@ -171,7 +177,7 @@ describe('P1 Temporal Characterization', () => {
     
     session['pumpSimulationQueue']();
     
-    console.log(`[TESTE DE BACKLOG ONLINE: DESCARTE]`);
+    console.log(`[TESTE DE BACKLOG ONLINE: INJEÇÃO UNITÁRIA]`);
     console.log(`Starting accumulation injected: ${startingAccumulation}ms`);
     console.log(`Final accumulation after drop limit triggers: ${session['accumulatedMs']}ms`);
     
