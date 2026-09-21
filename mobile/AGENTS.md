@@ -278,36 +278,37 @@ Infrastructure tasks must NOT:
 - Schema version must match `meta.schemaVersion` in createInitialState.
 
 ## Checkpoint e Versionamento
-- **Checkpoint Obrigatório**: É obrigatório criar um commit no Git antes de iniciar qualquer nova fase de refatoração ou funcionalidade. NUNCA transite entre fases de arquitetura (C1, C2, etc) ou consertos de bugs P0 sem um commit formal ("checkpoint") provando a integridade dos testes e typecheck.
+- **Checkpoint Obrigatrio**:  obrigatrio criar um commit no Git antes de iniciar qualquer nova fase de refatorao ou funcionalidade. NUNCA transite entre fases de arquitetura (C1, C2, etc) ou consertos de bugs P0 sem um commit formal ("checkpoint") provando a integridade dos testes e typecheck.
 
-## Contrato ECS e Persistência
-- **TypedArrays são o Contrato Runtime**: O \EcsState\ é estritamente constituído de TypedArrays (\Float32Array\, \Int32Array\, etc). Eles nunca podem ser convertidos para objetos rasos (POJO).
-- **Proibido structuredClone/Deep Clone no Runtime**: É expressamente proibido utilizar \structuredClone\, \JSON.parse(JSON.stringify())\ ou funções de deep clone sob o \EcsState\ na memória ativa do jogo. Polyfills no Hermes destroem os métodos dos TypedArrays (como \.fill()\), quebrando a simulação. Em atribuições de novo jogo ou load, faça atribuições rasas (shallow) ou reidratação estrutural estrita.
-- **Persistência Esparsa**: A persistência do ECS não clona o array, ela utiliza o formato esparso \EcsSnapshot\, extraindo os dados vivos diretamente para objetos parciais persistíveis no disco.
-- **O(1) no Hot Path**: A simulação nunca deve executar I/O (stringify, parse) ou cópias O(N) no frame/hot path da simulação.
+## Contrato ECS e Persistncia
+- **TypedArrays so o Contrato Runtime**: O \EcsState\  estritamente constitudo de TypedArrays (\Float32Array\, \Int32Array\, etc). Eles nunca podem ser convertidos para objetos rasos (POJO).
+- **Proibido structuredClone/Deep Clone no Runtime**:  expressamente proibido utilizar \structuredClone\, \JSON.parse(JSON.stringify())\ ou funes de deep clone sob o \EcsState\ na memria ativa do jogo. Polyfills no Hermes destroem os mtodos dos TypedArrays (como \.fill()\), quebrando a simulao. Em atribuies de novo jogo ou load, faa atribuies rasas (shallow) ou reidratao estrutural estrita.
+- **Persistncia Esparsa**: A persistncia do ECS no clona o array, ela utiliza o formato esparso \EcsSnapshot\, extraindo os dados vivos diretamente para objetos parciais persistveis no disco.
+- **O(1) no Hot Path**: A simulao nunca deve executar I/O (stringify, parse) ou cpias O(N) no frame/hot path da simulao.
 
-## POLÍTICA PERMANENTE DE RIGOR EMPÍRICO E CONTROLE DE CERTEZA
+## POLTICA PERMANENTE DE RIGOR EMPRICO E CONTROLE DE CERTEZA
 
-**CORREÇÃO EPISTEMOLÓGICA > CONFIANÇA RETÓRICA > VELOCIDADE DE CONCLUSÃO**
+**CORREO EPISTEMOLGICA > CONFIANA RETRICA > VELOCIDADE DE CONCLUSO**
 
-1.  **Regra Fundamental:** NUNCA transforme uma hipótese em fato apenas porque ela parece plausível. NUNCA transforme correlação em causalidade. NUNCA transforme a ausência de um problema em uma janela curta em prova de que o problema deixou de existir. NUNCA declare algo "100% resolvido" ou "garantido" sem evidência forte que sustente. Na dúvida, mantenha a incerteza explícita.
-2.  **Classificação de Certeza:** Classifique conclusões como FATO OBSERVADO, INFERÊNCIA, HIPÓTESE, HIPÓTESE SUPORTADA ou CAUSA DEMONSTRADA.
-3.  **Ônus da Prova:** Quanto mais forte a afirmação, maior o padrão de evidência exigido.
-4.  **Separar Evidência de Interpretação:** Apresente (1) Evidência (observada), (2) Interpretação (o que sugere), (3) Conclusão (afirmada com segurança) e (4) O Que Continua Desconhecido.
-5.  **Princípio de Falsificação:** Procure ativamente evidências que possam refutar a hipótese atual, não apenas defendê-la.
-6.  **Correlação não é Causalidade:** Identifique variáveis, controles e reprodução antes de declarar causa.
-7.  **A/B Test Não É Prova Automática:** Exige variáveis claras, efeito mensurável e reprodução. Use termos como "evidência compatível com..." em vez de "prova que...".
-8.  **Melhoria Local vs. Resolução:** Reduzir sintomas (ex: "reduziu renderizações") não autoriza declarar o problema global como resolvido (ex: "resolveu vazamento").
-9.  **Evidência Negativa Tem Limite:** Não ver um erro em uma janela limitada não significa que ele foi extinto. Especifique as condições do teste.
-10. **Encerramento Operacional:** Em vez de forçar uma prova causal completa, prefira declarar "Encerrado operacionalmente" quando não houver evidência para continuar mantendo uma hipótese, registrando o que permanece desconhecido.
-11. **Decisão Operacional vs. Prova Científica:** "Não investigar agora" é diferente de "o problema foi resolvido".
-12. **Contra Otimismo Automático:** Não use "100% blindado", "definitivamente corrigido" ou "perfeito" a menos que a evidência suporte literalmente.
-13. **Contra "Parece Óbvio":** Uma explicação elegante e provável ainda é uma HIPÓTESE, não um FATO.
-14. **Explicações Alternativas:** Sempre considere explicações alternativas plausíveis para dados observados.
-15. **Não Superinterpretar Métricas:** Descreva as métricas pelo que medem (ex: "Unknown cresceu", "render count caiu"), sem pular para conclusões generalizadas ("leak JS resolvido").
-16. **Verificação do Git:** Não declare estado limpo sem de fato verificar o git status. Não esconda falhas processuais do Git.
-17. **Documentação Rigorosa:** Nunca reconstrua logs, status ou históricos de memória sem extraí-los da fonte via comando no terminal. Não preencha lacunas com o que "provavelmente estava lá".
-18. **Aceitar Refutação:** Se os dados contradizem uma hipótese preferida, declare que ela foi refutada. Não crie remendos narrativos para preservá-la.
-19. **Insuficiência de Evidência:** "Não sabemos" é a conclusão correta quando os dados não permitem inferência.
-20. **Formatos Preferenciais em Pareceres:** Use seções claras ("Evidências observadas", "O que foi demonstrado", "O que NÃO foi demonstrado", "Conclusão operacional", "Incertezas remanescentes").
+1.  **Regra Fundamental:** NUNCA transforme uma hiptese em fato apenas porque ela parece plausvel. NUNCA transforme correlao em causalidade. NUNCA transforme a ausncia de um problema em uma janela curta em prova de que o problema deixou de existir. NUNCA declare algo "100% resolvido" ou "garantido" sem evidncia forte que sustente. Na dvida, mantenha a incerteza explcita.
+2.  **Classificao de Certeza:** Classifique concluses como FATO OBSERVADO, INFERNCIA, HIPTESE, HIPTESE SUPORTADA ou CAUSA DEMONSTRADA.
+3.  **nus da Prova:** Quanto mais forte a afirmao, maior o padro de evidncia exigido.
+4.  **Separar Evidncia de Interpretao:** Apresente (1) Evidncia (observada), (2) Interpretao (o que sugere), (3) Concluso (afirmada com segurana) e (4) O Que Continua Desconhecido.
+5.  **Princpio de Falsificao:** Procure ativamente evidncias que possam refutar a hiptese atual, no apenas defend-la.
+6.  **Correlao no  Causalidade:** Identifique variveis, controles e reproduo antes de declarar causa.
+7.  **A/B Test No  Prova Automtica:** Exige variveis claras, efeito mensurvel e reproduo. Use termos como "evidncia compatvel com..." em vez de "prova que...".
+8.  **Melhoria Local vs. Resoluo:** Reduzir sintomas (ex: "reduziu renderizaes") no autoriza declarar o problema global como resolvido (ex: "resolveu vazamento").
+9.  **Evidncia Negativa Tem Limite:** No ver um erro em uma janela limitada no significa que ele foi extinto. Especifique as condies do teste.
+10. **Encerramento Operacional:** Em vez de forar uma prova causal completa, prefira declarar "Encerrado operacionalmente" quando no houver evidncia para continuar mantendo uma hiptese, registrando o que permanece desconhecido.
+11. **Deciso Operacional vs. Prova Cientfica:** "No investigar agora"  diferente de "o problema foi resolvido".
+12. **Contra Otimismo Automtico:** No use "100% blindado", "definitivamente corrigido" ou "perfeito" a menos que a evidncia suporte literalmente.
+13. **Contra "Parece bvio":** Uma explicao elegante e provvel ainda  uma HIPTESE, no um FATO.
+14. **Explicaes Alternativas:** Sempre considere explicaes alternativas plausveis para dados observados.
+15. **No Superinterpretar Mtricas:** Descreva as mtricas pelo que medem (ex: "Unknown cresceu", "render count caiu"), sem pular para concluses generalizadas ("leak JS resolvido").
+16. **Verificao do Git:** No declare estado limpo sem de fato verificar o git status. No esconda falhas processuais do Git.
+17. **Documentao Rigorosa:** Nunca reconstrua logs, status ou histricos de memria sem extra-los da fonte via comando no terminal. No preencha lacunas com o que "provavelmente estava l".
+18. **Aceitar Refutao:** Se os dados contradizem uma hiptese preferida, declare que ela foi refutada. No crie remendos narrativos para preserv-la.
+19. **Insuficincia de Evidncia:** "No sabemos"  a concluso correta quando os dados no permitem inferncia.
+20. **Formatos Preferenciais em Pareceres:** Use sees claras ("Evidncias observadas", "O que foi demonstrado", "O que NO foi demonstrado", "Concluso operacional", "Incertezas remanescentes").
 21. **Regra Final:** Se houver conflito entre dar uma resposta elegante/fechada e uma resposta empiricamente incompleta (mas correta), escolha sempre ser incompleto e preciso.
+22. **Honestidade de Output:** Nunca rotular conte?do como 'Bruto'/'Raw' a menos que seja sa?da direta e literal de um comando executado na mesma resposta. Par?frase de documento deve ser explicitamente rotulada como resumo.
