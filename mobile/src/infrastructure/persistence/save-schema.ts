@@ -1,3 +1,4 @@
+import { TEMPORAL_CONFIG } from "../../core/simulation/temporal-config";
 ﻿import { createVirginEcs } from "./ecs-factory";
 import { restoreEcsFromSnapshot, EcsSnapshot } from "./ecs-snapshot";
 import type { SaveSnapshot } from "../../core/contracts/game-ports";
@@ -157,6 +158,18 @@ function sanitizeEcsState(ecs: any): void {
 export function migrateStateToCurrent(state: GameState): GameState {
   const migrated = structuredClone(state);
   migrateWars(migrated);
+
+  if (migrated.meta) {
+    migrated.meta.tickDurationMs = TEMPORAL_CONFIG.BASE_TICK_DURATION_MS;
+    if (migrated.meta.speedMultiplier > TEMPORAL_CONFIG.MAX_SPEED_MULTIPLIER) {
+      migrated.meta.speedMultiplier = TEMPORAL_CONFIG.MAX_SPEED_MULTIPLIER;
+    } else if (migrated.meta.speedMultiplier < TEMPORAL_CONFIG.MIN_SPEED_MULTIPLIER) {
+      migrated.meta.speedMultiplier = TEMPORAL_CONFIG.MIN_SPEED_MULTIPLIER;
+    }
+    if (isNaN(migrated.meta.speedMultiplier) || !isFinite(migrated.meta.speedMultiplier)) {
+      migrated.meta.speedMultiplier = TEMPORAL_CONFIG.MIN_SPEED_MULTIPLIER;
+    }
+  }
   migrateTreaties(migrated);
 
   if ((migrated as any).ecsSnapshot) {

@@ -1,3 +1,4 @@
+import { TEMPORAL_CONFIG } from "../core/simulation/temporal-config";
 import { buildSaveSummary } from "./save/build-save-summary";
 import { Diagnostic } from "./diagnostics";
 import type {
@@ -390,12 +391,9 @@ export class GameSession {
 
   setSpeed(multiplier: number): void {
     const state = this.requireState();
-    state.meta.speedMultiplier = Math.max(0.5, Math.min(100, multiplier));
-    if (state.meta.speedMultiplier >= 100) {
-      state.meta.tickDurationMs = 1000;
-    } else {
-      state.meta.tickDurationMs = 10000;
-    }
+    if (isNaN(multiplier) || !isFinite(multiplier)) return;
+    state.meta.speedMultiplier = Math.max(TEMPORAL_CONFIG.MIN_SPEED_MULTIPLIER, Math.min(TEMPORAL_CONFIG.MAX_SPEED_MULTIPLIER, multiplier));
+    state.meta.tickDurationMs = TEMPORAL_CONFIG.BASE_TICK_DURATION_MS;
     this.recordPlayerCommand("session.speed", { speedMultiplier: state.meta.speedMultiplier, tickDurationMs: state.meta.tickDurationMs });
     this.persistCurrent();
     this.emitState(true);
@@ -1988,7 +1986,7 @@ export class GameSession {
         };
       }
       this.originalSpeedMultiplier = state.meta.speedMultiplier;
-      this.setSpeed(100);
+      this.setSpeed(TEMPORAL_CONFIG.MAX_SPEED_MULTIPLIER);
     } else {
       if (this.preAutoplayPlayerId && state.kingdoms[this.preAutoplayPlayerId]) {
         const player = state.kingdoms[this.preAutoplayPlayerId];
@@ -3133,7 +3131,7 @@ export class GameSession {
     }
 
     const elapsedMs = now - lastSnapshotAt;
-    const maxTicks = this.deps.maxOfflineTicks ?? 12_000;
+    const maxTicks = this.deps.maxOfflineTicks ?? TEMPORAL_CONFIG.MAX_OFFLINE_TICKS;
     const desiredTicks = Math.floor(elapsedMs / Math.max(1, state.meta.tickDurationMs));
     const ticksToSimulate = Math.max(0, Math.min(desiredTicks, maxTicks));
 

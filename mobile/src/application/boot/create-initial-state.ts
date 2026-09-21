@@ -1,3 +1,4 @@
+import { TEMPORAL_CONFIG } from "../../core/simulation/temporal-config";
 import { SAVE_SCHEMA_VERSION } from "../../infrastructure/persistence/save-schema";
 import { createVirginEcs } from "../../infrastructure/persistence/ecs-factory";
 import worldMapData from "../../assets/data/world_map_data.json";
@@ -735,8 +736,8 @@ export function createInitialState(staticData: StaticWorldData, playerStartRegio
       schemaVersion: SAVE_SCHEMA_VERSION,
       sessionId: `session_${now}`,
       tick: 0,
-      tickDurationMs: 10_000,
-      speedMultiplier: 1,
+      tickDurationMs: TEMPORAL_CONFIG.BASE_TICK_DURATION_MS,
+      speedMultiplier: TEMPORAL_CONFIG.MIN_SPEED_MULTIPLIER,
       paused: false,
       disastersEnabled: true,
       createdAt: now,
