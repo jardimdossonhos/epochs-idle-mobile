@@ -393,40 +393,13 @@ O jogador pode definir uma posição pessoal, quando essa opção estiver dispon
 
 Essa escolha **não é uma escolha de religião** e não determina qual religião surgirá na sociedade.
 
-### Ateísmo
-
-Quando o personagem mantém uma posição ateísta:
-
-* não gera nem recebe Fé pela via religiosa própria;
-* não participa da geração de Fé como seguidor de uma religião;
-* recebe, como compensação de design, uma vantagem específica relacionada a ciência e pesquisa.
-
-Essa vantagem deve representar uma troca de especialização, e não uma superioridade geral sobre personagens religiosos.
-
-A forma exata dessa vantagem poderá envolver, por exemplo:
-
-* maior velocidade de pesquisa;
-* pontos adicionais para evolução de pesquisa;
-* maior eficiência científica;
-* ou combinação equivalente.
-
-O princípio da compensação científica é definido; o valor e a forma matemática exata ainda serão especificados.
-
-### Agnosticismo
-
-Agnosticismo também é uma posição pessoal e não equivale a escolher uma religião.
-
-O comportamento mecânico específico do agnosticismo será definido quando necessário.
+As regras mecânicas específicas aplicáveis a posições sem religião institucional (como as vantagens científicas do ateísmo e as regras do agnosticismo) estão definidas no sistema religioso correspondente (ver Seção 15.6).
 
 ## 7.6. Adoção de religião pelo jogador
 
-O jogador pode posteriormente escolher uma religião existente em sua sociedade ou em seu contexto político e **adotá-la como religião oficial**, de acordo com as regras do sistema religioso e governamental.
+O jogador pode posteriormente escolher uma religião existente em sua sociedade ou em seu contexto político e adotá-la como religião oficial, de acordo com as regras do sistema religioso e governamental.
 
-A adoção de uma religião oficial é diferente de:
-
-* criar aquela religião;
-* escolher uma religião no início;
-* determinar o surgimento daquela religião.
+Para as regras completas de adoção de uma religião oficial existente, ver a Seção 15.3.
 
 A religião continua sendo parte da história orgânica do mundo.
 
@@ -1047,14 +1020,16 @@ A Fé é uma consequência posterior da existência e da expansão dos fiéis.
 
 A fundação poderá possuir outros requisitos, custos ou um sistema de pontos de design, conforme definido posteriormente.
 
-## 15.6. Posição ateísta e Fé
+## 15.6. Posições sem religião institucional (Ateísmo e Agnosticismo)
+
+### Ateísmo
 
 Quando o personagem mantém uma posição ateísta:
 
 * não gera Fé para si pela via religiosa;
 * não recebe Fé como seguidor de uma religião;
 * não se beneficia das mecânicas de poder religioso que dependam de adesão a uma religião;
-* recebe uma vantagem compensatória relacionada a ciência e pesquisa.
+* recebe, como compensação de design, uma vantagem específica relacionada a ciência e pesquisa.
 
 A vantagem científica deve representar a principal compensação de design ao caminho religioso.
 
@@ -1062,6 +1037,21 @@ O objetivo é criar **trade-off estratégico**, e não determinar um vencedor un
 
 * caminho religioso → maior potencial de influência social, legitimidade religiosa e mobilização coletiva;
 * caminho ateísta → maior potencial científico e de pesquisa.
+
+A forma exata dessa vantagem poderá envolver, por exemplo:
+
+* maior velocidade de pesquisa;
+* pontos adicionais para evolução de pesquisa;
+* maior eficiência científica;
+* ou combinação equivalente.
+
+O princípio da compensação científica é definido; o valor e a forma matemática exata ainda serão especificados.
+
+### Agnosticismo
+
+Agnosticismo também é uma posição pessoal e não equivale a escolher uma religião.
+
+O comportamento mecânico específico do agnosticismo será definido quando necessário.
 
 ## 15.7. Fé
 
@@ -1972,6 +1962,15 @@ A forma de implementá-los pertence ao Documento 2.
 As questões abaixo ainda não devem ser inventadas nem resolvidas silenciosamente.
 
 Estas questões são principalmente de **balanceamento, valores exatos ou especificação detalhada**, e não devem alterar os princípios fundamentais já definidos neste documento.
+
+## População e migração — definição quantitativa
+
+* fórmula final de crescimento populacional;
+* mortalidade;
+* impacto quantitativo da fome;
+* limiares e intensidade de migração;
+* influência quantitativa de guerra, oportunidade, pressão demográfica e religião sobre migração;
+* demais parâmetros matemáticos de população e migração ainda não definidos pelo design.
 
 ## Cultura
 
